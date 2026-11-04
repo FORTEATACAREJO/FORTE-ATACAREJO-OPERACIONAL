@@ -25,7 +25,7 @@ section{max-width:1240px;padding:72px 24px}.section-kicker{font-size:12px;font-w
 .suppliers{grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}.supplier{border:1px solid var(--line);height:150px;border-radius:20px;box-shadow:0 8px 28px rgba(16,24,40,.06);cursor:pointer;transition:.22s;background:#fff}.supplier:hover{transform:translateY(-5px);border-color:#b8c7dc;box-shadow:0 18px 38px rgba(16,24,40,.1)}button.supplier{font:inherit}
 .brand-filters{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 18px;margin:10px 0 20px;scrollbar-width:thin}.brand-filter{white-space:nowrap;border:1px solid #d7dde8;background:#fff;color:#344054;border-radius:999px;padding:11px 18px;font-weight:800;cursor:pointer;transition:.2s}.brand-filter:hover{border-color:var(--forte-blue);color:var(--forte-blue)}.brand-filter.active{background:var(--forte-blue);border-color:var(--forte-blue);color:#fff;box-shadow:0 8px 20px rgba(11,59,126,.2)}
 .products{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.card{border:1px solid var(--line);border-radius:24px;box-shadow:0 10px 32px rgba(16,24,40,.07);transition:.22s}.card:hover{transform:translateY(-4px);box-shadow:0 18px 42px rgba(16,24,40,.11)}.pic{height:310px;background:linear-gradient(180deg,#fff,#fafbfc)}.info{padding:22px}.brandtag{color:var(--forte-red);font-size:11px}.info h3{font-size:20px;color:#1d2939}.pack{color:var(--forte-blue)}details{border-color:var(--line)}
-.brand-empty{border:1px dashed #b8c7dc;background:#fff;border-radius:22px;padding:28px;margin:0 0 24px;display:grid;gap:8px}.brand-empty[hidden]{display:none}.brand-empty strong{font-size:20px;color:var(--forte-blue2)}.brand-empty span{color:var(--muted)}.brand-empty a{justify-self:start;margin-top:8px;background:var(--forte-red);color:#fff;font-weight:900;border-radius:999px;padding:11px 17px}
+.brand-empty{border:1px dashed #b8c7dc;background:#fff;border-radius:22px;padding:28px;margin:0 0 24px;display:grid;gap:8px}.brand-empty[hidden],.card[hidden]{display:none}.brand-empty strong{font-size:20px;color:var(--forte-blue2)}.brand-empty span{color:var(--muted)}.brand-empty a{justify-self:start;margin-top:8px;background:var(--forte-red);color:#fff;font-weight:900;border-radius:999px;padding:11px 17px}
 @media(max-width:900px){.suppliers{grid-template-columns:repeat(2,1fr)}.supplier:last-child{grid-column:1/-1}.products{grid-template-columns:repeat(2,1fr)}section{padding:54px 18px}.menu{gap:12px}}
 @media(max-width:620px){.nav{padding:10px 14px}.hero{min-height:420px}.slogan{padding:30px 18px 8px}.suppliers{gap:10px}.supplier{height:110px;padding:14px;border-radius:16px}.products{grid-template-columns:1fr;gap:16px}.pic{height:300px}.card{border-radius:20px}.brand-filters{margin-left:-2px;margin-right:-18px;padding-right:18px}.brand-filter{padding:10px 15px}.catalog-section{padding-top:48px}}
 </style></head><body>
@@ -67,207 +67,15 @@ section{max-width:1240px;padding:72px 24px}.section-kicker{font-size:12px;font-w
 <button class="brand-filter" data-brand="votorantim">Votorantim</button>
 </div>
 <div id="brandEmpty" class="brand-empty" hidden><strong>Consulte a linha desta marca.</strong><span>Nossa equipe confirma disponibilidade, especificações e condições comerciais pelo orçamento.</span><a href="#orcamento">SOLICITAR ORÇAMENTO</a></div>
-<div class="products">
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-01.webp" alt="Cimento Nacional MaxPerformance CP V-ARI" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Nacional</span>
-        <h3>Cimento Nacional MaxPerformance CP V-ARI</h3>
-        <div class="pack">40 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Portland de alta resistência inicial (CP V-ARI).</p><b>Principais aplicações</b><p>Indicado para aplicações que exigem ganho rápido de resistência, especialmente peças e elementos de concreto.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Nacional%20MaxPerformance%20CP%20V-ARI%20-%2040%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-02.webp" alt="Supercal Uso Imediato CH III" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">ICAL</span>
-        <h3>Supercal Uso Imediato CH III</h3>
-        <div class="pack">15 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cal hidratada CH III, conforme identificação da embalagem.</p><b>Principais aplicações</b><p>Indicada para argamassas de assentamento e revestimento. Produto de uso imediato.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Supercal%20Uso%20Imediato%20CH%20III%20-%2015%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-03.webp" alt="Cimento CP II-F-32" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">CSN</span>
-        <h3>Cimento CP II-F-32</h3>
-        <div class="pack">50 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Portland composto CP II-F-32, classe 32.</p><b>Principais aplicações</b><p>Uso geral: blocos e artefatos, lajes, pisos, calçadas, fundações, argamassas e estruturas de concreto.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20CP%20II-F-32%20-%2050%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-04.webp" alt="Cimento Tocantins Todas as Obras" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Votorantim Cimentos</span>
-        <h3>Cimento Tocantins Todas as Obras</h3>
-        <div class="pack">50 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento da linha Tocantins Todas as Obras.</p><b>Principais aplicações</b><p>Uso geral em obras residenciais e comerciais, conforme orientação do fabricante.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Tocantins%20Todas%20as%20Obras%20-%2050%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-05.webp" alt="Cimento Ultra Rápido CP V-ARI" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">CSN</span>
-        <h3>Cimento Ultra Rápido CP V-ARI</h3>
-        <div class="pack">40 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Portland de alta resistência inicial CP V-ARI.</p><b>Principais aplicações</b><p>Aplicações que exigem ganho rápido de resistência e maior agilidade de execução.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Ultra%20R%C3%A1pido%20CP%20V-ARI%20-%2040%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-06.webp" alt="Cimento Uso Geral" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Cimento Uso Geral</h3>
-        <div class="pack">50 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento de uso geral Ciplan.</p><b>Principais aplicações</b><p>Argamassa estabilizada, concreto massa, concreto para pavimentos e concreto armado.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Uso%20Geral%20-%2050%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-07.webp" alt="Cimento Uso Geral Reforma Fácil" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Cimento Uso Geral Reforma Fácil</h3>
-        <div class="pack">25 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Apresentação de 25 kg da linha Cimento Uso Geral Reforma Fácil.</p><b>Principais aplicações</b><p>Serviços gerais de construção e pequenas reformas; embalagem prática para menor consumo.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Uso%20Geral%20Reforma%20F%C3%A1cil%20-%2025%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-08.webp" alt="Cimento Extra Forte" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Cimento Extra Forte</h3>
-        <div class="pack">40 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Extra Forte Ciplan, embalagem de 40 kg.</p><b>Principais aplicações</b><p>Argamassa armada, pisos industriais, assentamento e reboco, concreto protendido e concreto pré/pós-tensionado.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Extra%20Forte%20-%2040%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-09.webp" alt="Extra Forte Industrial CP V-ARI" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Extra Forte Industrial CP V-ARI</h3>
-        <div class="pack">40 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Portland de Alta Resistência Inicial, linha industrial.</p><b>Principais aplicações</b><p>Artefatos de concreto, blocos estruturais e pré-moldados; indicado quando se busca alta resistência inicial.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Extra%20Forte%20Industrial%20CP%20V-ARI%20-%2040%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-10.webp" alt="Argamassa ACIII" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Argamassa ACIII</h3>
-        <div class="pack">20 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Argamassa colante ACIII de alto desempenho.</p><b>Principais aplicações</b><p>Porcelanatos internos e externos, piso sobre piso, pedras naturais, piscinas, saunas e aplicações de maior exigência de aderência.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Argamassa%20ACIII%20-%2020%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-11.webp" alt="Argamassa Cerâmica Interna ACI" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Argamassa Cerâmica Interna ACI</h3>
-        <div class="pack">20 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Argamassa colante ACI, cor cinza, para uso interno.</p><b>Principais aplicações</b><p>Revestimentos cerâmicos de pisos e paredes em áreas internas.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Argamassa%20Cer%C3%A2mica%20Interna%20ACI%20-%2020%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-12.webp" alt="Argamassa Cerâmica Externa ACII" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Argamassa Cerâmica Externa ACII</h3>
-        <div class="pack">20 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Argamassa colante ACII, cor cinza, para uso interno e externo.</p><b>Principais aplicações</b><p>Revestimentos cerâmicos em áreas externas e aplicações compatíveis com a classe ACII.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Argamassa%20Cer%C3%A2mica%20Externa%20ACII%20-%2020%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-13.webp" alt="Cimento Pronto Leve &amp; Pronto" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Ciplan</span>
-        <h3>Cimento Pronto Leve &amp; Pronto</h3>
-        <div class="pack">33 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Mistura pronta para preparo com adição de água, conforme instruções da embalagem.</p><b>Principais aplicações</b><p>A embalagem orienta 1 saco + 5 a 6 L de água; ou 8 sacos + 40 a 50 L de água para preparo em betoneira.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Pronto%20Leve%20%26%20Pronto%20-%2033%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article>
-    <article class="card">
-      <div class="pic"><img src="/site-assets/products/produto-14.webp" alt="Cimento Campeão Multimax CP II-E-32 RS" loading="lazy"></div>
-      <div class="info">
-        <span class="brandtag">Campeão</span>
-        <h3>Cimento Campeão Multimax CP II-E-32 RS</h3>
-        <div class="pack">50 kg</div>
-        <details>
-          <summary>VER FICHA DO PRODUTO</summary>
-          <div class="spec"><b>Descrição</b><p>Cimento Portland composto CP II-E-32 RS, embalagem de 50 kg.</p><b>Principais aplicações</b><p>Uso geral em concreto, fundações, argamassas, pavimentos, pré-moldados e artefatos, conforme orientação técnica do fabricante.</p></div>
-        </details>
-        <a class="btn" target="_blank" rel="noopener" href="https://wa.me/5564999172700?text=Ol%C3%A1%20Forte%20Atacarejo%2C%20quero%20um%20or%C3%A7amento%20para%20Cimento%20Campe%C3%A3o%20Multimax%20CP%20II-E-32%20RS%20-%2050%20kg.">SOLICITAR ORÇAMENTO</a>
-      </div>
-    </article></div></section>
+<p id="catalog-status" role="status">Carregando catálogo…</p>
+<div class="products" id="catalog-products"></div>
+</section>
 </main>
 <div class="contact" id="contato"><div><div><h2>Forte Atacarejo</h2><p>O nosso objetivo é concreto.</p></div><a class="cta" href="https://wa.me/5564999172700">WhatsApp 64 99917-2700</a></div></div>
 <a class="float" href="https://wa.me/5564999172700">WhatsApp</a>
 <footer>© 2026 Forte Atacarejo · Todos os direitos reservados. · <a href="/">Área do funcionário</a></footer><script>
 (function(){
   const form=document.getElementById('quoteForm');
-  const produto=document.getElementById('qProduto');
-  document.querySelectorAll('.card .btn').forEach(function(btn){
-    btn.addEventListener('click',function(e){
-      e.preventDefault();
-      const card=btn.closest('.card');
-      const nome=card && card.querySelector('h3');
-      const pack=card && card.querySelector('.pack');
-      produto.value=((nome?nome.textContent.trim():'')+(pack?' - '+pack.textContent.trim():'')).trim();
-      document.getElementById('orcamento').scrollIntoView({behavior:'smooth',block:'start'});
-      setTimeout(function(){document.getElementById('qQtd').focus();},450);
-    });
-  });
   form.addEventListener('submit',function(e){
     e.preventDefault();
     if(!form.reportValidity()) return;
@@ -286,21 +94,4 @@ section{max-width:1240px;padding:72px 24px}.section-kicker{font-size:12px;font-w
     window.open('https://wa.me/5564999172700?text='+encodeURIComponent(msg),'_blank','noopener');
   });
 })();
-</script><footer style="text-align:center;padding:14px"><a href="/admin.html" style="color:inherit">Acesso administrativo</a></footer><script id="forte-brand-filter-20261001">
-(function(){
- const norm=function(v){v=(v||'').toLowerCase();if(v.includes('ciplan'))return'ciplan';if(v.includes('csn'))return'csn';if(v.includes('nacional')||v.includes('campe'))return'nacional';if(v.includes('liz'))return'liz';if(v.includes('votorantim')||v.includes('tocantins'))return'votorantim';return'other'};
- const cards=[...document.querySelectorAll('#produtos .card')];
- cards.forEach(function(card){const t=card.querySelector('.brandtag');card.dataset.brand=norm(t&&t.textContent)});
- const filters=[...document.querySelectorAll('.brand-filter')], empty=document.getElementById('brandEmpty');
- function apply(brand){
-   let visible=0;
-   cards.forEach(function(card){const show=brand==='all'||card.dataset.brand===brand;card.style.display=show?'':'none';if(show)visible++});
-   filters.forEach(function(b){b.classList.toggle('active',b.dataset.brand===brand)});
-   if(empty) empty.hidden=visible!==0;
-   document.getElementById('produtos').dataset.activeBrand=brand;
- }
- filters.forEach(function(b){b.addEventListener('click',function(){apply(b.dataset.brand)})});
- document.querySelectorAll('.brand-jump').forEach(function(b){b.addEventListener('click',function(){apply(b.dataset.brand);document.getElementById('produtos').scrollIntoView({behavior:'smooth',block:'start'})})});
- apply('all');
-})();
-</script></body></html>
+</script><footer style="text-align:center;padding:14px"><a href="/admin.html" style="color:inherit">Acesso administrativo</a></footer><script type="module" src="/src/site/catalog.js"></script></body></html>

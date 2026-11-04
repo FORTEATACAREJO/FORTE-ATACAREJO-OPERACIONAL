@@ -6,7 +6,9 @@ O FORTE VENDAS compila Vendas Externas em `/venda-externa.html` e Carga Direta e
 
 As duas telas usam as funções `mobile-vendas-externas` e `mobile-carga-direta` do FORTE VENDAS. A API de Vendas Externas passa a verificar a versão do estado antes de confirmar a gravação da proposta. O service worker conserva as notificações e remove seus caches antigos de respostas para evitar persistência de páginas e respostas de operação no cache do navegador.
 
-O site institucional está disponível no build em `/site.html` e sua tela administrativa em `/admin.html`. O catálogo e o formulário preservam o conteúdo do site existente. A administração usa a sessão compartilhada, com aprovação específica. O formulário continua encaminhando ao WhatsApp comercial, cuja entrada na Central deve ser verificada em homologação.
+O site institucional está disponível no build em `/site.html` e sua tela administrativa em `/admin.html`. O catálogo usa o cadastro de revenda do FORTE VENDAS e exibe somente produtos ativos publicados no painel. Master e Administrador aprovados no módulo Site podem escolher uma foto da galeria, editar a descrição e publicar ou retirar um produto. O catálogo inicia vazio até a seleção dos produtos. Cadastros legados sem classificação explícita precisam ser classificados como revenda em Vendas antes da publicação. A administração usa a sessão compartilhada, com aprovação específica. O formulário continua encaminhando ao WhatsApp comercial, cuja entrada na Central deve ser verificada em homologação.
+
+Para o catálogo, aplicar a migração `20261104150120_site_catalogo.sql`, configurar `SITE_CATALOGO_EMPRESA_ID` na função `site-catalogo` com a empresa autorizada e publicar a função. Conferir em homologação a primeira seleção de produtos, descrições e fotos da galeria.
 
 Antes de servir os novos caminhos num endereço real, publicar em homologação as funções de acesso, convites, notificações, recuperação e propostas do mesmo commit. Conferir as URLs de retorno permitidas pelo Supabase Auth para os caminhos novos.
 
@@ -17,7 +19,7 @@ O CFF está no build em `/cff.html`, com acesso inicial de Master e Administrado
 - GitHub tem seis repositórios operacionais para Vendas, Frete, Financeiro, Venda Externa, Carga Direta e site. Os cinco repositórios públicos operacionais foram inspecionados. O repositório separado do Financeiro é privado.
 - Render tem nove serviços operacionais ativos. Quatro usam o repositório FORTE-VENDAS, incluindo o WhatsApp em branch própria e o Itaú. Vendas tem dois serviços com nomes diferentes. A responsabilidade de cada URL, webhook, integração e configuração deve ser confirmada antes de propor desligamentos.
 - O Supabase do FORTE VENDAS guarda o estado operacional, orçamentos, reservas, pagamentos, cargas, projeções e os dados das integrações comerciais. O Supabase do FORTE FRETE tem cadastro, documentos, veículos, vínculos, viagens e aceites próprios. O catálogo de tabelas foi consultado sem ler linhas de clientes ou motoristas. A presença de RLS nas tabelas observadas não comprova a correção das políticas.
-- O site público existente tem catálogo estático e orçamento encaminhado por WhatsApp. Sua área administrativa atual usa o mesmo projeto Supabase de Vendas e apresenta links de conferência do conteúdo. A publicação de conteúdo pelo painel e a origem do catálogo no cadastro de revenda exigem implementação adicional.
+- O site público existente tem catálogo estático e orçamento encaminhado por WhatsApp. Sua área administrativa atual usa o mesmo projeto Supabase de Vendas e apresenta links de conferência do conteúdo. Esta branch substitui o catálogo estático pelo catálogo aprovado no painel, preservando a galeria e a identidade visual.
 
 ## Antes da virada
 

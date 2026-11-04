@@ -1,3 +1,7 @@
 # Device ingestion has its own revocable token authentication; management validates Master JWT.
 [functions.connect-mirror]
 verify_jwt = false
+
+# GET returns only published catalog fields. POST verifies the user's JWT and site permission.
+[functions.site-catalogo]
+verify_jwt = false

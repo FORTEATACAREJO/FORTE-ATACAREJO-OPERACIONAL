@@ -1,9 +1,11 @@
+import { mountCatalogAdmin } from './catalog-admin.js';
 import { startAccess } from '../access-standard.js';
 import { supabase } from '../supabase.js';
 
 const access = document.getElementById('access');
 const content = document.getElementById('protected-content');
 const profile = document.getElementById('master-profile');
+let stopCatalog;
 if (supabase) {
   access.hidden = true;
   const exit = document.createElement('button');
@@ -19,8 +21,13 @@ if (supabase) {
     onAllowed(status) {
       profile.textContent = status.name || 'Acesso autorizado';
       exit.hidden = false;
+      if (['MASTER','ADMINISTRADOR'].includes(status.role)) {
+        stopCatalog = mountCatalogAdmin(document.getElementById('catalog-admin'),supabase);
+      }
     },
     onBlocked() {
+      stopCatalog?.();
+      stopCatalog = undefined;
       content.hidden = true;
       profile.textContent = '';
       exit.hidden = true;
