@@ -1,10 +1,11 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {stripTypeScriptTypes} from 'node:module';
-const source=stripTypeScriptTypes(fs.readFileSync(new URL('../../supabase/functions/access-standard/index.ts',import.meta.url),'utf8'),{mode:'strip'}).replace(/^import .*;\n/,'').replace(/export /g,'');
+import {operationalModule} from '../../supabase/functions/_shared/operational-routes.mjs';
+const source=stripTypeScriptTypes(fs.readFileSync(new URL('../../supabase/functions/access-standard/index.ts',import.meta.url),'utf8'),{mode:'strip'}).replace(/^import .*;\n/gm,'').replace(/export /g,'');
 let legalAccepted=true;let handler;let profile={user_id:'user',ativo:false,status_aprovacao:'PENDENTE',trocar_senha:false,perfil:'CONSULTA',nome:'Teste Usuário',cpf:'52998224725',whatsapp:'5534999998888'};let rows=[];let notifications=[];let mutations=[];let sessionUser={id:'user'};let created=0;let loginError=null;let origin='https://forte-vendas.onrender.com';
 function query(table){let filters=[],action='select',value;const q={select(){return q},eq(k,v){filters.push([k,v]);return q},in(){return q},order(){return q},limit(){return q},insert(v){action='insert';value=v;return q},update(v){action='update';value=v;return q},delete(){action='delete';return q},maybeSingle(){return Promise.resolve(result(true))},then(ok,no){return Promise.resolve(result()).then(ok,no)}};
 function result(single=false){if(action!=='select'){mutations.push({table,action,value});return {data:[],error:null}}let data=table==='fc_perfis'?[profile]:table==='access_requests'?rows:table==='access_notifications'?notifications:[];data=data.filter(x=>filters.every(([k,v])=>x[k]===v));return {data:single?(data[0]||null):data,error:null}}return q}
 const fake={from:query,rpc:async(name,body)=>{if(name==='forte_legal_status')return{data:{accepted:legalAccepted}};if(name==='access_module_context'){const r=rows.find(x=>x.app===body.p_app),managed=rows.some(x=>x.managed_account),active=profile.ativo&&profile.status_aprovacao==='APROVADO'&&!profile.trocar_senha;const allowed=active&&(r?r.status==='APROVADO':!managed);return{data:{allowed,role:profile.perfil,isAdmin:allowed&&['MASTER','ADMINISTRADOR'].includes(profile.perfil)}};}mutations.push({rpc:name,body});return {data:'request-id',error:null}},auth:{getUser:async()=>({data:{user:sessionUser},error:sessionUser?null:{message:'invalid'}}),signInWithPassword:async()=>({data:{session:loginError?null:{access_token:'test-token',refresh_token:'test-refresh'},user:{id:'user'}},error:loginError}),admin:{createUser:async()=>{created++;return {data:{user:{id:'new-user'}},error:null}},getUserById:async()=>({data:{user:{email:'test@example.invalid'}},error:null}),updateUserById:async()=>({data:{},error:null}),deleteUser:async()=>({error:null})}}};
-const context=vm.createContext({createClient:()=>fake,console,Response,Request,TextEncoder,crypto,Date,Deno:{env:{get:k=>k==='SUPABASE_URL'?'https://gtwecfyffjszghnvtlzr.supabase.co':'test-only-key'},serve:f=>handler=f}});vm.runInContext(source,context);
+const context=vm.createContext({operationalModule,createClient:()=>fake,console,Response,Request,TextEncoder,crypto,Date,Deno:{env:{get:k=>k==='SUPABASE_URL'?'https://gtwecfyffjszghnvtlzr.supabase.co':'test-only-key'},serve:f=>handler=f}});vm.runInContext(source,context);
 const base={nome:'Usuário de Teste',cpf:'52998224725',whatsapp:'34999998888',data_nascimento:'1990-01-15',email:'',password:'123456'};
 async function invoke(body,org=origin,token=true){return handler(new Request('https://example.invalid',{method:'POST',headers:{origin:org,'content-type':'application/json',...(token?{authorization:'Bearer simulation'}:{})},body:JSON.stringify(body)}))}
 test('CPF, nascimento e e-mail opcional',()=>{assert.equal(context.validCpf(base.cpf),true);assert.equal(context.validCpf('11111111111'),false);assert.equal(context.validBirth('2000-02-29'),true);assert.equal(context.validBirth('2001-02-29'),false);assert.equal(context.validBirth('2099-01-01'),false);assert.equal(context.validateRegistration(base).email,null)});
@@ -35,3 +36,17 @@ test('Admin de outro módulo não pode suspender nem pedir correção no Vendas'
 
 test('Aceite pendente bloqueia operações mas permite status e recuperação',async()=>{legalAccepted=false;mutations=[];try{for(const action of ['QUEUE','REVIEW','MODULE_STATE','REGISTRATION_SUBMIT'])assert.equal((await invoke({action,id:'other'})).status,428);assert.equal((await invoke({action:'STATUS'})).status,200);assert.equal((await invoke({action:'SET_PASSWORD',password:'123456'})).status,200);assert.ok(!mutations.some(x=>['access_review_with_role','access_submit_registration','access_change_module_state'].includes(x.rpc)))}finally{legalAccepted=true}});
 test('Aceite usa sessão verificada e origem HTTP; corpo não escolhe outro usuário, origem ou data',async()=>{mutations=[];const r=await invoke({action:'LEGAL_ACCEPT',user_id:'forged-user',p_user:'forged-user',source:'forged-origin',accepted_at:'1900-01-01',version:'1.0',hash:'fixture',confirmed:true});assert.equal(r.status,200);const x=mutations.find(x=>x.rpc==='forte_legal_accept').body;assert.equal(x.p_user,'user');assert.equal(x.p_source,origin);assert.equal(x.accepted_at,undefined);sessionUser=null;try{assert.equal((await invoke({action:'LEGAL_ACCEPT',confirmed:true})).status,401)}finally{sessionUser={id:'user'}}});
+
+test('Origem unificada aplica a aprovação de cada módulo e preserva a separação do Fiscal e Frete',async()=>{
+ const saved={profile,rows};
+ try{
+  profile={...profile,ativo:true,status_aprovacao:'APROVADO',trocar_senha:false,perfil:'CONSULTA'};
+  rows=['venda-externa','site'].map(app=>({user_id:'user',app,status:'APROVADO',managed_account:true}));
+  for(const [app,allowed] of [['venda-externa',true],['site',true],['carga-direta',false],['vendas',false]]){
+   const response=await invoke({action:'STATUS',app},'https://forte-vendas-app.onrender.com');
+   assert.equal(response.status,200);
+   assert.equal((await response.json()).allowed,allowed,app);
+  }
+  for(const app of ['fiscal','frete','patio'])assert.equal((await invoke({action:'STATUS',app})).status,403);
+ }finally{({profile,rows}=saved)}
+});

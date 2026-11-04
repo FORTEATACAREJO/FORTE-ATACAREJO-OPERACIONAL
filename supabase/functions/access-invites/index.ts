@@ -1,3 +1,4 @@
+import {operationalModule,operationalRoute} from "../_shared/operational-routes.mjs";
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
 const projectApps:Record<string,string[]>={gtwecfyffjszghnvtlzr:['vendas','financeiro','venda-externa','carga-direta','patio','site'],xmfpvvmvdkepmnvtdoio:['fiscal'],nkynfboqwfxhhxcsrawl:['frete']};
 const origins:Record<string,string>={'https://forte-vendas.onrender.com':'vendas','https://forte-vendas-app.onrender.com':'vendas','https://forte-financeiro.onrender.com':'financeiro','https://forte-venda-externa.onrender.com':'venda-externa','https://forte-carga-direta.onrender.com':'carga-direta','https://forte-patio.onrender.com':'patio','https://site-forte-atacarejo.onrender.com':'site','https://forte-fiscal.onrender.com':'fiscal','https://forte-frete.onrender.com':'frete'};
@@ -8,7 +9,16 @@ Deno.serve(async req=>{
  const reply=(x:unknown,status=200)=>Response.json(x,{status,headers});if(req.method==='OPTIONS')return new Response(null,{status:valid?204:403,headers});if(!valid||req.method!=='POST')return reply({error:'Origem ou método não permitido.'},403);
  const db=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}}),ok=(r:any)=>{if(r.error)throw Error(r.error.message);return r.data};
  try{
-  const b=await req.json(),action=b.action||'LIST',app=origins[origin]==='vendas'&&b.app==='financeiro'?'financeiro':origins[origin];if(b.app!==undefined&&b.app!==app)return reply({error:'Módulo incompatível com a origem.'},403);
+  const b=await req.json(),action=b.action||'LIST',app=operationalModule(origins[origin],b.app);if(!app)return reply({error:'Módulo incompatível com a origem.'},403);
+  const target=origins[origin]==='vendas'&&operationalRoute(app)?origin+operationalRoute(app):targets[app];
+  const invitationLink=(token:string)=>{
+   const link=new URL(target);
+   if(origins[origin]==='vendas'&&app==='financeiro'){link.pathname='/';link.searchParams.set('app','financeiro');}
+   link.searchParams.set('cadastro','convite');
+   link.searchParams.set('convite','1');
+   link.searchParams.set('codigo',token);
+   return link.href;
+  };
   const jwt=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');const u=await db.auth.getUser(jwt);if(u.error||!u.data.user)return reply({error:'Entre para continuar.'},401);const uid=u.data.user.id;
   const fiscal=ref==='xmfpvvmvdkepmnvtdoio',frete=ref==='nkynfboqwfxhhxcsrawl';
   const p=ok(await db.from(fiscal?'profiles':frete?'usuarios_app':'fc_perfis').select('*').eq(fiscal?'id':'user_id',uid).single());
@@ -24,10 +34,10 @@ Deno.serve(async req=>{
   if(action==='LIST'){return reply({invites:ok(await db.from('access_invites').select('id,token,app,recipient_phone,recipient_name,expires_at,created_at,status,error_message,claimed_at').eq('app',app).eq('created_by',uid).order('created_at',{ascending:false}).limit(30)),can_configure:master});}
   if(action==='INVITE'){
    let phone=String(b.whatsapp||'').replace(/\D/g,'');if(/^\d{10,11}$/.test(phone))phone='55'+phone;if(!/^55[1-9]\d[2-9]\d{7,8}$/.test(phone))throw Error('Informe WhatsApp com DDD.');
-   const i=ok(await db.from('access_invites').insert({app,created_by:uid,recipient_phone:phone,recipient_name:String(b.nome||'').trim().slice(0,100)||null}).select('id,token').single());return reply({...i,recipient_phone:phone,link:targets[app]+'?cadastro=convite&convite=1&codigo='+i.token});
+   const i=ok(await db.from('access_invites').insert({app,created_by:uid,recipient_phone:phone,recipient_name:String(b.nome||'').trim().slice(0,100)||null}).select('id,token').single());return reply({...i,recipient_phone:phone,link:invitationLink(i.token)});
   }
   const i=ok(await db.from('access_invites').select('*').eq('id',b.id).eq('app',app).eq('created_by',uid).single());if(Date.parse(i.expires_at)<Date.now())throw Error('Convite expirado. Gere outro.');
-  if(action==='AUTHORIZE_RELAY'){if(i.status!=='SENDING')throw Error('Convite não está autorizado para envio.');return reply({authorized:true,to:i.recipient_phone,name:i.recipient_name||'convidado',link:targets[app]+'?cadastro=convite&convite=1&codigo='+i.token});}
+  if(action==='AUTHORIZE_RELAY'){if(i.status!=='SENDING')throw Error('Convite não está autorizado para envio.');return reply({authorized:true,to:i.recipient_phone,name:i.recipient_name||'convidado',link:invitationLink(i.token)});}
   if(action!=='SEND')return reply({error:'Ação inválida.'},400);if(!b.opt_in)throw Error('Confirme a autorização do convidado para receber a mensagem.');
   if(i.status==='ACCEPTED_BY_META')return reply({message:'Convite já aceito pela Meta para envio.'});if(['SENDING','UNCERTAIN'].includes(i.status))throw Error('Resultado do envio pendente. Confira antes de reenviar.');
   const lock=ok(await db.from('access_invites').update({status:'SENDING',send_started_at:new Date().toISOString(),error_message:null}).eq('id',i.id).in('status',['CREATED','FAILED']).select('id'));if(!lock.length)throw Error('Envio já iniciado.');

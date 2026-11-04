@@ -1,3 +1,4 @@
+import {operationalModule} from "../_shared/operational-routes.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 const apps:Record<string,string>={"https://forte-vendas.onrender.com":"vendas","https://forte-vendas-app.onrender.com":"vendas","https://forte-financeiro.onrender.com":"financeiro","https://forte-venda-externa.onrender.com":"venda-externa","https://forte-carga-direta.onrender.com":"carga-direta","https://forte-operador-patio.onrender.com":"patio","https://site-forte-atacarejo.onrender.com":"site","https://forte-frete.onrender.com":"frete","https://forte-fiscal.onrender.com":"fiscal"};
 const digits=(x:unknown)=>String(x||"").replace(/\D/g,"");
@@ -33,7 +34,7 @@ if(req.method!=="POST"||!validOrigin)return reply({error:"Requisição não perm
 let admin:any,createdId:string|null=null;
 try{
 const b=await req.json(),action=String(b.action||"STATUS"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const permittedApps=frete?["frete"]:fiscal?["fiscal"]:["vendas","financeiro","venda-externa","carga-direta","patio","site"];const app=apps[origin]==="vendas"&&b.app==="financeiro"?"financeiro":apps[origin];if(b.app!==undefined&&b.app!==app)return reply({error:"O módulo solicitado não corresponde à origem."},403);
+const permittedApps=frete?["frete"]:fiscal?["fiscal"]:["vendas","financeiro","venda-externa","carga-direta","patio","site"];const app=operationalModule(apps[origin],b.app);if(!app)return reply({error:"O módulo solicitado não corresponde à origem."},403);
 admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const table=fiscal?"profiles":frete?"usuarios_app":"fc_perfis",idcol=fiscal?"id":"user_id";
 const readProfile=async(uid:string)=>{const r=await admin.from(table).select("*").eq(idcol,uid).maybeSingle();if(r.error)throw Error("Falha ao conferir cadastro.");return r.data};

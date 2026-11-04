@@ -1,0 +1,5 @@
+.cff { max-width: 48rem; margin: auto; padding: 1rem; }
+.cff fieldset, .cff article { min-inline-size: 0; margin: 1rem 0; padding: 1rem; border: 1px solid #b9c7d9; border-radius: .5rem; }
+.cff label { display: grid; gap: .25rem; margin: .75rem 0; }
+.cff input, .cff select, .cff textarea, .cff button { font: inherit; padding: .5rem; min-height: 44px; }
+.cff input, .cff select, .cff textarea { width: 100%; box-sizing: border-box; }

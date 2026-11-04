@@ -1,0 +1,44 @@
+# Unificação operacional FORTE
+
+## Primeira etapa
+
+O FORTE VENDAS compila Vendas Externas em `/venda-externa.html` e Carga Direta em `/carga-direta.html`. As telas foram incorporadas dos repositórios FORTE-VENDA-EXTERNA (`f581997`) e FORTE-CARGA-DIRETA (`de14ad6`). Usam o cliente Supabase, a sessão e a aprovação por módulo do FORTE VENDAS. Os atalhos internos dependem da autorização retornada pelo servidor. A triagem de propostas, o Painel de Cargas, o Financeiro interno e as regras de orçamento e caixa continuam usando seus fluxos atuais.
+
+As duas telas usam as funções `mobile-vendas-externas` e `mobile-carga-direta` do FORTE VENDAS. Vendas Externas e Carga Direta verificam e incrementam a mesma versão de estado usada pelo painel principal antes de confirmar uma gravação. Carga Direta valida a aprovação do módulo no servidor. A tela mostra as pendências de Frete e encaminha a revisão da ordem ao Painel de Cargas. O cadastro do motorista é decidido no módulo de Frete. A publicação da ordem exige recibo válido do Frete. O service worker conserva as notificações e remove seus caches antigos de respostas para evitar persistência de páginas e respostas de operação no cache do navegador.
+
+O site institucional está disponível no build em `/site.html` e sua tela administrativa em `/admin.html`. O catálogo usa o cadastro de revenda do FORTE VENDAS e exibe somente produtos ativos publicados no painel. Master e Administrador aprovados no módulo Site podem escolher uma foto da galeria, editar a descrição e publicar ou retirar um produto. O catálogo inicia vazio até a seleção dos produtos. Cadastros legados sem classificação explícita precisam ser classificados como revenda em Vendas antes da publicação. A administração usa a sessão compartilhada, com aprovação específica. O formulário continua encaminhando ao WhatsApp comercial, cuja entrada na Central deve ser verificada em homologação.
+
+Para o catálogo, aplicar a migração `20261104150120_site_catalogo.sql`, configurar `SITE_CATALOGO_EMPRESA_ID` na função `site-catalogo` com a empresa autorizada e publicar a função. Conferir em homologação a primeira seleção de produtos, descrições e fotos da galeria.
+
+Antes de servir os novos caminhos num endereço real, publicar em homologação as funções de acesso, convites, notificações, recuperação e propostas do mesmo commit. Conferir as URLs de retorno permitidas pelo Supabase Auth para os caminhos novos.
+
+O CFF está no build em `/cff.html`, com acesso inicial de Master e Administrador aprovados em Vendas. A função `cff-conferencias` confere o saldo de um orçamento por vez e a migração `20261104143619_cff_conferencias.sql` registra a conferência, justificativa, autor e versão. O histórico exporta um JSON para revisão manual. A solicitação eletrônica exige um contrato de recebimento confirmado no FORTE FISCAL. A conferência não grava estoque, vendas ou documentos fiscais.
+
+## Inventário em 4 de novembro de 2026
+
+- GitHub tem seis repositórios operacionais para Vendas, Frete, Financeiro, Venda Externa, Carga Direta e site. Os cinco repositórios públicos operacionais foram inspecionados. O repositório separado do Financeiro é privado.
+- Render tem nove serviços operacionais ativos. Quatro usam o repositório FORTE-VENDAS, incluindo o WhatsApp em branch própria e o Itaú. Vendas tem dois serviços com nomes diferentes. A responsabilidade de cada URL, webhook, integração e configuração deve ser confirmada antes de propor desligamentos.
+- O Supabase do FORTE VENDAS guarda o estado operacional, orçamentos, reservas, pagamentos, cargas, projeções e os dados das integrações comerciais. O Supabase do FORTE FRETE tem cadastro, documentos, veículos, vínculos, viagens e aceites próprios. O catálogo de tabelas foi consultado sem ler linhas de clientes ou motoristas. A presença de RLS nas tabelas observadas não comprova a correção das políticas.
+- O site público existente tem catálogo estático e orçamento encaminhado por WhatsApp. Sua área administrativa atual usa o mesmo projeto Supabase de Vendas e apresenta links de conferência do conteúdo. Esta branch substitui o catálogo estático pelo catálogo aprovado no painel, preservando a galeria e a identidade visual.
+
+## Verificação do Frete
+
+Executar `supabase/fixes/auditar-frete-antes-da-migracao.sql` na origem e na restauração, comparando as contagens. A consulta inicial identificou 23 motoristas, sendo 20 sem conta vinculada, dois veículos, dois vínculos e seis referências documentais. Todos os seis objetos referenciados existiam no bucket privado, sem vínculos órfãos nem CPF de 11 dígitos repetido. É necessário preservar os cadastros sem login e reconciliar as contas vinculadas separadamente. A auditoria verifica referências. Para verificar os bytes depois da restauração, usar `node tools/frete/conferir-storage.mjs` com `FORTE_FRETE_ORIGEM_URL`, `FORTE_FRETE_RESTAURADO_URL` e as chaves de serviço correspondentes em `FORTE_FRETE_ORIGEM_SERVICE_KEY` e `FORTE_FRETE_RESTAURADO_SERVICE_KEY`. Executar sobre conjuntos estáveis. A ferramenta lê somente buckets privados, calcula SHA-256 em memória e informa contagens, sem exibir nomes ou conteúdos dos arquivos.
+
+Com os três buckets privados já provisionados e as chaves disponíveis no ambiente seguro, `node tools/frete/conferir-storage.mjs --copiar` permite gravar exclusivamente na branch isolada `qlgjerxbvupipjsvecwk`, a partir do projeto FORTE FRETE. A cópia verifica o destino inteiro antes de gravar, preserva objetos idênticos, recusa divergências e extras e verifica novamente o SHA-256. A execução padrão continua somente leitura. O backup de banco e Auth é tratado separadamente. Na homologação, um anexo sintético passou pela gravação, cópia, comparação por SHA-256 e teste de leitura assinada e anônima.
+
+
+A suíte `node qa/run-unificacao.mjs --project="Android Chrome" --project="iPhone Safari"` cria um build com API simulada e testa o fluxo de publicação do catálogo, o orçamento e a sessão compartilhada. Não usa credenciais nem envia mensagens.
+
+## Ambiente isolado de homologação
+
+A branch Supabase `forte-unificacao-homologacao` foi criada sem dados de produção. O replay automático retornou `MIGRATIONS_FAILED` e deixou ausentes as tabelas-base. Foi criada apenas uma estrutura sintética para ensaiar as funções `site-catalogo` e `cff-conferencias` e suas migrações. A função de catálogo nesse ensaio usa a empresa sintética exclusiva da branch. O ensaio cobre os contratos dos dois módulos e a autenticação do ambiente, sem equivaler a restauração da base ou homologação dos demais fluxos.
+
+## Antes da virada
+
+1. Confirmar backups restauráveis de Vendas e Frete em ambiente isolado. Inventariar Auth, Storage, funções e configurações além do banco. Comparar contagens por entidade, testar vínculos e conferir integridade dos anexos por checksum. Registrar local de guarda, horário e resultado da restauração.
+2. Homologar os dois novos endereços com os perfis autorizados, recusados e revogados. Verificar retomada de sessão e recuperação por e-mail/WhatsApp, principalmente URLs de retorno, convites e notificações. Validar pedidos, compra, carga, proposta, triagem, orçamento com reserva e baixa parcial. Repetir em Android e iPhone.
+3. Consolidar Frete e site em etapas posteriores. Associar identidades existentes por identificador verificado, reconciliar divergências antes de gravar, validar objetos privados e manter os legados disponíveis durante a homologação. O CFF fica restrito à solicitação opcional e auditável, por interface separada do FORTE FISCAL.
+4. Para o primeiro deploy homologado, publicar o build e a versão correspondente de `mobile-vendas-externas` em homologação. Em caso de regressão no frontend, restaurar o artefato anterior. Preservar os endereços e serviços existentes até a validação e aprovação da virada.
+
+O FORTE FISCAL permanece fora desta branch. Nenhuma migração de produção é necessária para compilar esta etapa.
