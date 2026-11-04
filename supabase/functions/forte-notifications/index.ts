@@ -1,3 +1,4 @@
+import {operationalModule,operationalRoute} from "../_shared/operational-routes.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 import webpush from "npm:web-push@3.6.7";
 const origins:Record<string,string>={"https://forte-vendas.onrender.com":"vendas","https://forte-vendas-app.onrender.com":"vendas","https://forte-financeiro.onrender.com":"financeiro","https://forte-venda-externa.onrender.com":"venda-externa","https://forte-carga-direta.onrender.com":"carga-direta","https://forte-operador-patio.onrender.com":"patio","https://site-forte-atacarejo.onrender.com":"site","https://forte-frete.onrender.com":"frete","https://forte-fiscal.onrender.com":"fiscal"};
@@ -45,7 +46,7 @@ export async function snapshot(uid:string,app:string){
 }
 export function validSubscription(s:any){try{const u=new URL(s?.endpoint);return u.protocol==="https:"&&u.port===""&&!u.username&&!u.password&&["fcm.googleapis.com","updates.push.services.mozilla.com","web.push.apple.com"].some(h=>u.hostname===h)&&/^[A-Za-z0-9_-]{80,100}$/.test(s.keys?.p256dh||"")&&/^[A-Za-z0-9_-]{20,30}$/.test(s.keys?.auth||"")}catch{return false}}
 Deno.serve(async req=>{
- const origin=req.headers.get("origin")||"",app=origins[origin],valid=Boolean(app)&&(fiscal?app==="fiscal":frete?app==="frete":!["fiscal","frete"].includes(app));
+ const origin=req.headers.get("origin")||"",originModule=origins[origin],valid=Boolean(originModule)&&(fiscal?originModule==="fiscal":frete?originModule==="frete":!["fiscal","frete"].includes(originModule));
  const headers={"Access-Control-Allow-Origin":valid?origin:"null","Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Cache-Control":"no-store",Vary:"Origin"};const reply=(data:any,status=200)=>Response.json(data,{status,headers});
  if(req.method==="OPTIONS")return new Response(null,{status:valid?204:403,headers});
  if(req.method!=="POST")return reply({error:"Método não permitido."},405);
@@ -66,6 +67,7 @@ Deno.serve(async req=>{
    return reply({sent});
   }
   if(!valid)return reply({error:"Origem não permitida."},403);
+  const app=operationalModule(originModule,body.app);if(!app)return reply({error:"Módulo incompatível com a origem."},403);
   const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"");const auth=await client.auth.getUser(token);if(auth.error||!auth.data.user)return reply({error:"Entre para receber seus avisos."},401);const uid=auth.data.user.id;
   const state=await snapshot(uid,app);if(!state.allowed)return reply({allowed:false,count:0,items:[]},403);
   if(body.action==="UNSUBSCRIBE"){
@@ -78,6 +80,7 @@ Deno.serve(async req=>{
    const saved=await client.from("forte_push_subscriptions").upsert({user_id:uid,app,endpoint:body.subscription.endpoint,subscription:body.subscription,last_signature:sameDevice?previous.data.last_signature:"",updated_at:new Date().toISOString()},{onConflict:"endpoint,app"});if(saved.error)throw Error("Não foi possível ativar avisos.");
   }else if(body.action==="SEEN"){const saved=await client.from("forte_notice_reads").upsert({user_id:uid,app,seen_at:new Date().toISOString()});if(saved.error)throw Error("Não foi possível marcar os avisos.")}
   else if(body.action!=="SNAPSHOT")return reply({error:"Ação inválida."},400);
-  return reply({...state,publicKey:config.data.publicKey});
+  const route=originModule==="vendas"?operationalRoute(app):undefined;
+  return reply({...state,items:route&&route!=="/"?state.items.map(item=>({...item,url:item.url==="/"?route:item.url})):state.items,publicKey:config.data.publicKey});
  }catch{return reply({error:"Não foi possível atualizar os avisos. Tente novamente."},503)}
 });

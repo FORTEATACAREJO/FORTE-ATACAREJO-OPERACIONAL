@@ -55,7 +55,7 @@ test('commercial shortcuts require an explicit grant for each module and stay on
  try{
   const links=()=>[...dom.window.document.querySelectorAll('.home-shortcuts a')].map(a=>a.href);
   for(let i=0;i<100&&links().length<2;i++)await new Promise(r=>setTimeout(r,5));
-  assert.deepEqual(requests,[['access_current_module','venda-externa'],['access_current_module','carga-direta']]);
+  assert.deepEqual(requests,['venda-externa','carga-direta','financeiro','site'].map(id=>['access_current_module',id]));
   assert(links().includes('https://fixture.test/venda-externa.html'));
   assert(!links().includes('https://fixture.test/carga-direta.html'));
  }finally{dom.window.close();}

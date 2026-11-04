@@ -6,6 +6,10 @@ O FORTE VENDAS compila Vendas Externas em `/venda-externa.html` e Carga Direta e
 
 As duas telas usam as funções `mobile-vendas-externas` e `mobile-carga-direta` do FORTE VENDAS. A API de Vendas Externas passa a verificar a versão do estado antes de confirmar a gravação da proposta. O service worker conserva as notificações e remove seus caches antigos de respostas para evitar persistência de páginas e respostas de operação no cache do navegador.
 
+O site institucional está disponível no build em `/site.html` e sua tela administrativa em `/admin.html`. O catálogo e o formulário preservam o conteúdo do site existente. A administração usa a sessão compartilhada, com aprovação específica. O formulário continua encaminhando ao WhatsApp comercial, cuja entrada na Central deve ser verificada em homologação.
+
+Antes de servir os novos caminhos num endereço real, publicar em homologação as funções de acesso, convites, notificações, recuperação e propostas do mesmo commit. Conferir as URLs de retorno permitidas pelo Supabase Auth para os caminhos novos.
+
 ## Inventário em 4 de novembro de 2026
 
 - GitHub tem seis repositórios operacionais para Vendas, Frete, Financeiro, Venda Externa, Carga Direta e site. Os cinco repositórios públicos operacionais foram inspecionados. O repositório separado do Financeiro é privado.

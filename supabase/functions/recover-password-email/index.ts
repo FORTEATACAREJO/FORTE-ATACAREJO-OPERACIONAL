@@ -1,3 +1,4 @@
+import {operationalRoute} from "../_shared/operational-routes.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 const origins = new Set(["https://forte-vendas.onrender.com", "https://forte-vendas-app.onrender.com", "https://forte-financeiro.onrender.com", "https://forte-venda-externa.onrender.com", "https://forte-carga-direta.onrender.com", "https://forte-operador-patio.onrender.com", "https://site-forte-atacarejo.onrender.com", "http://localhost:5178"]);
 const originDefault = "https://forte-vendas.onrender.com";
@@ -11,6 +12,12 @@ Deno.serve(async (req: Request) => {
  if(req.method!=="POST"||!origins.has(origin))return reply({error:"REQUISIÇÃO NÃO PERMITIDA."},403);
  try{
   const body=await req.json();
+  const unified=origin==="https://forte-vendas.onrender.com"||origin==="https://forte-vendas-app.onrender.com";
+  const route=unified?operationalRoute(body.app):undefined;
+  const redirect=new URL(route||(origin==="https://site-forte-atacarejo.onrender.com"?"/admin.html":"/"),origin);
+  if(unified&&body.app==="financeiro"){redirect.pathname="/";redirect.searchParams.set("app","financeiro");}
+  redirect.searchParams.set("recovery","1");
+  const redirectTo=redirect.href;
   const raw=String(body.identificador||"").trim().toLowerCase();
   const value=raw.replace(/\D/g,"");
   const channel=body.canal;
@@ -43,11 +50,11 @@ Deno.serve(async (req: Request) => {
   if(channel==="email"){
    if(email.toLowerCase()!==contactEmail||email.endsWith("@acesso.forte.internal"))return reply({message:generic});
    const auth=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_ANON_KEY")!,{auth:{persistSession:false,autoRefreshToken:false}});
-   const sent=await auth.auth.resetPasswordForEmail(email,{redirectTo:origin+(origin==="https://site-forte-atacarejo.onrender.com"?"/admin.html?recovery=1":"/?recovery=1")});
+   const sent=await auth.auth.resetPasswordForEmail(email,{redirectTo});
    if(sent.error)throw new Error("email_delivery");
    return reply({message:generic});
   }
-  const link=await admin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo:origin+(origin==="https://site-forte-atacarejo.onrender.com"?"/admin.html?recovery=1":"/?recovery=1")}});
+  const link=await admin.auth.admin.generateLink({type:"recovery",email,options:{redirectTo}});
   if(link.error||!link.data.properties?.action_link)throw new Error("recovery_link");
   const actionLink=link.data.properties.action_link;
   const version=Deno.env.get("WHATSAPP_GRAPH_VERSION")||"v23.0";

@@ -3,7 +3,7 @@ const codes={vendas:'VENDAS',financeiro:'FINANCEIRO',frete:'FRETE',fiscal:'FISCA
 const titles={vendas:'Forte Vendas',financeiro:'Forte Financeiro',frete:'Forte Frete',fiscal:'Forte Fiscal','venda-externa':'Venda Externa','carga-direta':'Carga Direta',patio:'Operador de Pátio',site:'Administração do site'};
 export const safeCount=value=>Number.isSafeInteger(Number(value))&&Number(value)>0?Number(value):0;
 export function applicationKey(key){const raw=atob(key.replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,x=>x.charCodeAt(0));}
-export function startNotifications({client,app,bridge=false,worker=app==='site'?'/central-sw.js':'/sw.js'}){
+export function startNotifications({client,app,bridge=false,worker='/sw.js'}){
  if(!client||!codes[app])return {refresh:async()=>{},dispose(){}};
  let disposed=false,busy=false,epoch=0,uid=null,lastState={count:0,items:[]},registration=null,enabled=false,subscribedFor=null,panelRequested=false;
  const originalTitle=document.title;
@@ -17,7 +17,7 @@ export function startNotifications({client,app,bridge=false,worker=app==='site'?
  if(!bridge)document.head.append(style);
  function mount(){if(bridge||disposed)return;const host=document.querySelector('[data-forte-top-actions]')||document.querySelector('.forte-access-admin')||document.querySelector('header')||document.body;if(holder.parentNode!==host)host.append(holder);}
  const observer=!bridge?new MutationObserver(mount):null;observer?.observe(document.body,{childList:true,subtree:true});mount();holder.hidden=true;
- const api=async(action,body={})=>{const result=await client.functions.invoke('forte-notifications',{body:{action,...body}});if(result.error)throw result.error;return result.data;};
+ const api=async(action,body={})=>{const result=await client.functions.invoke('forte-notifications',{body:{action,...body,app}});if(result.error)throw result.error;return result.data;};
  async function getWorker(){if(!('serviceWorker' in navigator))throw Error('Notificações não disponíveis neste navegador.');if(!registration){registration=await navigator.serviceWorker.register(worker,{scope:'/'});await navigator.serviceWorker.ready;}return registration;}
  function nativeSession(session){if(bridge)return;try{window.ForteNotifications?.syncSession(session?JSON.stringify({access_token:session.access_token,refresh_token:session.refresh_token,project:client.supabaseUrl,key:client.supabaseKey,app}):'');}catch{}}
  function publish(state){lastState=state;const count=safeCount(state.count);number.textContent=count>99?'99+':String(count);number.hidden=count===0;button.setAttribute('aria-label',count+' notificações. Abrir avisos de '+titles[app]);document.title=count?'('+count+') '+originalTitle:originalTitle;
