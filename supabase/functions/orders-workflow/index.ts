@@ -46,7 +46,7 @@ Deno.serve(async(req)=>{
    const digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());const hash=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('');if(hash!==b.hash)throw new Error('Arquivo não corresponde ao hash informado.');
   }
   if(b.action==='IMPORT_DRIVERS'){const remote=await freteBridge('LIST_DRIVERS');b.action='DRIVERS_IMPORTED';b.internalDrivers=remote.motoristas;}
-  if(b.action==='PUBLISH_FRETE'){const c=(row.estado.cargas||[]).find(c=>c.id===b.cargaId&&c.status!=='CANCELADA');if(!c||palletReleaseNeeded(c))throw new Error('Carga inválida ou liberação de pallets pendente.');const remote=await freteBridge('PUBLISH',b.cargaId);b.action='FRETE_PUBLISHED';b.internalReceipt=remote;}
+  if(b.action==='PUBLISH_FRETE'){const c=(row.estado.cargas||[]).find(c=>c.id===b.cargaId&&c.status!=='CANCELADA');if(!c||palletReleaseNeeded(c))throw new Error('Carga inválida ou liberação de pallets pendente.');const remote=await freteBridge('PUBLISH',b.cargaId);if(remote.ok!==true||typeof remote.id!=='string'||!remote.id.trim()||typeof remote.motoristaId!=='string'||!remote.motoristaId.trim()||!Number.isFinite(Date.parse(remote.enviadaEm)))throw new Error('O Frete não retornou um recibo válido para a ordem.');b.action='FRETE_PUBLISHED';b.internalReceipt=remote;}
   if(b.action==='FREIGHT_SAVE'){
    const current=(row.estado.cargas||[]).find(c=>c.id===b.cargaId),mode=current?.modalidadeFrete||b.modalidadeFrete;
    const blank=b.fretePorTon===undefined||b.fretePorTon===null||typeof b.fretePorTon==='string'&&!b.fretePorTon.trim();

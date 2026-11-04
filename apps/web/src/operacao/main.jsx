@@ -32,7 +32,7 @@ if (supabase && load) {
         root = createRoot(content);
         root.render(<>
           {canReturn && <nav aria-label="Plataforma Forte"><a href="/">Voltar ao FORTE VENDAS</a></nav>}
-          <Workspace />
+          <Workspace canReturn={canReturn} />
         </>);
       } catch {
         if (authorized) content.textContent = 'Não foi possível abrir o módulo. Atualize a página para tentar novamente.';
