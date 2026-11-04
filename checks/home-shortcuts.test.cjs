@@ -3,12 +3,12 @@ const assert=require('node:assert/strict');
 const {build}=require('esbuild');
 const {JSDOM}=require('jsdom');
 
-const harness=build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Home from './apps/web/src/HomeCompactV47.jsx';import{workspaceNavigation}from'./apps/web/src/workspace-navigation.mjs';const can=(screen,action)=>window.role==='full'||(window.role==='reader'&&action!=='editar');createRoot(document.getElementById('root')).render(<Home navigation={workspaceNavigation(()=>window.role!=='none',can)} canSell={window.role==='full'} canBuy={window.role==='full'} canAccess={can} unread={127} data={{vendas:[{status:'PENDENTE'},{status:'CONCLUÍDA'},{status:'CANCELADA'}],cargas:[]}} onNavigate={id=>window.events.push(id)} onSale={()=>window.events.push('nova-venda')} onPurchase={()=>window.events.push('nova-compra')} onBudget={()=>window.events.push('orcamento')} onLoad={()=>window.events.push('planejamento')}/>);`,resolveDir:process.cwd(),loader:'jsx'},bundle:true,write:false,jsx:'automatic',format:'iife',outfile:'home-harness.js'});
+const harness=build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Home from './apps/web/src/HomeCompactV47.jsx';import{workspaceNavigation}from'./apps/web/src/workspace-navigation.mjs';const can=(screen,action)=>window.role==='full'||(window.role==='reader'&&action!=='editar');createRoot(document.getElementById('root')).render(<Home accessClient={window.accessClient} navigation={workspaceNavigation(()=>window.role!=='none',can)} canSell={window.role==='full'} canBuy={window.role==='full'} canAccess={can} unread={127} data={{vendas:[{status:'PENDENTE'},{status:'CONCLUÍDA'},{status:'CANCELADA'}],cargas:[]}} onNavigate={id=>window.events.push(id)} onSale={()=>window.events.push('nova-venda')} onPurchase={()=>window.events.push('nova-compra')} onBudget={()=>window.events.push('orcamento')} onLoad={()=>window.events.push('planejamento')}/>);`,resolveDir:process.cwd(),loader:'jsx'},bundle:true,write:false,jsx:'automatic',format:'iife',outfile:'home-harness.js'});
 
-async function fixture(role){
+async function fixture(role, accessClient=null){
  const result=await harness;
  const dom=new JSDOM('<div id="root"></div>',{url:'https://fixture.test',runScripts:'outside-only'});
- dom.window.role=role;dom.window.events=[];
+ dom.window.role=role;dom.window.accessClient=accessClient;dom.window.events=[];
  dom.window.eval(result.outputFiles.find(x=>x.path.endsWith('.js')).text);
  for(let i=0;i<100&&!dom.window.document.querySelector('.home-shortcuts');i++)await new Promise(r=>setTimeout(r,5));
  assert(dom.window.document.querySelector('.home-shortcuts'));
@@ -44,4 +44,19 @@ test('read-only and unapproved users do not gain creation shortcuts or panel sum
    assert.equal(d.querySelectorAll('.home-shortcuts a').length,1);
   }finally{dom.window.close();}
  }
+});
+
+test('commercial shortcuts require an explicit grant for each module and stay on the same origin',async()=>{
+ const requests=[];
+ const dom=await fixture('full',{rpc:async(name,{p_app})=>{
+  requests.push([name,p_app]);
+  return {data:{allowed:p_app==='venda-externa'}};
+ }});
+ try{
+  const links=()=>[...dom.window.document.querySelectorAll('.home-shortcuts a')].map(a=>a.href);
+  for(let i=0;i<100&&links().length<2;i++)await new Promise(r=>setTimeout(r,5));
+  assert.deepEqual(requests,[['access_current_module','venda-externa'],['access_current_module','carga-direta']]);
+  assert(links().includes('https://fixture.test/venda-externa.html'));
+  assert(!links().includes('https://fixture.test/carga-direta.html'));
+ }finally{dom.window.close();}
 });
