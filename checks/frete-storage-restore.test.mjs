@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {compareFreightStorage} from '../tools/frete/conferir-storage.mjs';
+import {compareFreightStorage,copyFreightStorage} from '../tools/frete/conferir-storage.mjs';
 
 function fixture(tree,{isPublic=false}={}) {
   return {storage:{
     getBucket:async()=>({data:{public:isPublic}}),
     from(bucket){
-      const files=tree[bucket]||{};
+      const files=tree[bucket]??={};
       return {
         async list(directory,{offset,limit}){
           const prefix=directory?directory+'/':'';
@@ -19,6 +19,12 @@ function fixture(tree,{isPublic=false}={}) {
           return {data:[...entries.values()].sort((a,b)=>a.name.localeCompare(b.name)).slice(offset,offset+limit)};
         },
         async download(path){return {data:new Blob([files[path]])};},
+        async upload(path,blob,{upsert}){
+          assert.equal(upsert,false);
+          if(Object.hasOwn(files,path))return {error:{message:'exists'}};
+          files[path]=await blob.text();
+          return {data:{path}};
+        },
       };
     },
   }};
@@ -39,4 +45,25 @@ test('restoration compares SHA-256 across nested folders and lists only aggregat
 
 test('a publicly exposed restored bucket fails the verification',async()=>{
   await assert.rejects(compareFreightStorage(fixture({}),fixture({},{isPublic:true})),/Bucket ausente ou público/);
+});
+
+
+test('copy fills missing objects, leaves matching objects intact and can be retried',async()=>{
+  const bucket='motorista-documentos';
+  const source=fixture({[bucket]:{'driver/a.pdf':'A','driver/b.pdf':'B'}});
+  const stored={[bucket]:{'driver/a.pdf':'A'}};
+  const target=fixture(stored);
+  for(let attempt=0;attempt<2;attempt++){
+    const result=await copyFreightStorage(source,target);
+    assert(result.every(row=>!row.ausentes&&!row.excedentes&&!row.divergentes));
+    assert.deepEqual(stored[bucket],{'driver/a.pdf':'A','driver/b.pdf':'B'});
+  }
+});
+
+test('a divergent destination prevents copying even to other buckets',async()=>{
+  const source=fixture({'forte-frete-cadastros':{'new.pdf':'source'},'motorista-documentos':{'old.pdf':'expected'}});
+  const stored={'motorista-documentos':{'old.pdf':'different'}};
+  await assert.rejects(copyFreightStorage(source,fixture(stored)),/divergentes/);
+  assert.deepEqual(stored['forte-frete-cadastros'],{});
+  assert.equal(stored['motorista-documentos']['old.pdf'],'different');
 });

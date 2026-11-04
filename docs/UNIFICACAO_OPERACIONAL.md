@@ -25,6 +25,9 @@ O CFF está no build em `/cff.html`, com acesso inicial de Master e Administrado
 
 Executar `supabase/fixes/auditar-frete-antes-da-migracao.sql` na origem e na restauração, comparando as contagens. A consulta inicial identificou 23 motoristas, sendo 20 sem conta vinculada, dois veículos, dois vínculos e seis referências documentais. Todos os seis objetos referenciados existiam no bucket privado, sem vínculos órfãos nem CPF de 11 dígitos repetido. É necessário preservar os cadastros sem login e reconciliar as contas vinculadas separadamente. A auditoria verifica referências. Para verificar os bytes depois da restauração, usar `node tools/frete/conferir-storage.mjs` com `FORTE_FRETE_ORIGEM_URL`, `FORTE_FRETE_RESTAURADO_URL` e as chaves de serviço correspondentes em `FORTE_FRETE_ORIGEM_SERVICE_KEY` e `FORTE_FRETE_RESTAURADO_SERVICE_KEY`. Executar sobre conjuntos estáveis. A ferramenta lê somente buckets privados, calcula SHA-256 em memória e informa contagens, sem exibir nomes ou conteúdos dos arquivos.
 
+Com os três buckets privados já provisionados e as chaves disponíveis no ambiente seguro, `node tools/frete/conferir-storage.mjs --copiar` permite gravar exclusivamente na branch isolada `qlgjerxbvupipjsvecwk`, a partir do projeto FORTE FRETE. A cópia verifica o destino inteiro antes de gravar, preserva objetos idênticos, recusa divergências e extras e verifica novamente o SHA-256. A execução padrão continua somente leitura. O backup de banco e Auth é tratado separadamente. Na homologação, um anexo sintético passou pela gravação, cópia, comparação por SHA-256 e teste de leitura assinada e anônima.
+
+
 A suíte `node qa/run-unificacao.mjs --project="Android Chrome" --project="iPhone Safari"` cria um build com API simulada e testa o fluxo de publicação do catálogo, o orçamento e a sessão compartilhada. Não usa credenciais nem envia mensagens.
 
 ## Ambiente isolado de homologação
