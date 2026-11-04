@@ -50,9 +50,9 @@ test('catálogo público, publicação autorizada e sessão comum entre áreas',
  await gate.locator('input[name=cpf]').fill('52998224725');
  await gate.locator('input[name=password]').fill('123456');
  await gate.getByRole('button',{name:'ENTRAR',exact:true}).click();
- await page.getByLabel('Produto',{exact:true}).selectOption(product.id);
- await page.getByLabel('Descrição pública').fill('Descrição revisada');
- await page.getByLabel('Exibir no catálogo público').check();
+ await page.getByRole('combobox',{name:'Produto',exact:true}).selectOption(product.id);
+ await page.getByRole('textbox',{name:'Descrição pública'}).fill('Descrição revisada');
+ await page.getByRole('checkbox',{name:'Exibir no catálogo público'}).check();
  await page.getByRole('button',{name:'Salvar publicação'}).click();
  await expect(page.getByText('Produto publicado.',{exact:true})).toBeVisible();
  await page.goto(origin+'/site.html');

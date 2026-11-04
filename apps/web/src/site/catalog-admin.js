@@ -11,11 +11,11 @@ export function mountCatalogAdmin(host,client) {
     <button type="button" data-reload>Atualizar produtos</button>
     <p role="status" aria-live="polite"></p>
     <form><fieldset disabled>
-      <label>Produto <select name="product" required></select></label>
-      <label>Descrição pública <textarea name="description" maxlength="1000"></textarea></label>
-      <label>Foto <select name="photo"><option value="">Sem foto</option></select></label>
+      <label for="catalog-product">Produto <select id="catalog-product" name="product" required></select></label>
+      <label for="catalog-description">Descrição pública <textarea id="catalog-description" name="description" maxlength="1000"></textarea></label>
+      <label for="catalog-photo">Foto <select id="catalog-photo" name="photo"><option value="">Sem foto</option></select></label>
       <img data-photo hidden alt="" width="96">
-      <label><input type="checkbox" name="published"> Exibir no catálogo público</label>
+      <label for="catalog-published"><input id="catalog-published" type="checkbox" name="published"> Exibir no catálogo público</label>
       <button type="submit">Salvar publicação</button>
     </fieldset></form>`;
   host.replaceChildren(template.content);
