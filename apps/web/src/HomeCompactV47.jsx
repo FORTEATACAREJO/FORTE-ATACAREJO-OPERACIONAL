@@ -13,7 +13,7 @@ export default function HomeCompactV47({accessClient,navigation,canSell,canBuy,c
   async function loadAreas(){
    const client=accessClient===undefined?(await import('./supabase.js')).supabase:accessClient;
    if(!client||!active)return;
-   const grants=await Promise.all(commercialAreas.map(area=>hasModuleAccess(client,area.id)));
+   const grants=await Promise.all(commercialAreas.map(area=>hasModuleAccess(client,area.app||area.id,area.roles)));
    if(active)setAreas(commercialAreas.filter((_,index)=>grants[index]));
   }
   loadAreas().catch(()=>{if(active)setAreas([]);});

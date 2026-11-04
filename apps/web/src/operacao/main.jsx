@@ -5,12 +5,14 @@ import { supabase } from '../supabase.js';
 import { hasModuleAccess } from './areas.js';
 import '../forte-ui.css';
 
-const app = document.body.dataset.modulo;
+const moduleId = document.body.dataset.modulo;
+const app = moduleId === "cff" ? "vendas" : moduleId;
 const content = document.getElementById('root');
 const load = {
   'venda-externa': () => import('./VendasExternas.jsx'),
   'carga-direta': () => import('./CargaDireta.jsx'),
-}[app];
+  cff: () => import('./Cff.jsx'),
+}[moduleId];
 
 if (supabase && load) {
   let root;

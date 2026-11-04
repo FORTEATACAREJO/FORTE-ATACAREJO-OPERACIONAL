@@ -10,6 +10,8 @@ O site institucional está disponível no build em `/site.html` e sua tela admin
 
 Antes de servir os novos caminhos num endereço real, publicar em homologação as funções de acesso, convites, notificações, recuperação e propostas do mesmo commit. Conferir as URLs de retorno permitidas pelo Supabase Auth para os caminhos novos.
 
+O CFF está no build em `/cff.html`, com acesso inicial de Master e Administrador aprovados em Vendas. A função `cff-conferencias` confere o saldo de um orçamento por vez e a migração `20261104143619_cff_conferencias.sql` registra a conferência, justificativa, autor e versão. O histórico exporta um JSON para revisão manual. A solicitação eletrônica exige um contrato de recebimento confirmado no FORTE FISCAL. A conferência não grava estoque, vendas ou documentos fiscais.
+
 ## Inventário em 4 de novembro de 2026
 
 - GitHub tem seis repositórios operacionais para Vendas, Frete, Financeiro, Venda Externa, Carga Direta e site. Os cinco repositórios públicos operacionais foram inspecionados. O repositório separado do Financeiro é privado.
