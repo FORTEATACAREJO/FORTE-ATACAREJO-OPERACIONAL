@@ -13,12 +13,13 @@ function setup({ allowed = true, conflict = false, writeError = false } = {}) {
   let handler;
   let committed = 0;
   let filter;
+  let savedVersion;
   const client = {
     auth: { getUser: async () => ({ data: { user: { id: 'seller' } } }) },
     rpc: async () => ({ data: { allowed, role: 'VENDEDOR EXTERNO' } }),
     from(table) {
       const profile = { ativo: true, status_aprovacao: 'APROVADO', empresa_id: 'company' };
-      const row = { updated_at: '2026-11-04T12:00:00.123456Z', estado: {
+      const row = { versao: 7, estado: {
         clientes: [{ id: 'client', vendedorId: 'auth-seller', nome: 'Cliente' }],
         produtos: [{ id: 'product', nome: 'Cimento', precoTabela: 34 }],
       } };
@@ -26,11 +27,11 @@ function setup({ allowed = true, conflict = false, writeError = false } = {}) {
       const query = {
         select: () => query,
         eq(key, value) {
-          if (key === 'updated_at') filter = value;
+          if (key === 'versao') filter = value;
           return query;
         },
         maybeSingle: () => query,
-        update() { writing = true; return query; },
+        update(value) { writing = true; savedVersion = value.versao; return query; },
         then(resolve) {
           if (!writing) return resolve({ data: table === 'fc_perfis' ? profile : table === 'access_requests' ? [] : row });
           if (writeError) return resolve({ error: { message: 'failed' } });
@@ -53,6 +54,7 @@ function setup({ allowed = true, conflict = false, writeError = false } = {}) {
     })),
     get committed() { return committed; },
     get filter() { return filter; },
+    get savedVersion() { return savedVersion; },
   };
 }
 
@@ -61,7 +63,8 @@ test('external proposal only succeeds after a write at the version it read', asy
   const result = await app.send();
   assert.equal(result.status, 200);
   assert.equal((await result.json()).total, 68);
-  assert.equal(app.filter, '2026-11-04T12:00:00.123456Z');
+  assert.equal(app.filter, 7);
+  assert.equal(app.savedVersion, 8);
   assert.equal(app.committed, 1);
 });
 

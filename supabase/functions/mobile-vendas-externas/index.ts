@@ -25,9 +25,10 @@ Deno.serve(async(req)=>{
    const pc=(s.precosClientes||[]).find((x:any)=>x.clienteId===cliente.id&&x.produtoId===produto.id),preco=Number(pc?.precoFinal||produto.precoTabela||0);if(!Number.isFinite(preco)||preco<=0||!Number.isFinite(qtd*preco))throw new Error("PREÇO NÃO CONFIGURADO");
    const item={id:"vx-"+crypto.randomUUID(),numeroVenda:"VX-"+Date.now(),clienteId:cliente.id,cliente:cliente.nome,produtoId:produto.id,produto:produto.nome,qtd,precoUnitario:preco,total:qtd*preco,condicao:body.condicao,observacao:body.observacao||"",vendedorId:sellerId,vendedorNome:p.nome||user.email,origemComercial:"VX",status:"AGUARDANDO APROVAÇÃO",destinoPainel:"AGUARDANDO ROTEAMENTO",criadoEm:new Date().toISOString()};
    const estado={...s,vendasExternas:[...(s.vendasExternas||[]),item],auditoria:[...(s.auditoria||[]),{id:"aud-"+crypto.randomUUID(),acao:"PROPOSTA EXTERNA CRIADA",detalhe:item.numeroVenda+" • "+cliente.nome,usuario:p.nome,dataHora:item.criadoEm}]};
-   const version=new Date(Math.max(Date.now(),(Date.parse(row.updated_at)||0)+1)).toISOString();
-   const update=admin.from("fc_app_state").update({estado,updated_by:user.id,updated_at:version}).eq("empresa_id",p.empresa_id);
-   const saved=await (row.updated_at?update.eq("updated_at",row.updated_at):update.is("updated_at",null)).select("empresa_id");
+   const nextVersion=Number(row.versao)+1;
+   if(!Number.isSafeInteger(nextVersion)||nextVersion<1)throw Error("VERSÃO OPERACIONAL INVÁLIDA.");
+   const saved=await admin.from("fc_app_state").update({estado,updated_by:user.id,versao:nextVersion})
+    .eq("empresa_id",p.empresa_id).eq("versao",row.versao).select("empresa_id");
    if(saved.error)throw new Error("NÃO FOI POSSÍVEL GRAVAR A PROPOSTA.");
    if(saved.data?.length!==1)throw new Error("O PAINEL FOI ATUALIZADO POR OUTRO USUÁRIO. TENTE NOVAMENTE.");
    return new Response(JSON.stringify(item),{headers:cors});

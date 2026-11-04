@@ -4,7 +4,7 @@
 
 O FORTE VENDAS compila Vendas Externas em `/venda-externa.html` e Carga Direta em `/carga-direta.html`. As telas foram incorporadas dos repositórios FORTE-VENDA-EXTERNA (`f581997`) e FORTE-CARGA-DIRETA (`de14ad6`). Usam o cliente Supabase, a sessão e a aprovação por módulo do FORTE VENDAS. Os atalhos internos dependem da autorização retornada pelo servidor. A triagem de propostas, o Painel de Cargas, o Financeiro interno e as regras de orçamento e caixa continuam usando seus fluxos atuais.
 
-As duas telas usam as funções `mobile-vendas-externas` e `mobile-carga-direta` do FORTE VENDAS. A API de Vendas Externas passa a verificar a versão do estado antes de confirmar a gravação da proposta. O service worker conserva as notificações e remove seus caches antigos de respostas para evitar persistência de páginas e respostas de operação no cache do navegador.
+As duas telas usam as funções `mobile-vendas-externas` e `mobile-carga-direta` do FORTE VENDAS. Vendas Externas e Carga Direta verificam e incrementam a mesma versão de estado usada pelo painel principal antes de confirmar uma gravação. Carga Direta valida a aprovação do módulo no servidor e reserva ações de aprovação à administração do módulo. O service worker conserva as notificações e remove seus caches antigos de respostas para evitar persistência de páginas e respostas de operação no cache do navegador.
 
 O site institucional está disponível no build em `/site.html` e sua tela administrativa em `/admin.html`. O catálogo usa o cadastro de revenda do FORTE VENDAS e exibe somente produtos ativos publicados no painel. Master e Administrador aprovados no módulo Site podem escolher uma foto da galeria, editar a descrição e publicar ou retirar um produto. O catálogo inicia vazio até a seleção dos produtos. Cadastros legados sem classificação explícita precisam ser classificados como revenda em Vendas antes da publicação. A administração usa a sessão compartilhada, com aprovação específica. O formulário continua encaminhando ao WhatsApp comercial, cuja entrada na Central deve ser verificada em homologação.
 
@@ -20,6 +20,12 @@ O CFF está no build em `/cff.html`, com acesso inicial de Master e Administrado
 - Render tem nove serviços operacionais ativos. Quatro usam o repositório FORTE-VENDAS, incluindo o WhatsApp em branch própria e o Itaú. Vendas tem dois serviços com nomes diferentes. A responsabilidade de cada URL, webhook, integração e configuração deve ser confirmada antes de propor desligamentos.
 - O Supabase do FORTE VENDAS guarda o estado operacional, orçamentos, reservas, pagamentos, cargas, projeções e os dados das integrações comerciais. O Supabase do FORTE FRETE tem cadastro, documentos, veículos, vínculos, viagens e aceites próprios. O catálogo de tabelas foi consultado sem ler linhas de clientes ou motoristas. A presença de RLS nas tabelas observadas não comprova a correção das políticas.
 - O site público existente tem catálogo estático e orçamento encaminhado por WhatsApp. Sua área administrativa atual usa o mesmo projeto Supabase de Vendas e apresenta links de conferência do conteúdo. Esta branch substitui o catálogo estático pelo catálogo aprovado no painel, preservando a galeria e a identidade visual.
+
+## Verificação do Frete
+
+Executar `supabase/fixes/auditar-frete-antes-da-migracao.sql` na origem e na restauração, comparando as contagens. A consulta inicial identificou 23 motoristas, sendo 20 sem conta vinculada, dois veículos, dois vínculos e seis referências documentais. Todos os seis objetos referenciados existiam no bucket privado, sem vínculos órfãos nem CPF de 11 dígitos repetido. É necessário preservar os cadastros sem login e reconciliar as contas vinculadas separadamente. A auditoria verifica referências. A restauração ainda precisa verificar os bytes dos anexos.
+
+A suíte `node qa/run-unificacao.mjs --project="Android Chrome" --project="iPhone Safari"` cria um build com API simulada e testa o fluxo de publicação do catálogo, o orçamento e a sessão compartilhada. Não usa credenciais nem envia mensagens.
 
 ## Antes da virada
 
