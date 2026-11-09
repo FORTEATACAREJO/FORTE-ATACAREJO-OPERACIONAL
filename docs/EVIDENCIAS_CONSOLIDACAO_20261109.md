@@ -65,6 +65,14 @@ Estão ausentes no workspace e respondem 404: `forte-financeiro`, `forte-venda-e
 ## Privacidade e engenharia
 Os dois repositórios visíveis, Operacional e MC-6, estão públicos. O MC-6 público é o código do Frete. Desenho, CAD e documento interno continuam fora do Git até existir um repositório privado de engenharia, separado dessa base que ainda guarda os motoristas.
 
+## Acesso autorizado ao FORTE-FISCAL
+Leitura feita com autorização explícita. Nenhum dado fiscal foi copiado para o Operacional, nenhuma migração foi aplicada e nenhum deploy foi disparado.
+
+- O repositório `github.com/FORTEATACAREJO/FORTE-FISCAL` continua invisível para o token deste agente. Não há clone nem PR fiscal aberta a partir daqui.
+- O projeto Supabase `xmfpvvmvdkepmnvtdoio` está ativo e saudável, com o nome FORTE-FISCAL. A última migração registrada é `pr91_preserve_xml_unit_value_precision`. Há 11 Edge Functions ativas, entre elas o motor `fiscal-engine-ledger`.
+- Em produção, `forte-fiscal.onrender.com` publica o commit `f631f3c` de 04/11, vindo da `main`, com auto deploy ligado.
+- A homologação `forte-fiscal-pr91-homologacao.onrender.com` publica o commit `de5c7e0` de 09/11, na branch `spec/parametrizacao-legal-mg-go-20261104`, com auto deploy desligado.
+
 ## Testes executados nesta sessão
 - `npm run test:core`: 285 testes, 0 falhas. Inclui identidade, migração anterior, plano novo, permissão por tela e atalhos da home.
 - `npm run test:rules`: concluído sem falha.
