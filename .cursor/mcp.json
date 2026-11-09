@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "forte-operacional-supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=gtwecfyffjszghnvtlzr&read_only=true&features=database,docs,debugging"
+    },
+    "render": {
+      "url": "https://mcp.render.com/mcp"
+    }
+  }
+}
