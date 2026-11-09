@@ -15,18 +15,17 @@ async function fixture(role){
  return dom;
 }
 
-test('home shortcuts open each workflow and distinguish Central Forte from WhatsApp',async()=>{
+test('home shortcuts navigate within unified FORTE operational system',async()=>{
  const dom=await fixture('full');const d=dom.window.document;
  try{
-  const central=d.querySelector('.home-shortcuts a');
-  assert.equal(central.href,'https://site-forte-atacarejo.onrender.com/central.html');
+  assert.equal(d.querySelectorAll('.home-shortcuts a').length,0);
   const shortcuts=[...d.querySelectorAll('.home-shortcuts button')];
-  assert.deepEqual(shortcuts.map(x=>x.querySelector('b').textContent),['WhatsApp','Venda balcão','Novo orçamento','Nova venda','Nova compra','Nova carga','Pallets']);
+  assert.deepEqual(shortcuts.map(x=>x.querySelector('b').textContent),['Vendas externas','Fretes e motoristas','Financeiro','Integrações','WhatsApp','Venda balcão','Novo orçamento','Nova venda','Nova compra','Nova carga','Pallets']);
   assert.equal(d.querySelector('.home-unread').textContent,'99+');
   assert.equal(d.querySelector('.home-unread').getAttribute('aria-label'),'127 mensagens não lidas');
   assert.equal(dom.window.events.length,0);
   for(const button of shortcuts)button.click();
-  assert.deepEqual(Array.from(dom.window.events),['whatsapp','balcao','orcamento','nova-venda','nova-compra','planejamento','paletes']);
+  assert.deepEqual(Array.from(dom.window.events),['group:vendas','group:logistica','group:financeiro','group:integracoes','whatsapp','balcao','orcamento','nova-venda','nova-compra','planejamento','paletes']);
   const panels=[...d.querySelectorAll('.home-panel-links button')];for(const button of panels)button.click();
   assert.deepEqual(Array.from(dom.window.events).slice(-4),['painelUnicoVendas','painelCompras','paletes','painelCargas']);
   assert.equal(d.querySelector('.home-summary strong').textContent,'1');
@@ -38,10 +37,10 @@ test('read-only and unapproved users do not gain creation shortcuts or panel sum
  for(const role of ['reader','none']){
   const dom=await fixture(role);const d=dom.window.document;
   try{
-   assert.deepEqual([...d.querySelectorAll('.home-shortcuts button b')].map(x=>x.textContent),role==='reader'?['WhatsApp','Pallets']:[]);
+   assert.deepEqual([...d.querySelectorAll('.home-shortcuts button b')].map(x=>x.textContent),role==='reader'?['Vendas externas','Fretes e motoristas','Financeiro','Integrações','WhatsApp','Pallets']:[]);
    assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?4:0);
    assert.equal(d.querySelectorAll('.home-summary button').length,role==='reader'?2:0);
-   assert.equal(d.querySelectorAll('.home-shortcuts a').length,1);
+   assert.equal(d.querySelectorAll('.home-shortcuts a').length,0);
   }finally{dom.window.close();}
  }
 });
