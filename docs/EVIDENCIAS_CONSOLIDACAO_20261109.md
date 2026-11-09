@@ -71,7 +71,36 @@ Leitura feita com autorização explícita. Nenhum dado fiscal foi copiado para 
 - O repositório `github.com/FORTEATACAREJO/FORTE-FISCAL` continua invisível para o token deste agente. Não há clone nem PR fiscal aberta a partir daqui.
 - O projeto Supabase `xmfpvvmvdkepmnvtdoio` está ativo e saudável, com o nome FORTE-FISCAL. A última migração registrada é `pr91_preserve_xml_unit_value_precision`. Há 11 Edge Functions ativas, entre elas o motor `fiscal-engine-ledger`.
 - Em produção, `forte-fiscal.onrender.com` publica o commit `f631f3c` de 04/11, vindo da `main`, com auto deploy ligado.
-- A homologação `forte-fiscal-pr91-homologacao.onrender.com` publica o commit `de5c7e0` de 09/11, na branch `spec/parametrizacao-legal-mg-go-20261104`, com auto deploy desligado.
+- A homologação `forte-fiscal-pr91-homologacao.onrender.com` publica o commit `de5c7e0` de 09/11, na branch `spec/parametrizacao-legal-mg-go-20261104`, com auto deploy desligado. O deploy ao vivo continua sendo `dep-dbp34b7f3r2c73etp460`. Não houve novo deploy: o commit publicado já é o conferido.
+
+## Execução de 09/11 — Fiscal e Frete
+A ordem de execução autorizou escrita no Fiscal e a migração do Frete. O que foi feito fica limitado ao que pôde ser conferido sem o código fiscal e sem inventar cadastro.
+
+### Fiscal
+O token deste agente continua sem acesso a `github.com/FORTEATACAREJO/FORTE-FISCAL`. Sem esse repositório não há como continuar o código das PRs #91 e #94 nem publicar uma versão nova na homologação. A homologação já está no commit `de5c7e0` e foi deixada como está.
+
+Conferência no banco `xmfpvvmvdkepmnvtdoio`, sem alterar documento, numeração, XML, protocolo, certificado, evento ou teste:
+
+- A tabela de corte de produção não tem linha. O corte permanece desligado.
+- A NFC-e modelo 65, série 889, número 4, ambiente de homologação, UF GO, permanece cancelada.
+- Os 18 cenários de `tax_homologation_tests` continuam pendentes. Nenhum foi marcado como aprovado sem retorno da SEFAZ.
+- As duas exclusões de produto citam CIPLAN e 33 kg. A exclusão foi preservada.
+- Não há linha em `nfce_settings`. Nada foi inserido para não abrir emissão.
+
+Nenhuma transmissão real foi feita. `cutover_enabled` não foi ligado.
+
+### Frete, da base MC-6 para o Operacional
+A cópia das 151 linhas em `frete_migracao.snapshots` foi conferida de novo e não foi refeita. As assinaturas de época de motoristas, veículos, rotas e usuários coincidem entre a origem `nkynfboqwfxhhxcsrawl` e o snapshot. Não há incremento posterior à captura. Os dois veículos apontam para motoristas existentes.
+
+Nenhum dos 23 motoristas tem, ao mesmo tempo, CPF, telefone, CNH, Pix, proprietário e veículo com placa e capacidade. Por isso nada foi gravado em `fc_motoristas` nem em `fc_veiculos`, que seguem com 0 linhas. Não foi inventado CPF, CNH, telefone, Pix ou capacidade.
+
+A migration `frete_pendencias_sem_inventar_dados` criou três tabelas no schema `frete_migracao`, com RLS e sem permissão para `anon` ou `authenticated`:
+
+- `pendencias`: 23 cadastros. Faltam capacidade em 21, CNH em 14, proprietário em 12, Pix em 9, CPF em 8 e telefone em 6. O registro guarda só o identificador e o nome do campo ausente.
+- `usuarios_reconciliacao`: 4 identidades, todas com `login_criado=false`. Nenhum login foi criado e nenhuma credencial foi copiada.
+- `conferencias`: o resultado registrado é ausência de incremento e ausência de cadastro completo.
+
+A origem no projeto MC-6 não foi alterada nem apagada. O código público do MC-6 continua sendo o aplicativo de frete.
 
 ## Testes executados nesta sessão
 - `npm run test:core`: 285 testes, 0 falhas. Inclui identidade, migração anterior, plano novo, permissão por tela e atalhos da home.
