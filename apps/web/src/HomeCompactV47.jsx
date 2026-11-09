@@ -13,6 +13,7 @@ export default function HomeCompactV47({navigation,canSell,canBuy,canAccess,onNa
  ].filter(([id])=>navigation.more.some(item=>item.id===id)).map(([id,label,description,icon])=>({label,description,icon,onClick:()=>onNavigate(id),tone:'central'}));
  const shortcuts = [
   ...integrated,
+  {label:'Site institucional',description:'Página pública no mesmo domínio',icon:'grid',href:'/site/',tone:'central'},
   ...(allowed('whatsapp')?[{label:'WhatsApp',description:'Mensagens e respostas',icon:'chat',onClick:()=>onNavigate('whatsapp'),tone:'whatsapp',badge:unread}]:[]),
   ...(canSell&&allowed('balcao','editar')?[{label:'Venda balcão',description:'Caixa e venda rápida',icon:'money',onClick:()=>onNavigate('balcao')},...(onBudget?[{label:'Novo orçamento',description:'Preparar cotação',icon:'file',onClick:onBudget}]:[])]:[]),
   ...(canSell&&allowed('comprasFornecedor','editar')?[{label:'Nova venda',description:'Pedido do cliente',icon:'plus',onClick:onSale}]:[]),
