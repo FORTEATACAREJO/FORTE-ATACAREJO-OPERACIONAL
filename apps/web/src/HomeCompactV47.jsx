@@ -5,12 +5,15 @@ import './home-shortcuts.css';
 
 export default function HomeCompactV47({navigation,canSell,canBuy,canAccess,onNavigate,onSale,onPurchase,onBudget,onLoad,unread=0,data={}}){
  const allowed = (screen,action='visualizar') => canAccess ? canAccess(screen,action) : navigation.main.some(item=>item.id===screen||item.screens?.includes(screen));
+ const shortcut=(id,label,description,icon)=>allowed(id)?{label,description,icon,onClick:()=>onNavigate(id),tone:'central'}:null;
+ const groupShortcut=(id,label,description,icon)=>navigation.more.some(item=>item.id===id)?{label,description,icon,onClick:()=>onNavigate(id),tone:'central'}:null;
  const integrated=[
-  ['group:vendas','Vendas externas','Representantes e modalidades','file'],
-  ['group:logistica','Fretes e motoristas','Logística no mesmo sistema','truck'],
-  ['group:financeiro','Financeiro','Caixa e cobranças integrados','money'],
-  ['group:integracoes','Integrações','Bancos, WhatsApp e Gmail','grid']
- ].filter(([id])=>navigation.more.some(item=>item.id===id)).map(([id,label,description,icon])=>({label,description,icon,onClick:()=>onNavigate(id),tone:'central'}));
+  shortcut('externas','Vendas externas','Pedidos de representantes','file'),
+  shortcut('clientes','Carga direta','Venda com destino definido','box'),
+  shortcut('motorista','Fretes e motoristas','Consulta no operacional, sem apagar o legado','truck'),
+  groupShortcut('group:financeiro','Financeiro','Caixa e cobranças integrados','money'),
+  groupShortcut('group:integracoes','Integrações','Bancos, WhatsApp e Gmail','grid')
+ ].filter(Boolean);
  const shortcuts = [
   ...integrated,
   {label:'Site institucional',description:'Página pública no mesmo domínio',icon:'grid',href:'/site/',tone:'central'},

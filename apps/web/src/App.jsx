@@ -6,6 +6,7 @@ import {useForteNavigation,useForteLayer} from './use-forte-navigation.js';
 import EditSale from './EditSale.jsx';
 import WorkspaceMenu from './WorkspaceMenu.jsx';
 import {workspaceNavigation} from './workspace-navigation.mjs';
+import {appFlagsFrom,screenAllowed} from './module-access.mjs';
 import {registerFreightReceipt,openSharedProof} from "./freight-receipt-upload.js";
 import OperationSheet from "./OperationSheet.jsx";
 import {allocatedInvoice} from "./operation-sheet-model.mjs";
@@ -913,7 +914,7 @@ export default function App() {
     const rule = permissions[permissionKeyByGroup[groupId]] || {};
     return !!rule[action] || (action !== "visualizar" && !!rule.editar);
   };
-  const canAccessTab = (screen, action = "visualizar") => canAccessGroup(groupForTab(screen), action);
+  const canAccessTab = (screen, action = "visualizar") => screenAllowed({screen,action,groupId:groupForTab(screen),groupAllowed:canAccessGroup,appFlags:appFlagsFrom(currentUser?.permissoes),financeMode});
   const tab=requestedTab===navigationRoot||(requestedTab.startsWith("group:")?canAccessGroup(requestedTab.slice(6)):canAccessTab(requestedTab))?requestedTab:navigationRoot;
   useEffect(()=>tabHistory.setGuard(screen=>screen===navigationRoot||(screen.startsWith("group:")?canAccessGroup(screen.slice(6)):canAccessTab(screen))));
   const salesArea=salesAreaFor(tab);
