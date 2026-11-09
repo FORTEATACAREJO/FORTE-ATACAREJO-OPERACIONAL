@@ -19,6 +19,8 @@ import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
 import FreteMotoristaPainel from "./FreteMotoristaPainel.jsx";
+import FretePendenciasPainel from "./FretePendenciasPainel.jsx";
+import {incorporarMotoristasInativos} from "./frete-snapshot.mjs";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -2566,6 +2568,7 @@ export default function App() {
           <section className="card">
             <h2>MOTORISTA / VEÍCULO</h2>
             <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canAccessTab("motorista","editar")} onSave={resultado=>{if(!resultado.escreve)return;setData(d=>({...d,motoristas:resultado.motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"MOTORISTA GRAVADO NO OPERACIONAL",referencia:resultado.registro?.id||"",detalhe:`${resultado.acao} • ${resultado.registro?.statusCadastro||""}`,dataHora:nowISO()}]}));}}/>
+            {!freteMode && canAccessTab("motorista", "editar") && <FretePendenciasPainel canEdit onPromover={resultado=>{const motoristas=incorporarMotoristasInativos(data.motoristas||[],resultado?.motoristas||[]);setData(d=>({...d,motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"PENDENCIAS DO FRETE PREPARADAS",referencia:String((resultado?.motoristas||[]).length),detalhe:"inativos nesta tela",dataHora:nowISO()}]}));}}/>}
             {!freteMode&&<Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
               <UpperInput
                 value={driverSearch}

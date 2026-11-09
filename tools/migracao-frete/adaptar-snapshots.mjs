@@ -1,0 +1,1 @@
+export {adaptarSnapshots,aplicarPromocao,calcularDelta,completarPendencia,ensaiarRollback,permitirExclusaoLegado,planejarAuth,planejarFuncoes,planejarStorage,urlNoOperacional,validarCenso} from '../../apps/web/src/frete-snapshot.mjs';
