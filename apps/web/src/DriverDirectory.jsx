@@ -1,7 +1,11 @@
 import {useState} from 'react';
-export default function DriverDirectory({data,onClose,onSync}){
- const [query,setQuery]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const rows=(data.motoristas||[]).filter(m=>m.ativo!==false&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
- async function refresh(){setBusy(true);try{const r=await onSync();setMessage(r.count+' motorista(s)/conjunto(s) atualizados do Forte Frete.')}catch(e){setMessage(e.message)}finally{setBusy(false)}}
- return <div className="modalBackdrop"><section className="modal"><div className="modalHead"><h2>MOTORISTAS — LOGÍSTICA OPERACIONAL</h2><button onClick={onClose}>FECHAR</button></div><p>Cadastros do sistema operacional. Durante a migração, a consulta ainda usa a base histórica de Fretes, sem apagá-la.</p><div className="rowActions"><a href="https://forte-frete.onrender.com" target="_blank" rel="noopener noreferrer">CADASTRO LEGADO (TRANSIÇÃO)</a><button disabled={busy} onClick={refresh}>ATUALIZAR MOTORISTAS</button></div><p role="status">{message}</p><label>BUSCAR NOME, CPF OU PLACA<input value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="flowTable"><table><thead><tr><th>MOTORISTA</th><th>WHATSAPP</th><th>CONJUNTO</th><th>CAPACIDADE</th><th>SITUAÇÃO</th></tr></thead><tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{m.telefone}</td><td>{[m.placa1,m.placa2,m.placa3,m.placa4].filter(Boolean).join(' / ')||'Não informado'}</td><td>{Number(m.capacidadeMaximaKg||m.capacidadeAlvoKg||0).toLocaleString('pt-BR')} kg</td><td>{m.statusCadastro==='LEGADO'?'CADASTRO EXISTENTE — COMPLETAR NO FRETE':m.statusCadastro||'CONSULTA'}</td></tr>)}</tbody></table></div>{!rows.length&&<p>Nenhum motorista disponível. Atualize a consulta ou solicite a conferência do cadastro legado.</p>}</section></div>;
+import FreteMotoristaPainel from './FreteMotoristaPainel.jsx';
+export default function DriverDirectory({data,onClose,onSync,onChange,canEdit=false}){
+ const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ async function refresh(){setBusy(true);try{const result=await onSync();setMessage((result?.count??0)+' motorista(s) consultados na base histórica. Nenhum cadastro antigo foi apagado.')}catch(error){setMessage(error.message)}finally{setBusy(false)}}
+ return <div className="modalBackdrop"><section className="modal"><div className="modalHead"><h2>MOTORISTAS — OPERACIONAL</h2><button onClick={onClose}>FECHAR</button></div>
+  <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canEdit} onSave={resultado=>{if(!resultado.escreve||!onChange)return;onChange(atual=>({...atual,motoristas:resultado.motoristas,auditoria:[...(atual.auditoria||[]),{id:`aud-${resultado.registro.id}-${resultado.registro.atualizadoEm}`,acao:'MOTORISTA GRAVADO NO OPERACIONAL',referencia:resultado.registro.id,detalhe:`${resultado.acao} • ${resultado.registro.statusCadastro||''}`,dataHora:resultado.registro.atualizadoEm}]}));}}/>
+  <div className="rowActions"><button type="button" disabled={busy||!onSync} onClick={refresh}>ATUALIZAR DA BASE HISTÓRICA</button></div>
+  <p role="status">{message}</p>
+ </section></div>;
 }

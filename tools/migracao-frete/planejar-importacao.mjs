@@ -82,10 +82,11 @@ export function planejarUsuario(usuario){
  const pendentes=removidos.map(()=>'credencial_nao_copiada');
  if(!chaveEstavel('usuario',copiado.id))pendentes.push('id_legado');
  if(!copiado.perfil)pendentes.push('perfil');
+ const auth=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(copiado.auth_user_id||''))?String(copiado.auth_user_id):'';
  const apto=pendentes.length===0;
  return item('usuario',copiado.id,apto,pendentes,apto?{
   origem_sistema:'FORTE_FRETE',chave:chaveEstavel('usuario',copiado.id),perfil:String(copiado.perfil),
-  status_aprovacao:copiado.status_aprovacao||'PENDENTE',ativo:false
+  status_aprovacao:copiado.status_aprovacao||'PENDENTE',ativo:false,...(auth?{auth_user_id:auth}:{})
  }:null,copiado.atualizado_em);
 }
 export function aplicarDecisao(destino,entrada){

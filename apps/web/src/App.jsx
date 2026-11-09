@@ -18,6 +18,7 @@ import ItauStandalone from './ItauStandalone.jsx';
 import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
+import FreteMotoristaPainel from "./FreteMotoristaPainel.jsx";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -690,7 +691,7 @@ const MODULE_GROUPS = [
   {
     id: "logistica",
     title: "LOGÍSTICA E OPERAÇÃO",
-    subtitle: "Estoque, paletes e controle físico. Motoristas são sincronizados do Forte Frete.",
+    subtitle: "Estoque, paletes e controle físico. Motoristas são cadastrados no operacional.",
     modules: ["estoque", "paletes"],
   },
   {
@@ -792,14 +793,15 @@ const custoFornecedor = (d, produtoId, condicaoPagamento, marca = "") => {
 };
 export default function App() {
   const drawer=useDrawer();
-  const financeMode=new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=financeMode?"group:financeiro":"home";
+  const freteMode=new URLSearchParams(window.location.search).get("app")==="frete";
+  const financeMode=!freteMode&&new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=freteMode?"motorista":financeMode?"group:financeiro":"home";
   const [data, setData] = useState(() => applyAuthUser(loadData(seed)));
   const cloudReady = useRef(false);
   const [cloudError,setCloudError]=useState("");
   useEffect(()=>{const listener=e=>setCloudError(e.detail||"");window.addEventListener("forte-cloud-status",listener);return()=>window.removeEventListener("forte-cloud-status",listener)},[]);
   const cloudTimer = useRef(null);
-  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(financeMode?"financeiro":"vendas",navigationRoot);
-  const setTab=(screen,options)=>setRouteTab(financeMode&&screen==="home"?navigationRoot:screen,options);
+  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(freteMode?"motorista":financeMode?"financeiro":"vendas",navigationRoot);
+  const setTab=(screen,options)=>setRouteTab(freteMode&&screen==="home"?"motorista":financeMode&&screen==="home"?navigationRoot:screen,options);
   const [globalSearch, setGlobalSearch] = useState("");
   const [selectedSales, setSelectedSales] = useState([]);
   const [driverSearch, setDriverSearch] = useState("");
@@ -900,6 +902,7 @@ export default function App() {
     return MODULE_GROUPS.find((g) => g.modules.includes(screen))?.id || "";
   };
   const canAccessGroup = (groupId, action = "visualizar") => {
+    if(freteMode)return false;
     if(financeMode&&groupId!=="financeiro")return false;
     if (groupId === "financeiro") return isMaster && cloudReady.current;
     if (isAdmin) return true;
@@ -914,7 +917,7 @@ export default function App() {
     const rule = permissions[permissionKeyByGroup[groupId]] || {};
     return !!rule[action] || (action !== "visualizar" && !!rule.editar);
   };
-  const canAccessTab = (screen, action = "visualizar") => screenAllowed({screen,action,groupId:groupForTab(screen),groupAllowed:canAccessGroup,appFlags:appFlagsFrom(currentUser?.permissoes),financeMode});
+  const canAccessTab = (screen, action = "visualizar") => screenAllowed({screen,action,groupId:groupForTab(screen),groupAllowed:canAccessGroup,appFlags:appFlagsFrom(currentUser?.permissoes),financeMode,freteMode});
   const tab=requestedTab===navigationRoot||(requestedTab.startsWith("group:")?canAccessGroup(requestedTab.slice(6)):canAccessTab(requestedTab))?requestedTab:navigationRoot;
   useEffect(()=>tabHistory.setGuard(screen=>screen===navigationRoot||(screen.startsWith("group:")?canAccessGroup(screen.slice(6)):canAccessTab(screen))));
   const salesArea=salesAreaFor(tab);
@@ -2562,13 +2565,14 @@ export default function App() {
         {tab === "motorista" && (
           <section className="card">
             <h2>MOTORISTA / VEÍCULO</h2>
-            <Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
+            <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canAccessTab("motorista","editar")} onSave={resultado=>{if(!resultado.escreve)return;setData(d=>({...d,motoristas:resultado.motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"MOTORISTA GRAVADO NO OPERACIONAL",referencia:resultado.registro?.id||"",detalhe:`${resultado.acao} • ${resultado.registro?.statusCadastro||""}`,dataHora:nowISO()}]}));}}/>
+            {!freteMode&&<Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
               <UpperInput
                 value={driverSearch}
                 onChange={setDriverSearch}
                 placeholder="NOME, APELIDO, PLACA, PROPRIETÁRIO, CPF OU RNTRC..."
               />
-            </Field>
+            </Field>}
             {driverSearch && (
               <div className="driverSearchResults">
                 {driverFiltered.length ? (
@@ -2669,12 +2673,12 @@ export default function App() {
                 </div>
               </>
             )}
-            {!activeLoad && (
+            {!freteMode&&!activeLoad && (
               <button onClick={formLoad}>
                 FORMAR CARGA / IR AO FORNECEDOR
               </button>
             )}{" "}
-            {activeLoad && (
+            {!freteMode&&activeLoad && (
               <div className="supplierActions">
                 <button onClick={() => setTab("fornecedor")}>
                   IR AO FORNECEDOR / PEDIDO
@@ -3037,7 +3041,7 @@ export default function App() {
                 ["clientes", "CLIENTES"],
                 ["produtos", "PRODUTOS"],
                 ["fornecedores", "FORNECEDORES / MARCAS"],
-                ["motoristas", "CONSULTAR MOTORISTAS — FORTE FRETE"],
+                ["motoristas", "MOTORISTAS E VEÍCULOS"],
     ...(isAdmin
                   ? [["funcionarios", "FUNCIONÁRIOS E PERMISSÕES"]]
                   : []),
@@ -3355,6 +3359,7 @@ export default function App() {
         <CadModal
           type={cadType}
           onSyncDrivers={()=>commitOrderWorkflow({action:"IMPORT_DRIVERS",requestId:crypto.randomUUID()})}
+          canEdit={canAccessTab("motorista","editar")}
           data={data}
           search={cadSearch}
           setSearch={setCadSearch}
@@ -3368,6 +3373,7 @@ export default function App() {
           data={data}
           onChange={setData}
           currentUser={currentUser}
+          onOpenMotorista={()=>{setCadType("motoristas");setCadSearch("");setModal({type:"cad"});}}
           onClose={() => setModal(null)}
         />
       )}{" "}
@@ -10951,9 +10957,10 @@ function CadModal({
   onClose,
   onChange,
   isAdmin,
+  canEdit=false,
 }) {
   if (type === "usuarios" && !isAdmin) return null;
-  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers}/>;
+  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} onChange={onChange} canEdit={canEdit}/>;
   const meta = META[type];
   const list = data[type] || [];
   const [edit, setEdit] = useState(null);
@@ -12566,7 +12573,7 @@ function NewSale({ data, onClose, onSave, onDataChange }) {
   );
 }
 
-function CadastroIaModal({ data, onChange, currentUser, onClose }) {
+function CadastroIaModal({ data, onChange, currentUser, onClose, onOpenMotorista }) {
   const [tipo, setTipo] = useState("");
   const [documento, setDocumento] = useState("");
   const [nomeInformado, setNomeInformado] = useState("");
@@ -12608,7 +12615,7 @@ function CadastroIaModal({ data, onChange, currentUser, onClose }) {
     return comuns / Math.max(a.length, b.length) >= 0.6 ? "CONFERE" : "DIVERGENTE";
   };
   function analisar() {
-    if(tipo==="MOTORISTA")return alert("Cadastro de motorista é exclusivo do Forte Frete.");
+    if(tipo==="MOTORISTA"){onOpenMotorista?.();return;}
     if (!tipo) return alert("INFORME O TIPO DE CADASTRO.");
     if (!digits) return alert("INFORME O CPF/CNPJ PARA PESQUISA E CONFERÊNCIA.");
     const numeroValido = validarNumero(digits);
@@ -12713,7 +12720,7 @@ function CadastroIaModal({ data, onChange, currentUser, onClose }) {
         <p>Se o tipo não for informado, o sistema exige a escolha antes de analisar.</p>
         <div className="choiceButtons">
           <button className={tipo === "CLIENTE" ? "activeChoice" : "ghost dark"} onClick={() => setTipo("CLIENTE")}>CLIENTE</button>
-          <button className={tipo === "MOTORISTA" ? "activeChoice" : "ghost dark"} onClick={() => window.open("https://forte-frete.onrender.com","_blank","noopener,noreferrer")}>CADASTRAR MOTORISTA NO FORTE FRETE</button>
+          <button type="button" className="ghost dark" onClick={() => onOpenMotorista?.()}>CADASTRAR MOTORISTA NO OPERACIONAL</button>
         </div>
       </div>
       <div className="miniGrid aiCadastroFields">

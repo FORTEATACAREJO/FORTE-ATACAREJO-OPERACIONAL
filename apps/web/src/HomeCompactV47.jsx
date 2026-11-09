@@ -10,7 +10,7 @@ export default function HomeCompactV47({navigation,canSell,canBuy,canAccess,onNa
  const integrated=[
   shortcut('externas','Vendas externas','Pedidos de representantes','file'),
   shortcut('clientes','Carga direta','Venda com destino definido','box'),
-  shortcut('motorista','Fretes e motoristas','Consulta no operacional, sem apagar o legado','truck'),
+  shortcut('motorista','Fretes e motoristas','Cadastro, veículo e liberação para carga','truck'),
   groupShortcut('group:financeiro','Financeiro','Caixa e cobranças integrados','money'),
   groupShortcut('group:integracoes','Integrações','Bancos, WhatsApp e Gmail','grid')
  ].filter(Boolean);
