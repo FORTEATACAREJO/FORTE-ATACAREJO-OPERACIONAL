@@ -14,7 +14,7 @@ A home unificada chamava o grupo inteiro de vendas de “Vendas externas” e o 
 - Quem já pode operar Vendas ou Logística também consegue abrir `motorista`, que é o passo seguinte da carga.
 - O atalho `?app=financeiro` não herda essas telas.
 
-O acesso inicial da PWA continua exigindo aprovação no módulo Vendas. Usuário só de Frete, Venda Externa ou Carga Direta ainda não entra por essa porta. A administração do site não foi copiada: ela depende do pacote de acesso legado e da Central de Apps, e o rodapé público segue apontando para o serviço antigo durante a transição.
+O acesso inicial da PWA aceita aprovação de Vendas ou do módulo de Frete. A administração pública do site deixou de apontar para `site-forte-atacarejo.onrender.com`, que não responde mais, e volta para a raiz do próprio domínio.
 
 ## Migração preparada, não aplicada
 O validador puro de motorista da PR #57 foi mantido. O plano novo cobre motorista, veículo, rota, documento e usuário com chave `FORTE_FRETE:{entidade}:{id}`.
@@ -25,39 +25,45 @@ O validador puro de motorista da PR #57 foi mantido. O plano novo cobre motorist
 - Todo item gravado fica com `ativo=false`.
 - O SQL está em `tools/migracao-frete/revisao/001_staging_frete_operacional.sql`, fora de `supabase/migrations`. Cria apenas o schema `migracao_frete`, com RLS e sem grant para `anon` ou `authenticated`. Não grava em `fc_app_state` e não promove cadastro.
 
-O ensaio rodou no PGlite local. As contagens de 23 motoristas, 2 veículos, 5 rotas, 1 documento e 4 usuários permanecem as da auditoria já registrada; esta sessão não reconsultou o banco. Backup e restauração de produção não foram executados.
+O ensaio do SQL rodou no PGlite local. A releitura abaixo conferiu as contagens críticas direto nas tabelas, sem copiar cadastro e sem imprimir documento, telefone ou chave. Backup e restauração de produção não foram executados.
 
 ## Matriz dos cinco legados
 
-| Origem | O que já está no Operacional | URL que permanece | Banco | Pode desligar |
+| Origem | O que já está no Operacional | Situação vista nesta releitura | Banco | Pode apagar |
 | --- | --- | --- | --- | --- |
-| FORTE-FRETE | Consulta de motorista, ponte de aceite e pagamento de frete no Financeiro | `forte-frete.onrender.com` | Supabase Frete, separado | Não |
-| FORTE-FINANCEIRO | Módulo Financeiro na PWA, restrito a master com nuvem pronta | `forte-financeiro.onrender.com` | Tabelas financeiras do Operacional | Não |
-| FORTE-VENDA-EXTERNA | Tela `externas` | `forte-venda-externa.onrender.com` | Operacional, após aprovação de Vendas | Não |
-| FORTE-CARGA-DIRETA | Telas `clientes` e `diretas` | `forte-carga-direta.onrender.com` | Operacional | Não |
-| SITE-FORTE-ATACAREJO | HTML e imagens públicas em `apps/web/public/site/` | `site-forte-atacarejo.onrender.com`, inclusive `/admin.html` | Sem banco próprio nesta cópia | Não |
+| FORTE-FRETE | Consulta de motorista, ponte de aceite e pagamento de frete no Financeiro | Repositório público agora chamado FORTE-MC-6. URL `forte-frete.onrender.com` no ar | Mesmo projeto Supabase, nome visível FORTE-MC-6 | Não |
+| FORTE-FINANCEIRO | Módulo Financeiro na PWA, restrito a master com nuvem pronta | Repositório público e serviço Render ausentes. URL responde 404 | Tabelas financeiras do Operacional | Não |
+| FORTE-VENDA-EXTERNA | Tela `externas` | Repositório público e serviço Render ausentes. URL responde 404 | Operacional | Não |
+| FORTE-CARGA-DIRETA | Telas `clientes` e `diretas` | Repositório público e serviço Render ausentes. URL responde 404 | Operacional | Não |
+| SITE-FORTE-ATACAREJO | HTML e imagens públicas em `apps/web/public/site/` | Repositório público e serviço Render ausentes. O rodapé do site incorporado volta para `/` | Sem banco próprio nesta cópia | Não |
 
-FORTE FISCAL permanece repositório, serviço e banco separados. Nenhum dado fiscal foi lido ou alterado.
+FORTE FISCAL permanece serviço e banco separados. O nome visível do projeto é FORTE-FISCAL. Nenhum dado fiscal foi copiado ou alterado.
 
-## Serviços Render lidos em 2026-11-09
-Consulta somente leitura. Nada foi alterado.
+## Releitura depois das alterações de nome — 2026-11-09
+Consulta somente leitura. Esta sessão não renomeou, não apagou, não fez deploy e não gravou em banco.
 
-| Serviço | Papel | Auto deploy da `main` | Destino até o corte |
-| --- | --- | --- | --- |
-| forte-vendas | PWA operacional | Sim | Permanece; é o frontend alvo |
-| forte-vendas-app | Processo que inicia `itau-server.mjs` | Sim | API técnica; não unificar processo nesta etapa |
-| forte-itau-api | API Itaú, também `itau-server.mjs` | Sim | Permanece separado |
-| forte-whatsapp-api | API WhatsApp | Não; branch própria | Permanece separado |
-| forte-financeiro | Frontend legado | Sim | Só depois do aceite |
-| forte-venda-externa | Frontend legado | Sim | Só depois do aceite |
-| forte-carga-direta | Frontend legado | Sim | Só depois do aceite |
-| forte-frete | Frontend legado | Sim | Só depois do aceite |
-| site-forte-atacarejo | Site e administração | Sim | Páginas públicas já copiadas; admin continua aqui |
-| forte-fiscal | Emissão fiscal | Sim | Independente |
-| forte-fiscal-pr91-homologacao | Homologação fiscal | Não | Independente |
+### GitHub
+- `FORTE-VENDAS` redireciona para `FORTE-ATACAREJO-OPERACIONAL`. O repositório continua público.
+- `FORTE-FRETE` redireciona para `FORTE-MC-6`. O repositório continua público e o conteúdo segue sendo o aplicativo FORTE FRETE. Não é um repositório novo de engenharia e não recebeu CAD nesta sessão.
+- `FORTE-FISCAL` não aparece para este token. O Render ainda liga o serviço fiscal a `github.com/FORTEATACAREJO/FORTE-FISCAL`.
+- `FORTE-FINANCEIRO`, `FORTE-VENDA-EXTERNA`, `FORTE-CARGA-DIRETA` e `SITE-FORTE-ATACAREJO` não resolvem no GitHub público e não têm redirecionamento.
 
-## Privacidade, nome e MC-6
-`FORTE-VENDAS` continua público. Não houve mudança de visibilidade, renome, domínio, OAuth ou webhook. O repositório privado de engenharia da MC-6 não foi criado e nenhum CAD foi adicionado. Esses passos continuam bloqueados até aceite específico, com o Operacional privado antes de receber desenho ou documento interno.
+### Supabase
+Os três projetos continuam ativos e saudáveis. Mudou o nome visível; o identificador técnico é o mesmo.
+
+| Nome visível agora | Identificador | O que a leitura encontrou |
+| --- | --- | --- |
+| FORTE-ATACAREJO-OPERACIONAL | `gtwecfyffjszghnvtlzr` | Base operacional. `fc_motoristas` e `fc_veiculos` seguem com 0 linhas. |
+| FORTE-MC-6 | `nkynfboqwfxhhxcsrawl` | Continua sendo a base do Frete: 23 motoristas, 2 veículos, 5 rotas, 1 documento de motorista e 4 usuários. Não apagar nem tratar como banco vazio de engenharia. |
+| FORTE-FISCAL | `xmfpvvmvdkepmnvtdoio` | Base fiscal separada. Nenhum dado foi copiado para o Operacional. |
+
+### Render
+Seis serviços permanecem. O deploy ao vivo não mudou: o site operacional publica o commit de 27/10 e o endereço `forte-frete.onrender.com` publica o commit de 26/10. Os dois ainda fazem auto deploy da `main`. O serviço do Frete foi renomeado para FORTE-MC-6 e aponta para o repositório de mesmo nome, mas a URL pública antiga continua de pé.
+
+Estão ausentes no workspace e respondem 404: `forte-financeiro`, `forte-venda-externa`, `forte-carga-direta`, `site-forte-atacarejo` e `forte-vendas-app`. Esta sessão não os removeu e não os recriou. `forte-fiscal.onrender.com` e a homologação fiscal responderam. `forte-itau-api` e `forte-whatsapp-api` continuam cadastrados; a raiz HTTP não respondeu 200 nesta verificação.
+
+## Privacidade e engenharia
+Os dois repositórios visíveis, Operacional e MC-6, estão públicos. O MC-6 público é o código do Frete. Desenho, CAD e documento interno continuam fora do Git até existir um repositório privado de engenharia, separado dessa base que ainda guarda os motoristas.
 
 ## Testes executados nesta sessão
 - `npm run test:core`: 285 testes, 0 falhas. Inclui identidade, migração anterior, plano novo, permissão por tela e atalhos da home.

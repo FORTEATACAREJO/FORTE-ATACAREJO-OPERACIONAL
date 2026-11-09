@@ -20,6 +20,11 @@ test('Atalho de financeiro legado preserva redirecionamento funcional',()=>{
  const html=read('apps/web/financeiro.html');
  assert.match(html,/url=\/\?app=financeiro/);
 });
+test('site incorporado não aponta para o serviço institucional removido',()=>{
+ const html=read('apps/web/public/site/index.html');
+ assert.doesNotMatch(html,/site-forte-atacarejo\.onrender\.com/);
+ assert.match(html,/href="\/"/);
+});
 test('Fiscal permanece fora do manifesto e da PWA operacional',()=>{
  const m=JSON.parse(read('apps/web/public/manifest.webmanifest'));
  assert.doesNotMatch(m.description,/emiss[aã]o fiscal/i);
