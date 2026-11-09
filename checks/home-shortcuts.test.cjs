@@ -18,7 +18,7 @@ async function fixture(role){
 test('home shortcuts navigate within unified FORTE operational system',async()=>{
  const dom=await fixture('full');const d=dom.window.document;
  try{
-  assert.equal(d.querySelectorAll('.home-shortcuts a').length,0);
+  assert.equal(d.querySelector('.home-shortcuts a').href,'https://fixture.test/site/');
   const shortcuts=[...d.querySelectorAll('.home-shortcuts button')];
   assert.deepEqual(shortcuts.map(x=>x.querySelector('b').textContent),['Vendas externas','Fretes e motoristas','Financeiro','Integrações','WhatsApp','Venda balcão','Novo orçamento','Nova venda','Nova compra','Nova carga','Pallets']);
   assert.equal(d.querySelector('.home-unread').textContent,'99+');
@@ -40,7 +40,7 @@ test('read-only and unapproved users do not gain creation shortcuts or panel sum
    assert.deepEqual([...d.querySelectorAll('.home-shortcuts button b')].map(x=>x.textContent),role==='reader'?['Vendas externas','Fretes e motoristas','Financeiro','Integrações','WhatsApp','Pallets']:[]);
    assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?4:0);
    assert.equal(d.querySelectorAll('.home-summary button').length,role==='reader'?2:0);
-   assert.equal(d.querySelectorAll('.home-shortcuts a').length,0);
+   assert.equal(d.querySelector('.home-shortcuts a').href,'https://fixture.test/site/');
   }finally{dom.window.close();}
  }
 });
