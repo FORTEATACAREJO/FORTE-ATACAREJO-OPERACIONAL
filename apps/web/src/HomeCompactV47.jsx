@@ -3,12 +3,16 @@ import {Icon} from './ForteUI.jsx';
 import './workspace-navigation.css';
 import './home-shortcuts.css';
 
-export const CENTRAL_FORTE_URL = 'https://site-forte-atacarejo.onrender.com/central.html';
-
 export default function HomeCompactV47({navigation,canSell,canBuy,canAccess,onNavigate,onSale,onPurchase,onBudget,onLoad,unread=0,data={}}){
  const allowed = (screen,action='visualizar') => canAccess ? canAccess(screen,action) : navigation.main.some(item=>item.id===screen||item.screens?.includes(screen));
+ const integrated=[
+  ['group:vendas','Vendas externas','Representantes e modalidades','file'],
+  ['group:logistica','Fretes e motoristas','Logística no mesmo sistema','truck'],
+  ['group:financeiro','Financeiro','Caixa e cobranças integrados','money'],
+  ['group:integracoes','Integrações','Bancos, WhatsApp e Gmail','grid']
+ ].filter(([id])=>navigation.more.some(item=>item.id===id)).map(([id,label,description,icon])=>({label,description,icon,onClick:()=>onNavigate(id),tone:'central'}));
  const shortcuts = [
-  {label:'Central Forte',description:'Acessar os sistemas',icon:'grid',href:CENTRAL_FORTE_URL,tone:'central'},
+  ...integrated,
   ...(allowed('whatsapp')?[{label:'WhatsApp',description:'Mensagens e respostas',icon:'chat',onClick:()=>onNavigate('whatsapp'),tone:'whatsapp',badge:unread}]:[]),
   ...(canSell&&allowed('balcao','editar')?[{label:'Venda balcão',description:'Caixa e venda rápida',icon:'money',onClick:()=>onNavigate('balcao')},...(onBudget?[{label:'Novo orçamento',description:'Preparar cotação',icon:'file',onClick:onBudget}]:[])]:[]),
   ...(canSell&&allowed('comprasFornecedor','editar')?[{label:'Nova venda',description:'Pedido do cliente',icon:'plus',onClick:onSale}]:[]),
