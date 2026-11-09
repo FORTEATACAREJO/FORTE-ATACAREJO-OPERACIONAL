@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '24'
       - name: Identidade, isolamento fiscal e regras da migracao
-        run: node --test checks/unificacao-identidade.test.mjs checks/migracao-frete.test.mjs
+        run: node --test checks/unificacao-identidade.test.mjs checks/migracao-frete.test.mjs checks/plano-importacao-frete.test.mjs checks/matriz-consolidacao.test.mjs
       - name: Publicar resumo automatico
         if: always()
         run: |
