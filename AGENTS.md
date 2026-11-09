@@ -21,3 +21,10 @@
 - GitHub via clone e controle de versão nativos do Cursor. MCPs não substituem revisão de código, CI e homologação.
 
 **Status:** integração para agente de desenvolvimento, não liberação de produção.
+
+## Ordem de continuidade autorizada — 09/11/2026
+- **AUTORIZADO ao Cursor:** ler o repositório, codificar, refatorar e corrigir módulos, produzir testes/build e abrir novas PRs em branches de desenvolvimento; preservar os trabalhos existentes. Ler `docs/CONSOLIDACAO_3_REPOS_20261109.md` antes da primeira alteração.
+- **Destino final de GitHub:** três repositórios ativos: FORTE ATACAREJO OPERACIONAL (renomear FORTE-VENDAS após corte controlado), FORTEFISCAL independente, FORTE MC-6 novo e privado. Os cinco repositórios comerciais legados são fontes para migração e não devem ser excluídos até backup/reconciliação/QA/aceite.
+- O Supabase FRETE tem registros que ainda não aparecem no Operacional. Faça **mapeamento e código de migração testável**, mas não rode migração em produção nem apague o banco/Storage/Auth; não exponha dados pessoais.
+- Repositório FORTE-VENDAS está atualmente **público**. Não publicar arquivos CAD sensíveis, segredos, documentos internos ou dados pessoais. Solicitar mudança administrativa de privacidade antes da versão final.
+- **BLOQUEADO até aceite específico:** mesclar em main, deploy, DDL/DML produtivo, limpar tabelas, desativar serviços Render, deletar/arquivar repositórios, trocar URLs/OAuth e alterar emissão fiscal. O Cursor não ganha autenticação OAuth do Render/Supabase apenas porque há arquivo MCP no Git.
