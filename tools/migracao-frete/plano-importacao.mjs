@@ -15,12 +15,19 @@ export const CONTAGENS_PARTIDA_20261109 = Object.freeze({
 });
 
 export const ENTIDADES = Object.freeze(Object.keys(CONTAGENS_PARTIDA_20261109));
+const ENTIDADES_COMPLEMENTARES = Object.freeze(['documentos_veiculo', 'motorista_veiculo_vinculos']);
+export {ENTIDADES_COMPLEMENTARES};
+
+const CAMPOS_COMPLEMENTARES = Object.freeze({
+  documentos_veiculo: ['id', 'veiculo_id', 'tipo', 'arquivo_path', 'storage_path', 'bucket'],
+  motorista_veiculo_vinculos: ['id', 'motorista_id', 'veiculo_id'],
+});
 
 const CAMPOS_IDENTIDADE = Object.freeze({
   motoristas: ['id', 'nome', 'cpf', 'telefone', 'cnh_registro', 'categoria_cnh', 'validade_cnh', 'rntrc', 'proprietario_nome', 'proprietario_cpf_cnpj', 'chave_pix', 'titular_pix', 'status_cadastro', 'auth_user_id'],
   veiculos_motorista: ['id', 'motorista_id', 'placa', 'capacidade_efetiva_t', 'capacidade_t', 'rntrc', 'proprietario_nome', 'ativo'],
-  rotas: ['id', 'nome', 'origem', 'destino'],
-  documentos_motorista: ['id', 'motorista_id', 'tipo', 'bucket', 'storage_bucket', 'storage_path', 'caminho', 'path'],
+  rotas: ['id', 'nome', 'origem', 'destino', 'origem_cidade', 'origem_uf'],
+  documentos_motorista: ['id', 'motorista_id', 'tipo', 'bucket', 'storage_bucket', 'storage_path', 'caminho', 'path', 'arquivo_path'],
   usuarios_app: ['id', 'user_id', 'perfil', 'status_aprovacao', 'ativo'],
 });
 
@@ -28,7 +35,7 @@ const CONFLITOS = new Set(['conflito_sem_sobrescrita', 'conflito_chave_natural',
 
 export function chaveEstavel(tabela, id) {
   const origemId = String(id ?? '').trim();
-  if (!ENTIDADES.includes(tabela) || !origemId) return null;
+  if (![...ENTIDADES, ...ENTIDADES_COMPLEMENTARES].includes(tabela) || !origemId) return null;
   return `${ORIGEM_SISTEMA}:${tabela}:${origemId}`;
 }
 
@@ -92,7 +99,7 @@ function criarOcupacao(destino) {
   const chaves = new Map();
   const cpf = new Map();
   const vistas = new Set();
-  for (const entidade of ENTIDADES) {
+  for (const entidade of [...ENTIDADES, ...ENTIDADES_COMPLEMENTARES]) {
     for (const row of destino?.[entidade] || []) {
       if (!row?.chave_estavel) continue;
       chaves.set(row.chave_estavel, row.conteudo_hash || null);
@@ -139,9 +146,9 @@ function mapearMotorista(row, veiculos, empresaId) {
   };
 }
 
-function mapearVeiculo(row, motoristasIds) {
+function mapearVeiculo(row, motoristasIds, vinculosPorVeiculo = new Map()) {
   const origemId = texto(row?.id);
-  const motoristaId = texto(row?.motorista_id);
+  const motoristaId = texto(row?.motorista_id) || texto(vinculosPorVeiculo.get(texto(row?.id)));
   const placa = texto(row?.placa).toUpperCase();
   const camposPendentes = [];
   if (!origemId) camposPendentes.push('id');
@@ -169,11 +176,25 @@ function mapearVeiculo(row, motoristasIds) {
   };
 }
 
+function descreverDestinos(destinos) {
+  if (Array.isArray(destinos)) {
+    return destinos.map(item => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') return texto(item.cidade || item.nome || item.destino);
+      return '';
+    }).filter(Boolean).join(', ');
+  }
+  if (typeof destinos === 'string') return texto(destinos);
+  return '';
+}
+
 function mapearRota(row) {
   const origemId = texto(row?.id);
   const nome = texto(row?.nome);
-  const origem = texto(row?.origem);
-  const destino = texto(row?.destino);
+  const origemCidade = texto(row?.origem_cidade);
+  const origemUf = texto(row?.origem_uf);
+  const origem = texto(row?.origem) || [origemCidade, origemUf].filter(Boolean).join('/');
+  const destino = texto(row?.destino) || descreverDestinos(row?.destinos);
   const camposPendentes = [];
   if (!origemId) camposPendentes.push('id');
   if (!nome && !origem && !destino) camposPendentes.push('identificacao');
@@ -184,16 +205,38 @@ function mapearRota(row) {
     entidade: 'rotas',
     origemId,
     chave,
-    registro: {origem_sistema: ORIGEM_SISTEMA, origem_tabela: 'rotas', origem_id: origemId, chave_estavel: chave, nome: nome || null, origem: origem || null, destino: destino || null},
+    registro: {
+      origem_sistema: ORIGEM_SISTEMA,
+      origem_tabela: 'rotas',
+      origem_id: origemId,
+      chave_estavel: chave,
+      nome: nome || null,
+      origem: origem || null,
+      destino: destino || null,
+      origem_cidade: origemCidade || null,
+      origem_uf: origemUf || null,
+      ativa: row?.ativa === true,
+    },
   };
 }
 
-function mapearDocumento(row, motoristasIds) {
+function referenciaArquivo(row, contexto) {
+  const caminho = texto(row?.storage_path || row?.caminho || row?.path || row?.arquivo_path);
+  const explicito = texto(row?.bucket || row?.storage_bucket);
+  if (explicito) return {bucket: explicito, caminho, bucketOrigem: 'linha'};
+  if (caminho && texto(contexto?.bucketUnicoComObjetos)) {
+    return {bucket: texto(contexto.bucketUnicoComObjetos), caminho, bucketOrigem: 'unico_bucket_com_objetos'};
+  }
+  return {bucket: '', caminho, bucketOrigem: null};
+}
+
+function mapearDocumento(row, motoristasIds, contexto) {
   const origemId = texto(row?.id);
   const motoristaId = texto(row?.motorista_id);
   const tipo = texto(row?.tipo);
-  const bucket = texto(row?.bucket || row?.storage_bucket);
-  const caminho = texto(row?.storage_path || row?.caminho || row?.path);
+  const arquivo = referenciaArquivo(row, contexto);
+  const bucket = arquivo.bucket;
+  const caminho = arquivo.caminho;
   const camposPendentes = [];
   if (!origemId) camposPendentes.push('id');
   if (!motoristaId) camposPendentes.push('motorista_id');
@@ -216,9 +259,73 @@ function mapearDocumento(row, motoristasIds) {
       motorista_origem_id: motoristaId,
       tipo,
       bucket,
+      bucket_origem: arquivo.bucketOrigem,
       storage_path: caminho,
       conteudo_sha256: /^[a-f0-9]{64}$/.test(texto(row?.conteudo_sha256)) ? texto(row.conteudo_sha256) : null,
       copiar_bytes: false,
+    },
+  };
+}
+
+function mapearDocumentoVeiculo(row, veiculosIds, contexto) {
+  const origemId = texto(row?.id);
+  const veiculoId = texto(row?.veiculo_id);
+  const tipo = texto(row?.tipo);
+  const arquivo = referenciaArquivo(row, contexto);
+  const camposPendentes = [];
+  if (!origemId) camposPendentes.push('id');
+  if (!veiculoId) camposPendentes.push('veiculo_id');
+  if (!tipo) camposPendentes.push('tipo');
+  if (!arquivo.bucket) camposPendentes.push('bucket');
+  if (!arquivo.caminho) camposPendentes.push('storage_path');
+  if (camposPendentes.length) return {apto: false, entidade: 'documentos_veiculo', origemId, camposPendentes};
+  if (!veiculosIds.has(veiculoId)) return {apto: false, entidade: 'documentos_veiculo', origemId, camposPendentes: ['veiculo_id'], acao: 'vinculo_ausente'};
+  const chave = chaveEstavel('documentos_veiculo', origemId);
+  return {
+    apto: true,
+    entidade: 'documentos_veiculo',
+    origemId,
+    chave,
+    registro: {
+      origem_sistema: ORIGEM_SISTEMA,
+      origem_tabela: 'documentos_veiculo',
+      origem_id: origemId,
+      chave_estavel: chave,
+      veiculo_origem_id: veiculoId,
+      tipo,
+      bucket: arquivo.bucket,
+      bucket_origem: arquivo.bucketOrigem,
+      storage_path: arquivo.caminho,
+      copiar_bytes: false,
+    },
+  };
+}
+
+function mapearVinculo(row, motoristasIds, veiculosIds) {
+  const origemId = texto(row?.id);
+  const motoristaId = texto(row?.motorista_id);
+  const veiculoId = texto(row?.veiculo_id);
+  const camposPendentes = [];
+  if (!origemId) camposPendentes.push('id');
+  if (!motoristaId) camposPendentes.push('motorista_id');
+  if (!veiculoId) camposPendentes.push('veiculo_id');
+  if (camposPendentes.length) return {apto: false, entidade: 'motorista_veiculo_vinculos', origemId, camposPendentes};
+  if (!motoristasIds.has(motoristaId) || !veiculosIds.has(veiculoId)) {
+    return {apto: false, entidade: 'motorista_veiculo_vinculos', origemId, camposPendentes: ['referencia'], acao: 'vinculo_ausente'};
+  }
+  const chave = chaveEstavel('motorista_veiculo_vinculos', origemId);
+  return {
+    apto: true,
+    entidade: 'motorista_veiculo_vinculos',
+    origemId,
+    chave,
+    registro: {
+      origem_sistema: ORIGEM_SISTEMA,
+      origem_tabela: 'motorista_veiculo_vinculos',
+      origem_id: origemId,
+      chave_estavel: chave,
+      motorista_origem_id: motoristaId,
+      veiculo_origem_id: veiculoId,
     },
   };
 }
@@ -264,20 +371,30 @@ export function reconciliarContagens(fonte = {}, destino = {}) {
   return {papelDaPartida: 'contagem_de_partida', aceite: false, entidades};
 }
 
-export function planoImportacao({fonte = {}, destino = {}, empresaId} = {}) {
+export function planoImportacao({fonte = {}, destino = {}, empresaId, bucketUnicoComObjetos} = {}) {
   const ocupacao = criarOcupacao(destino);
   const motoristasIds = new Set((fonte.motoristas || []).map(row => texto(row?.id)).filter(Boolean));
+  const veiculosIds = new Set((fonte.veiculos_motorista || []).map(row => texto(row?.id)).filter(Boolean));
+  const vinculosPorVeiculo = new Map();
+  for (const vinculo of fonte.motorista_veiculo_vinculos || []) {
+    const veiculoId = texto(vinculo?.veiculo_id);
+    const motoristaId = texto(vinculo?.motorista_id);
+    if (veiculoId && motoristaId && !vinculosPorVeiculo.has(veiculoId)) vinculosPorVeiculo.set(veiculoId, motoristaId);
+  }
+  const contexto = {bucketUnicoComObjetos};
   const mapeadores = {
     motoristas: row => mapearMotorista(row, fonte.veiculos_motorista, empresaId),
-    veiculos_motorista: row => mapearVeiculo(row, motoristasIds),
+    veiculos_motorista: row => mapearVeiculo(row, motoristasIds, vinculosPorVeiculo),
     rotas: mapearRota,
-    documentos_motorista: row => mapearDocumento(row, motoristasIds),
+    documentos_motorista: row => mapearDocumento(row, motoristasIds, contexto),
     usuarios_app: mapearUsuario,
   };
   const itens = [];
   for (const entidade of ENTIDADES) {
     for (const row of fonte[entidade] || []) itens.push(finalizar(mapeadores[entidade](row), ocupacao));
   }
+  for (const row of fonte.documentos_veiculo || []) itens.push(finalizar(mapearDocumentoVeiculo(row, veiculosIds, contexto), ocupacao));
+  for (const row of fonte.motorista_veiculo_vinculos || []) itens.push(finalizar(mapearVinculo(row, motoristasIds, veiculosIds), ocupacao));
   return {executavel: false, aplicaProducao: false, reconciliacao: reconciliarContagens(fonte, destino), itens};
 }
 
@@ -286,6 +403,7 @@ export function resumoPlano(plano) {
   const porEntidade = {};
   for (const entidade of ENTIDADES) porEntidade[entidade] = {total: 0, inserir: 0, ignorar_igual: 0, conflito: 0, pendente: 0};
   for (const item of itens) {
+    if (!porEntidade[item.entidade]) porEntidade[item.entidade] = {total: 0, inserir: 0, ignorar_igual: 0, conflito: 0, pendente: 0};
     const grupo = porEntidade[item.entidade];
     grupo.total += 1;
     if (item.acao === 'inserir') grupo.inserir += 1;
@@ -313,6 +431,20 @@ export function snapshotIdentidade(fonte = {}) {
       }
       const pick = {};
       for (const campo of CAMPOS_IDENTIDADE[entidade]) pick[campo] = row?.[campo] ?? null;
+      itens.push({entidade, chaveEstavel: chave, conteudoHash: hashRegistro(pick)});
+    }
+  }
+  for (const entidade of ENTIDADES_COMPLEMENTARES) {
+    if (!Array.isArray(fonte[entidade])) continue;
+    for (const row of fonte[entidade]) {
+      const origemId = texto(row?.id);
+      const chave = chaveEstavel(entidade, origemId);
+      if (!chave) {
+        itens.push({entidade, chaveEstavel: null, conteudoHash: null});
+        continue;
+      }
+      const pick = {};
+      for (const campo of CAMPOS_COMPLEMENTARES[entidade]) pick[campo] = row?.[campo] ?? null;
       itens.push({entidade, chaveEstavel: chave, conteudoHash: hashRegistro(pick)});
     }
   }

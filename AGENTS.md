@@ -4,6 +4,7 @@
 - Este repositório FORTE-VENDAS é a base do **FORTE ATACAREJO OPERACIONAL**. O objetivo é reunir Vendas, Balcão, Carga Direta, Vendas Externas, Financeiro, Fretes/Motoristas, WhatsApp e site institucional na mesma plataforma com interfaces móveis por perfil.
 - **FORTE FISCAL é um sistema separado**, com repositório, banco Supabase, autenticação, estoque e motor fiscal próprios. Não unificar os bancos nem executar migrações cruzadas.
 - A base legada do FORTE FRETE ainda deve ser reconciliada antes da migração definitiva. Não presumir que dados, anexos, usuários e permissões estejam migrados nem desativar o sistema antigo por conta própria.
+- O cartão Supabase exibido como **FORTE MC 6** (`nkynfboqwfxhhxcsrawl`, criado em 2026-09-20) é o banco legado do Frete. Não inicializar schema de máquina nele, não apagar registros e não tratar o rótulo como migração concluída. MC-6 precisa de projeto novo, ou segue sem Supabase até o aceite do custo de US$ 10/mês.
 - O projeto da máquina de telas/colunas MC-6 é um projeto de engenharia separado, não um módulo comercial.
 - Preservar autorização por módulo e por perfil, trilhas de auditoria, reservas de estoque, regras de preços e segregação entre estoque operacional e fiscal.
 

@@ -52,12 +52,24 @@ Workspace `tea-daoniurm8hqs73fsi3p0`, consulta somente leitura em 2026-11-09. On
 
 ## Supabase
 
-A sessão não consultou o banco. O MCP disponível é o genérico da organização e tem ferramentas de escrita. O MCP operacional `gtwecfyffjszghnvtlzr` com `read_only=true` não foi confirmado como isolado. As contagens 23 motoristas, 2 veículos, 5 rotas, 1 documento e 4 usuários permanecem a contagem de partida de 2026-11-09, não um aceite.
+Releitura de 2026-11-09, só com nome de projeto e contagens. Não houve DDL, DML, pausa, criação de projeto nem cópia de linha. O Fiscal não teve tabela lida.
+
+| Cartão | project_ref | O que é | Criado em |
+| --- | --- | --- | --- |
+| FORTE FISCAL | `xmfpvvmvdkepmnvtdoio` | Fiscal independente. Permanece isolado. | 2026-09-03 |
+| FORTE ATACAREJO OPERACIONAL | `gtwecfyffjszghnvtlzr` | Operacional. 84 tabelas públicas, 26 Edge Functions. `fc_motoristas=0` e `fc_veiculos=0`. | 2026-09-14 |
+| FORTE MC 6 | `nkynfboqwfxhhxcsrawl` | Frete legado. 38 tabelas, 19 Edge Functions, 23 motoristas, 2 veículos, 5 rotas, 1 documento de motorista, 5 documentos de veículo, 4 usuários de aplicativo e 4 de Auth. | 2026-09-20 |
+
+O rótulo FORTE MC 6 não é um projeto novo e não prova migração. O Operacional continua sem os motoristas. Há também 6 objetos no bucket privado `motorista-documentos`, somando 15.708.136 bytes; os caminhos não foram copiados. A contagem de partida 23/2/5/1/4 continua válida para aquelas cinco tabelas e não é aceite. `documentos_veiculo=5` fica fora dessa partida e entra no selo.
+
+Não existe quarto projeto. MC-6 de engenharia pode começar sem Supabase. Um projeto novo só depois do aceite explícito de US$ 10/mês.
 
 ## Bloqueios de autorização
 
 - `github-privado-financeiro-fiscal`: falta leitura de FORTE-FINANCEIRO e FORTEFISCAL para este agente.
-- `mcp-supabase-operacional`: falta a sessão read-only isolada no projeto operacional.
-- `privacidade-github-e-mc6`: FORTE-VENDAS segue público e o repositório MC-6 privado ainda não existe. Nenhum CAD foi versionado.
+- `mcp-supabase-operacional`: a releitura agregada usou o MCP genérico. A sessão read-only isolada do operacional continua ausente.
+- `rotulo-mc6-no-frete`: `nkynfboqwfxhhxcsrawl` é Frete legado. O MCP visto não expõe PATCH de projeto, então o nome de exibição segue FORTE MC 6.
+- `backup-fisico-frete`: o selo de metadados e o ensaio de contagens existem. O backup físico não foi exportado.
+- `privacidade-github-e-mc6`: FORTE-VENDAS segue público e o repositório MC-6 privado ainda não existe. Nenhum CAD foi versionado. Nenhum projeto Supabase novo foi criado.
 - `auth-redirect-site`: mover a administração muda Redirect URL do Auth e exige aceite.
 - `corte-producao`: merge, deploy, RLS, Auth, Storage, domínio, OAuth e desligamento exigem aceite específico.

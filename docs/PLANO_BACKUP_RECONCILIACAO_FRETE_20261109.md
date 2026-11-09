@@ -45,12 +45,22 @@ Auth é reconciliado por identificador, sem criar usuário e sem copiar credenci
 
 A sincronização já existente em `sync-frete-drivers` não substitui este plano: ela grava o estado da aplicação e não oferece chave de origem, hash nem recusa de sobrescrita.
 
+## O que a releitura de 2026-11-09 conseguiu verificar
+
+`tools/migracao-frete/censo-frete-20261109.mjs` guarda o selo, sem linhas e sem caminhos de arquivo. `validarSelo()` confere 38 tabelas, a partida 23/2/5/1/4, os 5 documentos de veículo, 4 usuários de Auth, 19 funções, 6 objetos e 15.708.136 bytes, o schema SHA-256 e o destino operacional zerado. `ensaiarRestauracaoContagens()` falha se uma tabela some ou muda de contagem. `backupRestauravel` permanece falso.
+
+O cartão FORTE MC 6 é `nkynfboqwfxhhxcsrawl`, criado em 2026-09-20. `classificarProjeto()` não aceita esse ref como MC-6, não aceita apagar, pausar ou criar outro projeto, e não trata o nome de exibição como identidade. `importarIdempotente()` grava só em memória, recusa o próprio Frete e o Fiscal como destino, ignora a segunda passagem da mesma chave e recusa sobrescrita. `aplicarProducao()` continua sem comando.
+
+O nome pretendido, quando houver `project_admin_write` limitado a esse ref, é `FORTE FRETE (LEGADO - NÃO APAGAR)`, no corpo `{"name":"FORTE FRETE (LEGADO - NÃO APAGAR)"}`. Esta sessão não tinha esse escopo. `create_project`, `pause_project` e `restore_project` não foram chamados.
+
 ## Bloqueios que impedem o backup real
 
 - `github-privado-financeiro-fiscal`
 - `mcp-supabase-operacional`
+- `rotulo-mc6-no-frete`
+- `backup-fisico-frete`
 - `privacidade-github-e-mc6`
 - `auth-redirect-site`
 - `corte-producao`
 
-Sem a sessão read-only isolada do projeto operacional, este agente não exporta schema, Auth, Storage nem contagens vivas. Sem o aceite `corte-producao`, nenhum backup de produção deve ser disparado a partir daqui.
+O selo não substitui o dump. Sem arquivo de schema, dados, Auth, Storage e Edge Functions restaurado em ambiente isolado, o corte continua fechado.

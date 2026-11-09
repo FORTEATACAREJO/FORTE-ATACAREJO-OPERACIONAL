@@ -26,7 +26,11 @@ test('onze servicos Render permanecem no ar e nenhum corte esta autorizado', () 
   assert.equal(servicosPorCorte('frontend_legado').length, 5);
   assert.equal(servicosPorCorte('fiscal_independente').length, 2);
   assert.equal(AUDITORIA_CONSOLIDACAO.render.servicos.filter(servico => servico.autoDeploy).length, 9);
-  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.consultaVivaNestaSessao, false);
+  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.consultaVivaNestaSessao, true);
+  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.escritaNestaSessao, false);
+  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.migracaoFreteExecutada, false);
+  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.classificacaoFrete, 'frete_legado');
+  assert.equal(AUDITORIA_CONSOLIDACAO.supabase.nomeExibicaoFrete, 'FORTE MC 6');
   assert.equal(AUDITORIA_CONSOLIDACAO.supabase.partidaEhAceite, false);
   assert.equal(AUDITORIA_CONSOLIDACAO.supabase.fiscalIndependente, true);
   assert.deepEqual(AUDITORIA_CONSOLIDACAO.supabase.bancosEmpresariaisAlvo, ['operacional', 'fiscal']);
