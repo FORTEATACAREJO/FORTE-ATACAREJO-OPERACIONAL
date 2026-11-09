@@ -1,5 +1,9 @@
-// Inventario estatico da auditoria de 2026-11-09.
-// Nao consulta banco, Auth, Storage nem dispara deploy.
+// Inventario da auditoria de 2026-11-09, com a releitura agregada do mesmo dia.
+// A releitura nao copiou linhas, anexos, Auth nem corpo de funcao.
+import {REFS} from '../migracao-frete/classificar-projeto.mjs';
+import {resumoCenso} from '../migracao-frete/censo-frete-20261109.mjs';
+
+const censo = resumoCenso();
 export const AUDITORIA_CONSOLIDACAO = Object.freeze({
   data: '2026-11-09',
   repositorios: [
@@ -87,22 +91,34 @@ export const AUDITORIA_CONSOLIDACAO = Object.freeze({
     ],
   },
   supabase: {
-    consultaVivaNestaSessao: false,
-    motivo: 'O MCP Supabase desta sessao e o generico da organizacao e possui escrita. A sessao read-only do projeto operacional nao estava isolada aqui.',
-    projectRefOperacional: 'gtwecfyffjszghnvtlzr',
-    partidaFrete: {motoristas: 23, veiculos_motorista: 2, rotas: 5, documentos_motorista: 1, usuarios_app: 4},
+    consultaVivaNestaSessao: true,
+    consultaEscopo: 'agregados_sem_linhas',
+    escritaNestaSessao: false,
+    motivo: 'A releitura de 2026-11-09 usou o MCP generico so para nome de projeto e contagens. Nao houve DDL, DML, pausa, criacao de projeto nem copia de linha. A sessao isolada read_only do operacional continua ausente. O Fiscal nao teve tabela lida.',
+    projectRefOperacional: REFS.operacional,
+    projectRefFreteLegado: REFS.freteLegado,
+    projectRefFiscal: REFS.fiscal,
+    nomeExibicaoFrete: censo.rotuloFrete,
+    classificacaoFrete: censo.classificacaoFrete,
+    migracaoFreteExecutada: censo.migracaoExecutada,
+    backupFisicoExportado: censo.backupRestauravel,
+    partidaFrete: censo.partida,
+    alemDaPartida: censo.alemDaPartida,
+    operacionalFrete: censo.operacionalFrete,
     partidaEhAceite: false,
     fiscalIndependente: true,
     bancosEmpresariaisAlvo: ['operacional', 'fiscal'],
   },
   bloqueios: [
     {id: 'github-privado-financeiro-fiscal', autorizacao: 'Conceder ao agente leitura dos repositorios privados FORTE-FINANCEIRO e FORTEFISCAL.', efeito: 'O codigo desses dois repositorios nao foi comparado nesta sessao.'},
-    {id: 'mcp-supabase-operacional', autorizacao: 'Autenticar somente o MCP Supabase com project_ref=gtwecfyffjszghnvtlzr e read_only=true, e provar que Fiscal e Frete nao aparecem.', efeito: 'Contagens, Auth, Storage e Edge Functions nao foram relidos ao vivo.'},
-    {id: 'privacidade-github-e-mc6', autorizacao: 'Tornar FORTE-VENDAS privado e criar o repositorio FORTE MC-6 ja privado.', efeito: 'Nenhum CAD, segredo ou documento interno foi adicionado.'},
+    {id: 'mcp-supabase-operacional', autorizacao: 'Autenticar somente o MCP Supabase com project_ref=gtwecfyffjszghnvtlzr e read_only=true, e provar que Fiscal e Frete nao aparecem.', efeito: 'A releitura agregada ja aconteceu no MCP generico. A sessao isolada do operacional ainda nao existe, e por isso nao houve export fisico.'},
+    {id: 'rotulo-mc6-no-frete', autorizacao: 'Nao usar nkynfboqwfxhhxcsrawl como MC-6. Corrigir so o nome de exibicao para FORTE FRETE (LEGADO - NAO APAGAR), com project_admin_write limitado a esse ref.', efeito: 'O MCP visto nao tem PATCH de projeto. O nome segue FORTE MC 6 e os dados do Frete continuam nesse ref.'},
+    {id: 'backup-fisico-frete', autorizacao: 'Gerar backup restauravel de schema, dados, Auth, Storage e Edge Functions fora do Git publico, e ensaiar a restauracao.', efeito: 'Ha selo de metadados e ensaio de contagens. Nao ha pg_dump, download de objeto nem export de Auth.'},
+    {id: 'privacidade-github-e-mc6', autorizacao: 'Tornar FORTE-VENDAS privado e criar o repositorio FORTE MC-6 ja privado. Projeto Supabase novo so depois do aceite explicito de US$ 10/mes; ate la o MC-6 pode seguir sem Supabase.', efeito: 'Nenhum CAD, segredo ou documento interno foi adicionado. Nenhum projeto Supabase novo foi criado.'},
     {id: 'auth-redirect-site', autorizacao: 'Aprovar a troca dos Redirect URLs do Auth do site antes de mover a administracao.', efeito: 'admin.html e a recuperacao de senha continuam no dominio legado.'},
     {id: 'corte-producao', autorizacao: 'Aceite especifico para backup restauravel, merge em main, deploy, RLS, Auth, Storage, dominio, OAuth e desligamento.', efeito: 'Nenhum servico, banco ou repositorio foi alterado.'},
   ],
-  mc6: {criado: false, visibilidadeExigida: 'privada', cadPublicado: false},
+  mc6: {criado: false, visibilidadeExigida: 'privada', cadPublicado: false, projetoSupabaseNovo: false, podeComecarSemSupabase: true, custoMensalUsdCitado: 10, autorizado: false},
 });
 
 export function servicosPorCorte(corte) {
