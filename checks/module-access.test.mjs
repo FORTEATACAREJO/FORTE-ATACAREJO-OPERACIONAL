@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {appFlagsFrom,resolverEntrada,screenAllowed} from '../apps/web/src/module-access.mjs';
+import {appFlagsFrom,proximaEntrada,resolverEntrada,screenAllowed} from '../apps/web/src/module-access.mjs';
 
 const groups=new Set();
 const allow=(id,action='visualizar')=>groups.has(id)&&(action==='visualizar'||action==='editar');
@@ -36,11 +36,16 @@ test('atalho financeiro legado não herda os outros módulos',()=>{
 });
 test('frete entra só na tela de motorista e não herda o financeiro',()=>{
  assert.equal(screenAllowed({screen:'motorista',groupId:'',groupAllowed:()=>false,freteMode:true}),true);
+ assert.equal(screenAllowed({screen:'motorista',action:'editar',groupId:'',groupAllowed:()=>false,freteMode:true}),false);
+ assert.equal(screenAllowed({screen:'painelCargas',groupId:'',groupAllowed:()=>true,freteMode:true}),false);
  assert.equal(screenAllowed({screen:'financeiro',groupId:'financeiro',groupAllowed:()=>true,freteMode:true}),false);
  assert.equal(screenAllowed({screen:'externas',groupId:'vendas',groupAllowed:()=>true,freteMode:true}),false);
  assert.equal(resolverEntrada([{app:'vendas',allowed:true,role:'MASTER'},{app:'frete',allowed:true}]).modo,'operacional');
  assert.equal(resolverEntrada([{app:'vendas',allowed:false},{app:'frete',allowed:true,role:'MOTORISTA'}]).modo,'frete');
  assert.equal(resolverEntrada([{app:'vendas',allowed:false},{app:'frete',allowed:false}]).modo,'bloqueado');
+ assert.equal(proximaEntrada('vendas',{allowed:false,perfil:'MOTORISTA'}),'frete');
+ assert.equal(proximaEntrada('vendas',{allowed:true,perfil:'MOTORISTA'}),'vendas');
+ assert.equal(proximaEntrada('vendas',{allowed:false,perfil:'VENDEDOR_INTERNO'}),'vendas');
 });
 test('matriz antiga de permissões não vira bandeira de aplicativo',()=>{
  assert.deepEqual(appFlagsFrom({'VENDAS E COMPRAS':{visualizar:true}}),{});

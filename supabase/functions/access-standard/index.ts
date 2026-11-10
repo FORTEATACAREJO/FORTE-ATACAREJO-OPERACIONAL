@@ -33,7 +33,7 @@ if(req.method!=="POST"||!validOrigin)return reply({error:"Requisição não perm
 let admin:any,createdId:string|null=null;
 try{
 const b=await req.json(),action=String(b.action||"STATUS"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const permittedApps=frete?["frete"]:fiscal?["fiscal"]:["vendas","financeiro","venda-externa","carga-direta","patio","site"];const app=apps[origin]==="vendas"&&b.app==="financeiro"?"financeiro":apps[origin];if(b.app!==undefined&&b.app!==app)return reply({error:"O módulo solicitado não corresponde à origem."},403);
+const permittedApps=frete?["frete"]:fiscal?["fiscal"]:["vendas","financeiro","venda-externa","carga-direta","patio","site","frete"];const requested=typeof b.app==="string"?b.app:"";const originApp=apps[origin];const freteSession=requested==="frete"&&["STATUS","LEGAL_STATUS","LEGAL_ACCEPT","LEGAL_RECEIPTS","SET_PASSWORD","LOGIN","RECOVERY_OPTIONS","RECOVERY_REQUEST"].includes(String(b.action||"STATUS"));const app=originApp==="vendas"&&((requested==="financeiro")||freteSession)&&permittedApps.includes(requested)?requested:originApp;if(b.app!==undefined&&b.app!==app)return reply({error:"O módulo solicitado não corresponde à origem."},403);
 admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const table=fiscal?"profiles":frete?"usuarios_app":"fc_perfis",idcol=fiscal?"id":"user_id";
 const readProfile=async(uid:string)=>{const r=await admin.from(table).select("*").eq(idcol,uid).maybeSingle();if(r.error)throw Error("Falha ao conferir cadastro.");return r.data};
@@ -89,7 +89,7 @@ return reply({access_token:logged.data.session.access_token,refresh_token:logged
 const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,""),u=await admin.auth.getUser(token);
 if(u.error||!u.data.user)return reply({error:"Sessão inválida. Entre novamente."},401);
 const uid=u.data.user.id,p=await readProfile(uid);if(!p)return reply({error:"Cadastro não localizado."},403);
-if(['vendas','financeiro','venda-externa'].includes(app)){
+if(['vendas','financeiro','venda-externa','frete'].includes(app)){
 if(action==='LEGAL_STATUS'||action==='LEGAL_ACCEPT'||action==='LEGAL_RECEIPTS'){
  const result=action==='LEGAL_STATUS'?await admin.rpc('forte_legal_status',{p_user:uid,p_app:app}):action==='LEGAL_ACCEPT'?await admin.rpc('forte_legal_accept',{p_user:uid,p_app:app,p_version:b.version,p_hash:b.hash,p_confirmed:b.confirmed===true,p_source:req.headers.get('origin')}):await admin.rpc('forte_legal_receipts',{p_actor:uid,p_target:typeof b.user_id==='string'?b.user_id:uid,p_app:app});
  if(result.error)return reply({error:result.error.message},400);return reply(action==='LEGAL_RECEIPTS'?{receipts:result.data}:result.data);
@@ -200,7 +200,7 @@ if(action!=="STATUS")return reply({error:"Ação inválida."},400);
 const active=Boolean(p.active??p.ativo)&&(!p.status_aprovacao||p.status_aprovacao==="APROVADO"),changing=Boolean(p.must_change_password||p.trocar_senha);
 const approved=managed?r?.status==="APROVADO":r?r.status==="APROVADO":legacyAllowed(p,app);
 const notes=r?await admin.from("access_notifications").select("id,event,message,created_at").eq("user_id",uid).eq("request_id",r.id).eq("audience","USER").order("created_at",{ascending:false}).limit(5):{data:[]};
-return reply({allowed:moduleContext.allowed===true&&Boolean(active&&!changing),role:moduleContext.role,permissions:moduleContext.permissions,status:r?.status||(approved?"APROVADO":"SEM_SOLICITACAO"),isAdmin,changing,cpf:p.cpf,name:p.full_name||p.nome,notifications:notes.data||[]});
+return reply({allowed:moduleContext.allowed===true&&Boolean(active&&!changing),role:moduleContext.role,perfil:p.perfil||p.role||null,permissions:moduleContext.permissions,status:r?.status||(approved?"APROVADO":"SEM_SOLICITACAO"),isAdmin,changing,cpf:p.cpf,name:p.full_name||p.nome,notifications:notes.data||[]});
 }catch(error){
 if(admin&&createdId){await admin.from("access_requests").delete().eq("user_id",createdId);await admin.from("access_notifications").delete().eq("user_id",createdId);const fiscal=Deno.env.get("SUPABASE_URL")?.includes("xmfpvvmvdkepmnvtdoio"),frete=Deno.env.get("SUPABASE_URL")?.includes("nkynfboqwfxhhxcsrawl");if(frete)await admin.from("motoristas").delete().eq("auth_user_id",createdId);await admin.from(fiscal?"profiles":frete?"usuarios_app":"fc_perfis").delete().eq(fiscal?"id":"user_id",createdId);await admin.auth.admin.deleteUser(createdId)}
 const message=error instanceof Error?error.message:"Não foi possível concluir. Tente novamente.";return reply({error:message},/^(Informe|CPF|E-mail|A senha)/.test(message)?400:503);

@@ -19,6 +19,8 @@ import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
 import FreteMotoristaPainel from "./FreteMotoristaPainel.jsx";
+import FreteCargasMotorista from "./FreteCargasMotorista.jsx";
+import {motoristaSelecionavelParaCarga} from "./frete-acesso.mjs";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -54,7 +56,7 @@ import {
 } from "@forte/core";
 import { seed } from "./seed";
 import { loadData, saveData, resetData } from "./storage";
-import { applyAuthUser, loadCloudState, saveCloudState, commitCashClosure, getPatioStatus, supabase, supabaseConfigured, getAuthContext } from "./supabase";
+import { applyAuthUser, loadCloudState, loadCargasMotorista, saveCloudState, commitCashClosure, getPatioStatus, supabase, supabaseConfigured, getAuthContext } from "./supabase";
 import { putFile, getFile, openFile, downloadFile } from "./fileStore";
 import {storeReceivableFile, appendReceiptEvidence} from "./receivable-evidence.js";
 import { lerXmlNfe, gerarDanfeSimplificadoPdf } from "./nfe";
@@ -798,6 +800,8 @@ export default function App() {
   const [data, setData] = useState(() => applyAuthUser(loadData(seed)));
   const cloudReady = useRef(false);
   const [cloudError,setCloudError]=useState("");
+  const [minhasCargas,setMinhasCargas]=useState(null);
+  const [cargasErro,setCargasErro]=useState("");
   useEffect(()=>{const listener=e=>setCloudError(e.detail||"");window.addEventListener("forte-cloud-status",listener);return()=>window.removeEventListener("forte-cloud-status",listener)},[]);
   const cloudTimer = useRef(null);
   const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(freteMode?"motorista":financeMode?"financeiro":"vendas",navigationRoot);
@@ -833,8 +837,9 @@ export default function App() {
   const workflowBusy = useRef(false);
   const [workflowInitialTab,setWorkflowInitialTab]=useState("fornecedor");
   const [counterInitialMode,setCounterInitialMode]=useState("VENDA");
-  useEffect(() => {let active=true;if(!supabaseConfigured)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[]);
-  useEffect(() => {saveData(data);if(!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data]);
+  useEffect(() => {let active=true;if(!supabaseConfigured||freteMode)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[freteMode]);
+  useEffect(()=>{if(!freteMode)return;let active=true;setCargasErro("");loadCargasMotorista().then(painel=>{if(active)setMinhasCargas(painel);}).catch(e=>{if(active)setCargasErro(e.message||"Não foi possível carregar as cargas.");});return()=>{active=false};},[freteMode]);
+  useEffect(() => {saveData(data);if(freteMode||!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data,freteMode]);
   async function commitCounterSale(buildNext) {
     if (!supabaseConfigured || !cloudReady.current) throw new Error("A BASE NA NUVEM AINDA NÃO FOI CARREGADA. CONFIRA A CONEXÃO.");
     if (workflowBusy.current) throw new Error("OPERAÇÃO EM GRAVAÇÃO. AGUARDE SUA CONFIRMAÇÃO.");
@@ -947,7 +952,7 @@ export default function App() {
       )
     : null;
   const driverFiltered = data.motoristas
-    .filter((m) => m.ativo !== false && motoristaServe(m, "TRANSPORTE"))
+    .filter((m) => motoristaSelecionavelParaCarga(m) && motoristaServe(m, "TRANSPORTE"))
     .filter((m) => {
       const q = norm(driverSearch);
       return (
@@ -1266,6 +1271,7 @@ export default function App() {
     if (!brandCheck.ok)
       return alert("CARGA BLOQUEADA: OS PEDIDOS DEVEM SER DA MESMA MARCA.");
     if (!driver) return alert("SELECIONE O MOTORISTA/VEÍCULO.");
+    if (!motoristaSelecionavelParaCarga(driver)) return alert("O MOTORISTA SELECIONADO AINDA NÃO ESTÁ LIBERADO PARA CARGAS.");
     const cv = validateCapacity(
       selKg,
       driver.capacidadeAlvoKg,
@@ -2562,7 +2568,8 @@ export default function App() {
             </button>
           </section>
         )}
-        {tab === "motorista" && (
+        {tab === "motorista" && freteMode && <FreteCargasMotorista painel={minhasCargas} erro={cargasErro}/>}
+        {tab === "motorista" && !freteMode && (
           <section className="card">
             <h2>MOTORISTA / VEÍCULO</h2>
             <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canAccessTab("motorista","editar")} onSave={resultado=>{if(!resultado.escreve)return;setData(d=>({...d,motoristas:resultado.motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"MOTORISTA GRAVADO NO OPERACIONAL",referencia:resultado.registro?.id||"",detalhe:`${resultado.acao} • ${resultado.registro?.statusCadastro||""}`,dataHora:nowISO()}]}));}}/>

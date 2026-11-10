@@ -11,8 +11,12 @@ export function resolverEntrada(modulos=[]){
  if(frete)return {modo:'frete',app:'frete',role:frete.role||'',permissions:frete.permissions||{frete:true}};
  return {modo:'bloqueado',motivo:'Aguarde aprovação específica no Forte Vendas ou no módulo de Frete.'};
 }
+export function proximaEntrada(app,status){
+ if(app==='vendas'&&status?.allowed!==true&&String(status?.perfil||'').toUpperCase()==='MOTORISTA')return 'frete';
+ return app||'vendas';
+}
 export function screenAllowed({screen,action='visualizar',groupId='',groupAllowed,appFlags={},financeMode=false,freteMode=false}){
- if(freteMode)return screen==='motorista';
+ if(freteMode)return action==='visualizar'&&screen==='motorista';
  if(financeMode)return groupAllowed(groupId,action);
  const flag=key=>appFlags[key]===true;
  if(screen==='externas'&&flag('venda-externa'))return true;

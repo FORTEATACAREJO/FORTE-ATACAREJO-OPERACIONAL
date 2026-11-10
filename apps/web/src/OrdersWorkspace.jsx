@@ -12,6 +12,7 @@ import {PURCHASE_MODES,searchKey,filterOrders,canEditPurchase,palletReleaseNeede
 import './orders-workspace.css';
 import {BusinessDocumentSend,OrderMirror,SalesOperations,CommunicationsPanel,LoadReportButton} from './OrderOperations';
 import {purchaseReport} from './orders-reports';
+import {motoristaSelecionavelParaCarga} from './frete-acesso.mjs';
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const br=v=>v?new Date(v.length===10?v+'T12:00:00':v).toLocaleString('pt-BR'):'—';
 const blankItem=()=>({marca:'',produtoId:'',qtd:'',custoUnitario:'',precoUnitario:''});
@@ -30,7 +31,7 @@ export default function OrdersWorkspace({data,onCommit,currentUser,initialTab='f
  async function run(body){if(capacityLock.current)throw new Error("Conclua a confirmação de capacidade.");capacityLock.current=true;try{return await commit(await checkBeforeContinue(body));}catch(e){setError(e.message);throw e;}finally{capacityLock.current=false;}}
  async function commit(body){if(lock.current)throw new Error('Aguarde a operação atual.');lock.current=true;setBusy(true);setError('');setMessage('');const signature=JSON.stringify(body);let requestId=pending.current.get(signature);if(!requestId){requestId=crypto.randomUUID();pending.current.set(signature,requestId);}try{const out=await onCommit({...body,requestId});pending.current.delete(signature);setMessage(out.warning|| (out.count===0?'Sincronização concluída: nenhum motorista aprovado com conjunto ativo no Forte Frete.':'Gravação confirmada no servidor.'));return out;}catch(e){setError(e.message);throw e;}finally{lock.current=false;setBusy(false);}}
  const action=body=>run(body).catch(()=>{});
- const driverOptions=(data.motoristas||[]).filter(m=>m.ativo!==false&&!/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO/.test(norm(m.statusCadastro))).map(m=>({value:m.id,label:m.nome+' • '+(m.placa1||'placa pendente')+' • limite '+Number(m.capacidadeMaximaKg||m.capacidadeAlvoKg||0).toLocaleString('pt-BR')+' kg',search:[m.nome,m.cpf,m.placa1,m.placa2,m.placa3,m.placa4].join(' ')}));
+ const driverOptions=(data.motoristas||[]).filter(motoristaSelecionavelParaCarga).map(m=>({value:m.id,label:m.nome+' • '+(m.placa1||'placa pendente')+' • limite '+Number(m.capacidadeMaximaKg||m.capacidadeAlvoKg||0).toLocaleString('pt-BR')+' kg',search:[m.nome,m.cpf,m.placa1,m.placa2,m.placa3,m.placa4].join(' ')}));
  const supplierOptions=(data.fornecedores||[]).filter(f=>f.ativo!==false).map(f=>({value:f.id,label:f.nome}));const unitOptions=(data.unidades||[]).map(u=>({value:u.id,label:u.nome+' • '+(u.cnpj||'')}));
  const brands=[...new Set((data.produtos||[]).filter(isResaleProduct).map(p=>p.marca).filter(Boolean))];
  const chooseSupplier=(value,form,set)=>{const f=(data.fornecedores||[]).find(f=>f.id===value);set({...form,fornecedorId:value,modalidadeCompra:'PADRAO',palletQuantidadeAjustada:'',justificativaPallets:'',pagamento:supplierTerms(data,value)[0]||'',modalidadeFrete:f?.modalidadeFrete||form.modalidadeFrete,itens:saleIds.length?purchaseSeed(data,saleIds).itens:[blankItem()],cargaId:''});};

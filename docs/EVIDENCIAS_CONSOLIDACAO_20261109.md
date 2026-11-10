@@ -109,3 +109,13 @@ A origem no projeto MC-6 não foi alterada nem apagada. O código público do MC
 - `checks/operations-navigation.test.cjs`: passou; os quatro painéis comerciais permanecem.
 
 Não foi executado o fluxo autenticado em produção, QA em aparelho físico, nem a suíte Playwright ao vivo contra os domínios publicados.
+
+## Acesso do perfil motorista — 2026-11-10
+A migration `20261110020000_frete_motorista_acesso.sql` ainda não foi aplicada no Supabase operacional. O ensaio ficou no PGlite.
+
+- Perfil `MOTORISTA` aprovado, com o termo aceito, recebe só o app `frete`. Vendas, financeiro, carga direta, pátio e site continuam fechados.
+- Solicitação de frete revogada, cadastro pendente ou troca de senha não entram.
+- A função `fc_cargas_do_motorista` devolve a carga do CPF da sessão. Pix, preço, título e caminho de arquivo não saem na resposta. `anon` não executa a função e a leitura direta de `fc_app_state` não mostra a linha.
+- Na PWA, `?app=frete` mostra Minhas cargas. O cadastro comercial e o botão de liberar não aparecem nesse modo. Cadastro inativo ou em conferência não é selecionado para a carga.
+- A origem operacional aceita a consulta de sessão do frete. O cadastro público novo continua no app vendas; não foi aberta outra central de atalhos.
+- `npm run test:core`: 304 testes, 0 falhas. Chrome local em 390 px e 1280 px abriu Minhas cargas sem pix, preço ou arquivo.
