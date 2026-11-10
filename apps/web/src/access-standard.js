@@ -1,3 +1,4 @@
+import {proximaEntrada} from './module-access.mjs';
 import {legalCall,renderLegal,installLegalReceiptButton,showLegalReceipts} from './legal-acceptance.js';
 import {createModuleRegistration} from './module-registration.js';
 import {installVaultButton,renderIntegrationVault} from './integration-vault.js';
@@ -86,6 +87,7 @@ if(disposed||registrationBusy)return;if(checking){checkAgain=true;return}checkin
 try{await notificationControl.ready;const s=await accessTimeout(client.auth.getSession());if(!s.data.session){const wasApproved=approved;if(approved){approved=false;onBlocked?.()}adminUI(false);if(wasApproved||box.hidden||mode==="pending"||mode==="password"){mode="login";draw()}else if(!box.querySelector("form"))draw();return}
 const r=await call("STATUS");lastStatus=r;if(r.cpf)rememberCpf(r.cpf);
 if(recovery||r.changing){approved=false;onBlocked?.();adminUI(false);if(mode!=="password"||!box.querySelector("form")){mode="password";draw()}return}
+if(proximaEntrada(app,r)==='frete'&&new URL(location.href).searchParams.get('app')!=='frete'){const url=new URL(location.href);url.searchParams.set('app','frete');location.replace(url.href);return}
 const legal=['frete','vendas','financeiro','fiscal','venda-externa'].includes(app)?await call('LEGAL_STATUS'):{accepted:true};if(!legal.accepted){approved=false;onBlocked?.();adminUI(false);if(content)content.hidden=true;renderLegal({host:box,client,app,state:legal,onAccepted:check,onExit:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='login';draw();},onRecover:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='recover';draw();}});return;}delete box.dataset.legalVersion;box.classList.remove('forte-legal');
 if(r.allowed){if(!approved){if(mounted){location.reload();return}mounted=true;approved=true;box.hidden=true;if(content)content.hidden=false;onAllowed?.(r);resolveReady(r)}adminUI(r.isAdmin);installLegalReceiptButton({client,app,host:adminBox});return}
 if(approved){approved=false;onBlocked?.()}adminUI(false);if(await accessTimeout(moduleRegistration.resume(box,moduleOptions())))return;if(["request","recover"].includes(mode)&&box.querySelector("form"))return;mode="pending";notice=r.notifications?.[0]?.message||(r.status==="SEM_SOLICITACAO"?"Seu cadastro ainda não tem autorização para este aplicativo. Solicite a análise.":"Cadastro enviado. Aguarde aprovação do admin ou master.");draw();

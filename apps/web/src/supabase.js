@@ -10,6 +10,16 @@ const cloudStore=supabase?createCloudStateStore(supabase,getAuthContext,(error,s
   if(error&&state)try{localStorage.setItem('forte-cloud-alteracoes-pendentes',JSON.stringify({gravadoEm:new Date().toISOString(),estado:state}));}catch{}
   window.dispatchEvent(new CustomEvent('forte-cloud-status',{detail:error?.message||''}));
 }):null;
+export async function loadCargasMotorista(){
+ if(!supabase)throw new Error('As cargas do motorista exigem a sessão do operacional.');
+ const {data,error}=await supabase.rpc('fc_cargas_do_motorista');
+ if(error){
+  const message=error.message||'';
+  if(/schema cache|PGRST202|does not exist|Could not find the function/i.test(message))throw new Error('O acesso do motorista ainda não foi publicado no banco. Nenhuma carga foi alterada.');
+  throw new Error('Não foi possível carregar as cargas do motorista.');
+ }
+ return data;
+}
 export async function loadCloudState(){
  if(!cloudStore)return null;
  try{const r=await supabase.functions.invoke('sync-frete-drivers',{body:{}});if(r.error||r.data?.error)window.dispatchEvent(new CustomEvent('forte-driver-status',{detail:'Consulta do Forte Frete indisponível. Os últimos dados foram preservados.'}));}

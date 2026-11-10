@@ -1,7 +1,7 @@
 {
-  "name": "FORTE FINANCEIRO",
-  "short_name": "Financeiro",
-  "description": "Caixa, contas, cartões e estoque da Forte Atacarejo",
+  "name": "FORTE ATACAREJO OPERACIONAL — Financeiro (legado)",
+  "short_name": "FORTE Financeiro",
+  "description": "Atalho legado temporário para o módulo Financeiro do sistema FORTE ATACAREJO OPERACIONAL; será desativado após migração dos usuários.",
   "id": "/financeiro.html",
   "start_url": "/financeiro.html",
   "scope": "/",

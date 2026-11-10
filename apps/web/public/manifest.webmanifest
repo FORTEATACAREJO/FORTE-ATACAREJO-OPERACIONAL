@@ -1,7 +1,7 @@
 {
-  "name": "Forte Vendas",
-  "short_name": "Forte Vendas",
-  "description": "Vendas, cargas, documentos, financeiro e logística da Forte Atacarejo.",
+  "name": "FORTE ATACAREJO OPERACIONAL",
+  "short_name": "FORTE",
+  "description": "Sistema operacional unificado da Forte Atacarejo: vendas, compras, estoque, financeiro, fretes, motoristas, cargas, site e integrações.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

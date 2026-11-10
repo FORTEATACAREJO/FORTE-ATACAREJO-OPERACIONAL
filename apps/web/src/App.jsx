@@ -6,6 +6,7 @@ import {useForteNavigation,useForteLayer} from './use-forte-navigation.js';
 import EditSale from './EditSale.jsx';
 import WorkspaceMenu from './WorkspaceMenu.jsx';
 import {workspaceNavigation} from './workspace-navigation.mjs';
+import {appFlagsFrom,screenAllowed} from './module-access.mjs';
 import {registerFreightReceipt,openSharedProof} from "./freight-receipt-upload.js";
 import OperationSheet from "./OperationSheet.jsx";
 import {allocatedInvoice} from "./operation-sheet-model.mjs";
@@ -17,6 +18,9 @@ import ItauStandalone from './ItauStandalone.jsx';
 import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
+import FreteMotoristaPainel from "./FreteMotoristaPainel.jsx";
+import FreteCargasMotorista from "./FreteCargasMotorista.jsx";
+import {motoristaSelecionavelParaCarga} from "./frete-acesso.mjs";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -52,7 +56,7 @@ import {
 } from "@forte/core";
 import { seed } from "./seed";
 import { loadData, saveData, resetData } from "./storage";
-import { applyAuthUser, loadCloudState, saveCloudState, commitCashClosure, getPatioStatus, supabase, supabaseConfigured, getAuthContext } from "./supabase";
+import { applyAuthUser, loadCloudState, loadCargasMotorista, saveCloudState, commitCashClosure, getPatioStatus, supabase, supabaseConfigured, getAuthContext } from "./supabase";
 import { putFile, getFile, openFile, downloadFile } from "./fileStore";
 import {storeReceivableFile, appendReceiptEvidence} from "./receivable-evidence.js";
 import { lerXmlNfe, gerarDanfeSimplificadoPdf } from "./nfe";
@@ -689,7 +693,7 @@ const MODULE_GROUPS = [
   {
     id: "logistica",
     title: "LOGÍSTICA E OPERAÇÃO",
-    subtitle: "Estoque, paletes e controle físico. Motoristas são sincronizados do Forte Frete.",
+    subtitle: "Estoque, paletes e controle físico. Motoristas são cadastrados no operacional.",
     modules: ["estoque", "paletes"],
   },
   {
@@ -791,14 +795,17 @@ const custoFornecedor = (d, produtoId, condicaoPagamento, marca = "") => {
 };
 export default function App() {
   const drawer=useDrawer();
-  const financeMode=new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=financeMode?"group:financeiro":"home";
+  const freteMode=new URLSearchParams(window.location.search).get("app")==="frete";
+  const financeMode=!freteMode&&new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=freteMode?"motorista":financeMode?"group:financeiro":"home";
   const [data, setData] = useState(() => applyAuthUser(loadData(seed)));
   const cloudReady = useRef(false);
   const [cloudError,setCloudError]=useState("");
+  const [minhasCargas,setMinhasCargas]=useState(null);
+  const [cargasErro,setCargasErro]=useState("");
   useEffect(()=>{const listener=e=>setCloudError(e.detail||"");window.addEventListener("forte-cloud-status",listener);return()=>window.removeEventListener("forte-cloud-status",listener)},[]);
   const cloudTimer = useRef(null);
-  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(financeMode?"financeiro":"vendas",navigationRoot);
-  const setTab=(screen,options)=>setRouteTab(financeMode&&screen==="home"?navigationRoot:screen,options);
+  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(freteMode?"motorista":financeMode?"financeiro":"vendas",navigationRoot);
+  const setTab=(screen,options)=>setRouteTab(freteMode&&screen==="home"?"motorista":financeMode&&screen==="home"?navigationRoot:screen,options);
   const [globalSearch, setGlobalSearch] = useState("");
   const [selectedSales, setSelectedSales] = useState([]);
   const [driverSearch, setDriverSearch] = useState("");
@@ -830,8 +837,9 @@ export default function App() {
   const workflowBusy = useRef(false);
   const [workflowInitialTab,setWorkflowInitialTab]=useState("fornecedor");
   const [counterInitialMode,setCounterInitialMode]=useState("VENDA");
-  useEffect(() => {let active=true;if(!supabaseConfigured)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[]);
-  useEffect(() => {saveData(data);if(!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data]);
+  useEffect(() => {let active=true;if(!supabaseConfigured||freteMode)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[freteMode]);
+  useEffect(()=>{if(!freteMode)return;let active=true;setCargasErro("");loadCargasMotorista().then(painel=>{if(active)setMinhasCargas(painel);}).catch(e=>{if(active)setCargasErro(e.message||"Não foi possível carregar as cargas.");});return()=>{active=false};},[freteMode]);
+  useEffect(() => {saveData(data);if(freteMode||!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data,freteMode]);
   async function commitCounterSale(buildNext) {
     if (!supabaseConfigured || !cloudReady.current) throw new Error("A BASE NA NUVEM AINDA NÃO FOI CARREGADA. CONFIRA A CONEXÃO.");
     if (workflowBusy.current) throw new Error("OPERAÇÃO EM GRAVAÇÃO. AGUARDE SUA CONFIRMAÇÃO.");
@@ -899,6 +907,7 @@ export default function App() {
     return MODULE_GROUPS.find((g) => g.modules.includes(screen))?.id || "";
   };
   const canAccessGroup = (groupId, action = "visualizar") => {
+    if(freteMode)return false;
     if(financeMode&&groupId!=="financeiro")return false;
     if (groupId === "financeiro") return isMaster && cloudReady.current;
     if (isAdmin) return true;
@@ -913,7 +922,7 @@ export default function App() {
     const rule = permissions[permissionKeyByGroup[groupId]] || {};
     return !!rule[action] || (action !== "visualizar" && !!rule.editar);
   };
-  const canAccessTab = (screen, action = "visualizar") => canAccessGroup(groupForTab(screen), action);
+  const canAccessTab = (screen, action = "visualizar") => screenAllowed({screen,action,groupId:groupForTab(screen),groupAllowed:canAccessGroup,appFlags:appFlagsFrom(currentUser?.permissoes),financeMode,freteMode});
   const tab=requestedTab===navigationRoot||(requestedTab.startsWith("group:")?canAccessGroup(requestedTab.slice(6)):canAccessTab(requestedTab))?requestedTab:navigationRoot;
   useEffect(()=>tabHistory.setGuard(screen=>screen===navigationRoot||(screen.startsWith("group:")?canAccessGroup(screen.slice(6)):canAccessTab(screen))));
   const salesArea=salesAreaFor(tab);
@@ -943,7 +952,7 @@ export default function App() {
       )
     : null;
   const driverFiltered = data.motoristas
-    .filter((m) => m.ativo !== false && motoristaServe(m, "TRANSPORTE"))
+    .filter((m) => motoristaSelecionavelParaCarga(m) && motoristaServe(m, "TRANSPORTE"))
     .filter((m) => {
       const q = norm(driverSearch);
       return (
@@ -1262,6 +1271,7 @@ export default function App() {
     if (!brandCheck.ok)
       return alert("CARGA BLOQUEADA: OS PEDIDOS DEVEM SER DA MESMA MARCA.");
     if (!driver) return alert("SELECIONE O MOTORISTA/VEÍCULO.");
+    if (!motoristaSelecionavelParaCarga(driver)) return alert("O MOTORISTA SELECIONADO AINDA NÃO ESTÁ LIBERADO PARA CARGAS.");
     const cv = validateCapacity(
       selKg,
       driver.capacidadeAlvoKg,
@@ -2558,16 +2568,18 @@ export default function App() {
             </button>
           </section>
         )}
-        {tab === "motorista" && (
+        {tab === "motorista" && freteMode && <FreteCargasMotorista painel={minhasCargas} erro={cargasErro}/>}
+        {tab === "motorista" && !freteMode && (
           <section className="card">
             <h2>MOTORISTA / VEÍCULO</h2>
-            <Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
+            <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canAccessTab("motorista","editar")} onSave={resultado=>{if(!resultado.escreve)return;setData(d=>({...d,motoristas:resultado.motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"MOTORISTA GRAVADO NO OPERACIONAL",referencia:resultado.registro?.id||"",detalhe:`${resultado.acao} • ${resultado.registro?.statusCadastro||""}`,dataHora:nowISO()}]}));}}/>
+            {!freteMode&&<Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
               <UpperInput
                 value={driverSearch}
                 onChange={setDriverSearch}
                 placeholder="NOME, APELIDO, PLACA, PROPRIETÁRIO, CPF OU RNTRC..."
               />
-            </Field>
+            </Field>}
             {driverSearch && (
               <div className="driverSearchResults">
                 {driverFiltered.length ? (
@@ -2668,12 +2680,12 @@ export default function App() {
                 </div>
               </>
             )}
-            {!activeLoad && (
+            {!freteMode&&!activeLoad && (
               <button onClick={formLoad}>
                 FORMAR CARGA / IR AO FORNECEDOR
               </button>
             )}{" "}
-            {activeLoad && (
+            {!freteMode&&activeLoad && (
               <div className="supplierActions">
                 <button onClick={() => setTab("fornecedor")}>
                   IR AO FORNECEDOR / PEDIDO
@@ -3036,7 +3048,7 @@ export default function App() {
                 ["clientes", "CLIENTES"],
                 ["produtos", "PRODUTOS"],
                 ["fornecedores", "FORNECEDORES / MARCAS"],
-                ["motoristas", "CONSULTAR MOTORISTAS — FORTE FRETE"],
+                ["motoristas", "MOTORISTAS E VEÍCULOS"],
     ...(isAdmin
                   ? [["funcionarios", "FUNCIONÁRIOS E PERMISSÕES"]]
                   : []),
@@ -3354,6 +3366,7 @@ export default function App() {
         <CadModal
           type={cadType}
           onSyncDrivers={()=>commitOrderWorkflow({action:"IMPORT_DRIVERS",requestId:crypto.randomUUID()})}
+          canEdit={canAccessTab("motorista","editar")}
           data={data}
           search={cadSearch}
           setSearch={setCadSearch}
@@ -3367,6 +3380,7 @@ export default function App() {
           data={data}
           onChange={setData}
           currentUser={currentUser}
+          onOpenMotorista={()=>{setCadType("motoristas");setCadSearch("");setModal({type:"cad"});}}
           onClose={() => setModal(null)}
         />
       )}{" "}
@@ -10950,9 +10964,10 @@ function CadModal({
   onClose,
   onChange,
   isAdmin,
+  canEdit=false,
 }) {
   if (type === "usuarios" && !isAdmin) return null;
-  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers}/>;
+  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} onChange={onChange} canEdit={canEdit}/>;
   const meta = META[type];
   const list = data[type] || [];
   const [edit, setEdit] = useState(null);
@@ -12565,7 +12580,7 @@ function NewSale({ data, onClose, onSave, onDataChange }) {
   );
 }
 
-function CadastroIaModal({ data, onChange, currentUser, onClose }) {
+function CadastroIaModal({ data, onChange, currentUser, onClose, onOpenMotorista }) {
   const [tipo, setTipo] = useState("");
   const [documento, setDocumento] = useState("");
   const [nomeInformado, setNomeInformado] = useState("");
@@ -12607,7 +12622,7 @@ function CadastroIaModal({ data, onChange, currentUser, onClose }) {
     return comuns / Math.max(a.length, b.length) >= 0.6 ? "CONFERE" : "DIVERGENTE";
   };
   function analisar() {
-    if(tipo==="MOTORISTA")return alert("Cadastro de motorista é exclusivo do Forte Frete.");
+    if(tipo==="MOTORISTA"){onOpenMotorista?.();return;}
     if (!tipo) return alert("INFORME O TIPO DE CADASTRO.");
     if (!digits) return alert("INFORME O CPF/CNPJ PARA PESQUISA E CONFERÊNCIA.");
     const numeroValido = validarNumero(digits);
@@ -12712,7 +12727,7 @@ function CadastroIaModal({ data, onChange, currentUser, onClose }) {
         <p>Se o tipo não for informado, o sistema exige a escolha antes de analisar.</p>
         <div className="choiceButtons">
           <button className={tipo === "CLIENTE" ? "activeChoice" : "ghost dark"} onClick={() => setTipo("CLIENTE")}>CLIENTE</button>
-          <button className={tipo === "MOTORISTA" ? "activeChoice" : "ghost dark"} onClick={() => window.open("https://forte-frete.onrender.com","_blank","noopener,noreferrer")}>CADASTRAR MOTORISTA NO FORTE FRETE</button>
+          <button type="button" className="ghost dark" onClick={() => onOpenMotorista?.()}>CADASTRAR MOTORISTA NO OPERACIONAL</button>
         </div>
       </div>
       <div className="miniGrid aiCadastroFields">

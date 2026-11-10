@@ -2,6 +2,7 @@ import {useEffect,useState} from "react";
 import App from "./App.jsx";
 import {supabase,setAuthContext} from "./supabase.js";
 import {accessTimeout} from "./access-standard.js";
+import {resolverEntrada} from "./module-access.mjs";
 export default function AuthGate(){
  const [ready,setReady]=useState(false),[error,setError]=useState(""),[attempt,setAttempt]=useState(0);
  useEffect(()=>{let live=true;setError("");async function load(){
@@ -10,8 +11,12 @@ export default function AuthGate(){
    const p=await accessTimeout(supabase.from("fc_perfis").select("*").eq("user_id",u.data.user.id).maybeSingle());
    if(p.error)throw Error("Não foi possível carregar o perfil.");
    if(!p.data?.ativo||p.data.status_aprovacao!=="APROVADO"||p.data.trocar_senha)throw Error("O cadastro precisa de aprovação ou atualização da senha.");
-   const grant=await accessTimeout(supabase.rpc('access_current_module',{p_app:'vendas'}));if(grant.error||!grant.data?.allowed)throw Error('Aguarde aprovação específica no Forte Vendas.');
-   if(live){setAuthContext({user:u.data.user,profile:{...p.data,perfil:grant.data.role||p.data.perfil,permissoes:grant.data.permissions||p.data.permissoes}});setReady(true)}
+   const modulo=async app=>{const grant=await accessTimeout(supabase.rpc('access_current_module',{p_app:app}));return grant.error||!grant.data?{app,allowed:false}:{app,allowed:grant.data.allowed===true,role:grant.data.role,permissions:grant.data.permissions};};
+   const vendas=await modulo('vendas');
+   const entrada=resolverEntrada([vendas,vendas.allowed?null:await modulo('frete')].filter(Boolean));
+   if(entrada.modo==='bloqueado')throw Error(entrada.motivo);
+   if(entrada.modo==='frete'){const url=new URL(window.location.href);if(url.searchParams.get('app')!=='frete'){url.searchParams.set('app','frete');window.history.replaceState({},'',url);}}
+   if(live){setAuthContext({user:u.data.user,profile:{...p.data,perfil:entrada.role||p.data.perfil,permissoes:entrada.permissions||p.data.permissoes}});setReady(true)}
   }catch(e){if(live)setError(e.message||"Não foi possível conferir o acesso.")}
  }load();return()=>{live=false;setAuthContext(null)}},[attempt]);
  return ready?<App/>:<section><p>{error||"Conferindo acesso autorizado…"}</p>{error&&<button onClick={()=>setAttempt(n=>n+1)}>TENTAR NOVAMENTE</button>}</section>;
