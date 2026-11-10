@@ -19,6 +19,7 @@ import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
 import FreteMotoristaPainel from "./FreteMotoristaPainel.jsx";
+import FreteMotoristaOperacao from "./FreteMotoristaOperacao.jsx";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -833,8 +834,9 @@ export default function App() {
   const workflowBusy = useRef(false);
   const [workflowInitialTab,setWorkflowInitialTab]=useState("fornecedor");
   const [counterInitialMode,setCounterInitialMode]=useState("VENDA");
-  useEffect(() => {let active=true;if(!supabaseConfigured)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[]);
-  useEffect(() => {saveData(data);if(!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data]);
+  const perfilSessao=()=>String(getAuthContext()?.profile?.perfil||"").toUpperCase();
+  useEffect(() => {let active=true;if(!supabaseConfigured||perfilSessao()==="MOTORISTA")return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[]);
+  useEffect(() => {if(perfilSessao()==="MOTORISTA")return;saveData(data);if(!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data]);
   async function commitCounterSale(buildNext) {
     if (!supabaseConfigured || !cloudReady.current) throw new Error("A BASE NA NUVEM AINDA NÃO FOI CARREGADA. CONFIRA A CONEXÃO.");
     if (workflowBusy.current) throw new Error("OPERAÇÃO EM GRAVAÇÃO. AGUARDE SUA CONFIRMAÇÃO.");
@@ -887,6 +889,7 @@ export default function App() {
     data.usuarios.find((u) => u.id === data.currentUserId) || data.usuarios[0];
   const isAdmin = !!currentUser?.admin;
   const isMaster = !!currentUser?.master;
+  const sessaoFreteMotorista=freteMode&&String(currentUser?.perfil||"").toUpperCase()==="MOTORISTA";
   const permissionKeyByGroup = {
     vendas: "VENDAS E COMPRAS", logistica: "LOGÍSTICA E OPERAÇÃO",
     conferencia: "CONFERÊNCIA E IA", financeiro: "FINANCEIRO", cobrancas: "COBRANÇAS ITAÚ",
@@ -2564,15 +2567,17 @@ export default function App() {
         )}
         {tab === "motorista" && (
           <section className="card">
+            {sessaoFreteMotorista ? <FreteMotoristaOperacao client={supabase} userId={String(currentUser?.authUserId||"")} /> : <>
             <h2>MOTORISTA / VEÍCULO</h2>
             <FreteMotoristaPainel motoristas={data.motoristas||[]} canEdit={canAccessTab("motorista","editar")} onSave={resultado=>{if(!resultado.escreve)return;setData(d=>({...d,motoristas:resultado.motoristas,auditoria:[...(d.auditoria||[]),{id:uid("aud"),usuario:currentUser?.nome||"",acao:"MOTORISTA GRAVADO NO OPERACIONAL",referencia:resultado.registro?.id||"",detalhe:`${resultado.acao} • ${resultado.registro?.statusCadastro||""}`,dataHora:nowISO()}]}));}}/>
-            {!freteMode&&<Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
+            {!freteMode&&<>
+            <Field label="🔎 BUSCAR MOTORISTA / VEÍCULO">
               <UpperInput
                 value={driverSearch}
                 onChange={setDriverSearch}
                 placeholder="NOME, APELIDO, PLACA, PROPRIETÁRIO, CPF OU RNTRC..."
               />
-            </Field>}
+            </Field>
             {driverSearch && (
               <div className="driverSearchResults">
                 {driverFiltered.length ? (
@@ -2691,6 +2696,8 @@ export default function App() {
                 </button>
               </div>
             )}
+            </>}
+            </>}
           </section>
         )}
         {tab === "fornecedor" && (
