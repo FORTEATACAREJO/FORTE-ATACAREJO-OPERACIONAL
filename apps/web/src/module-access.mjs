@@ -12,7 +12,7 @@ export function resolverEntrada(modulos=[]){
  return {modo:'bloqueado',motivo:'Aguarde aprovação específica no Forte Vendas ou no módulo de Frete.'};
 }
 export function screenAllowed({screen,action='visualizar',groupId='',groupAllowed,appFlags={},financeMode=false,freteMode=false}){
- if(freteMode)return screen==='motorista';
+ if(freteMode)return screen==='motorista'&&action!=='editar';
  if(financeMode)return groupAllowed(groupId,action);
  const flag=key=>appFlags[key]===true;
  if(screen==='externas'&&flag('venda-externa'))return true;

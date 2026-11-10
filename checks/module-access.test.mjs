@@ -36,6 +36,7 @@ test('atalho financeiro legado não herda os outros módulos',()=>{
 });
 test('frete entra só na tela de motorista e não herda o financeiro',()=>{
  assert.equal(screenAllowed({screen:'motorista',groupId:'',groupAllowed:()=>false,freteMode:true}),true);
+ assert.equal(screenAllowed({screen:'motorista',action:'editar',groupId:'',groupAllowed:()=>false,freteMode:true}),false);
  assert.equal(screenAllowed({screen:'financeiro',groupId:'financeiro',groupAllowed:()=>true,freteMode:true}),false);
  assert.equal(screenAllowed({screen:'externas',groupId:'vendas',groupAllowed:()=>true,freteMode:true}),false);
  assert.equal(resolverEntrada([{app:'vendas',allowed:true,role:'MASTER'},{app:'frete',allowed:true}]).modo,'operacional');
