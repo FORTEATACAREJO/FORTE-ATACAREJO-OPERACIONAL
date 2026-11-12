@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sistemas Forte Tech | Setor Fiscal Multiempresa — Prévia</title>
+<style nonce="__NONCE__">
+:root{--navy:#0f2538;--cyan:#147c89;--bg:#f3f7f9;--border:#dce7ec;--muted:#647c89;--text:#1a3242}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.48 system-ui,-apple-system,sans-serif;color:var(--text)}
+header{background:var(--navy);color:white;padding:22px 5vw;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+header b{font-size:23px;letter-spacing:.2px}header small{display:block;color:#b8d5df}
+.pill{display:inline-block;padding:5px 10px;border-radius:30px;background:#dff6f1;color:#0d7468;font-weight:750;font-size:12px}
+header .pill{background:#163e47;color:#d2fff3}
+.wrap{max-width:1180px;margin:auto;padding:22px 18px 65px}
+.notice{padding:15px 18px;background:#fff8ea;border:1px solid #efdbaa;border-radius:12px;margin-bottom:20px}
+.notice strong{display:block;margin-bottom:4px;color:#674c18}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
+nav button{border:1px solid var(--border);background:white;color:var(--navy);padding:10px 13px;cursor:pointer;border-radius:9px;font:600 13px system-ui}
+nav button.active{background:var(--navy);color:white;border-color:var(--navy)}
+h1{font-size:25px;margin:0 0 3px}h2{font-size:17px;margin:0 0 13px}p{margin:6px 0 15px}.muted{color:var(--muted)}.title{margin:0 0 18px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:15px}
+.card{background:white;border:1px solid var(--border);border-radius:13px;padding:19px;min-width:0;margin-bottom:14px}
+.stat small{display:block;color:var(--muted);font-weight:600}.stat strong{font-size:30px;display:block;margin:6px 0}.stat span{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid .card{margin-bottom:0}
+label{display:block;font-weight:650;margin:10px 0 5px}
+input,select{width:100%;padding:12px;border:1px solid #c7d6df;border-radius:9px;background:white;font:inherit}
+button.action{border:none;background:var(--cyan);color:white;border-radius:9px;padding:11px 17px;font:700 14px system-ui;cursor:pointer;margin-top:13px}
+button.action.secondary{background:#e8f1f4;color:#134253}button:focus-visible,input:focus-visible{outline:3px solid #70bcca;outline-offset:2px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid #e9eff2}th{font-size:12px;color:#4f6876}
+.badge{font-size:12px;background:#fff3de;color:#836028;padding:4px 8px;border-radius:50px;white-space:nowrap}
+.empty{padding:30px 12px;text-align:center;color:var(--muted);border:1px dashed #d3e2e7;border-radius:10px}
+.alert{padding:12px 14px;margin-top:15px;background:#e8f6f5;border-left:4px solid #168a83;border-radius:6px}
+.locked{color:#8c4c36;font-weight:650}.badge-note{font-size:12px;color:var(--muted)}
+section[hidden]{display:none!important}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}header b{font-size:20px}}
+</style>
+<meta name="theme-color" content="#0f2538"><meta name="application-name" content="Sistemas Forte Tech"><meta name="apple-mobile-web-app-title" content="Sistemas Forte Tech"><link rel="icon" type="image/svg+xml" href="/sft-icon.svg"><link rel="manifest" href="/manifest.webmanifest"></head>
+<body>
+<header><div><b>SISTEMAS FORTE TECH</b><small>Setor Fiscal de Empresas · Gestão multi-CNPJ · MG e GO</small></div><span class="pill">PRÉVIA SEM SENHA</span></header>
+<div class="wrap">
+<div class="notice"><strong>Ambiente demonstrativo, aberto e sem login</strong>Você pode navegar e experimentar recursos da interface. Não use CNPJs reais ou informações confidenciais nesta prévia. Cadastros fictícios feitos aqui <b>não são salvos no Supabase</b>. Estoque real, documentos, certificados e emissão NF-e/NFC-e permanecem protegidos e desativados.</div>
+<nav aria-label="Módulos da prévia">
+<button type="button" class="active" data-tab="painel">Painel</button>
+<button type="button" data-tab="empresas">Empresas</button>
+<button type="button" data-tab="catalogo">Catálogo</button>
+<button type="button" data-tab="estoque">Estoque</button>
+<button type="button" data-tab="regras">Regras fiscais</button>
+<button type="button" data-tab="simulador">Simulador</button>
+<button type="button" data-tab="notas">NF-e / NFC-e</button>
+</nav>
+<section id="painel"><div class="title"><h1>Visão geral</h1><p class="muted">Estrutura de homologação do Setor Fiscal de Empresas — independente do APP CFOP e do FORTE FISCAL.</p></div>
+<div class="stats">
+<div class="card stat"><small>Referências de produtos</small><strong>41</strong><span>Catálogo de referência inicial</span></div>
+<div class="card stat"><small>Regras iniciais</small><strong>8</strong><span>Aguardando revisão fiscal</span></div>
+<div class="card stat"><small>Empresas reais</small><strong>0</strong><span>Sem cadastros no banco</span></div>
+<div class="card stat"><small>Notas emitidas</small><strong>0</strong><span>Emissão não implementada</span></div>
+</div>
+<div class="grid"><div class="card"><h2>Arquitetura multiempresa</h2><p>Cada pessoa jurídica possui sua raiz de CNPJ, estabelecimentos, permissões e estoques próprios.</p><p>Empresas do mesmo grupo não são tratadas automaticamente como filiais.</p></div><div class="card"><h2>Limites desta prévia</h2><p>O banco de dados real está isolado por políticas de segurança. A versão sem senha não recebe acesso aos dados privados.</p><p class="locked">Ações fiscais e emissão real: bloqueadas.</p></div></div></section>
+<section id="empresas" hidden><div class="title"><h1>Empresas e estabelecimentos</h1><p class="muted">Exemplos temporários nesta sessão do navegador. Nenhuma empresa real será cadastrada.</p></div><div class="grid">
+<div class="card"><h2>Empresas fictícias</h2><div id="company-list" class="empty">Nenhuma empresa fictícia adicionada nesta sessão.</div></div>
+<div class="card"><h2>Adicionar exemplo</h2><form id="company-form"><label for="company-name">Nome fictício da empresa</label><input id="company-name" required minlength="3" maxlength="75" placeholder="Ex.: Distribuidora Exemplo A"><label for="company-uf">UF de atuação</label><select id="company-uf"><option>MG</option><option>GO</option></select><button class="action" type="submit">Adicionar à demonstração</button></form><p class="badge-note">Não informe CPF, CNPJ, razão social real ou outro dado pessoal.</p><button type="button" id="clear-demo" class="action secondary">Limpar demonstração</button></div></div></section>
+<section id="catalogo" hidden><div class="title"><h1>Catálogo comercial de referência</h1><p class="muted">Classificações NCM/CEST ainda exigem validação. Não representam autorização de tributação.</p></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Referências</th><th>Situação</th></tr></thead><tbody>
+<tr><td>Cimento</td><td>13</td><td><span class="badge">Classificação pendente</span></td></tr>
+<tr><td>Argamassa</td><td>13</td><td><span class="badge">Classificação pendente</span></td></tr>
+<tr><td>Cal</td><td>3</td><td><span class="badge">Classificação pendente</span></td></tr>
+<tr><td>Impermeabilizante</td><td>1</td><td><span class="badge">Classificação pendente</span></td></tr>
+<tr><td>Rejunte</td><td>11</td><td><span class="badge">Classificação pendente</span></td></tr>
+</tbody></table></div></div></section>
+<section id="estoque" hidden><div class="title"><h1>Estoque por empresa e estabelecimento</h1><p class="muted">Saldos reais começam em zero. Movimentações exigem autenticação e empresa autorizada.</p></div><div class="card"><div class="empty">Nenhum saldo ou movimentação real é disponibilizado na prévia sem senha.</div></div></section>
+<section id="regras" hidden><div class="title"><h1>Regras fiscais</h1><p class="muted">Motor fiscal v0.2 implantado em ambiente seguro. Apenas panorama público, sem exposição de configurações privadas.</p></div>
+<div class="card"><h2>MG, GO e legislação federal</h2><p>Motor fiscal v0.2 implantado em API protegida; 8 regras iniciais continuam pendentes de validação. A prévia sem senha não consulta cálculos privados. A plataforma precisará avaliar UF de origem/destino, CFOP, NCM, CEST, finalidade e regime por empresa.</p><div class="alert"><b>Nenhuma regra inicial está homologada.</b> O motor não deve determinar tributo automaticamente nesta fase.</div></div></section>
+<section id="simulador" hidden><div class="title"><h1>Simulador fiscal demonstrativo</h1><p class="muted">O exercício abaixo é demonstrativo. O motor fiscal v0.2 real exige sessão autorizada para consultar regras e registrar simulações; nenhuma nota é emitida.</p></div><div class="card"><form id="simulation-form"><div class="grid"><div><label for="origin">UF de origem</label><select id="origin"><option>MG</option><option>GO</option></select></div><div><label for="destination">UF de destino</label><select id="destination"><option>MG</option><option>GO</option></select></div><div><label for="purpose">Finalidade</label><select id="purpose"><option>Revenda</option><option>Consumidor final</option><option>Uso e consumo</option><option>Industrialização</option></select></div><div><label for="category">Produto</label><select id="category"><option>Cimento</option><option>Argamassa</option><option>Cal</option><option>Impermeabilizante</option><option>Rejunte</option></select></div></div><button type="submit" class="action">Testar cenário</button></form><div id="simulation-output" aria-live="polite"></div></div></section>
+<section id="notas" hidden><div class="title"><h1>Documentos fiscais</h1><p class="muted">NF-e e NFC-e somente após parametrização e homologação.</p></div><div class="card"><div class="empty"><b>Emissão de notas fiscais indisponível nesta prévia.</b><p>Certificados, notas, dados pessoais e documentos de empresas nunca são disponibilizados sem autenticação.</p></div></div></section>
+<footer class="muted" style="padding:18px 0;font-size:12px">Sistemas Forte Tech · Prévia visual sem senha · Nenhuma alteração no banco ou em outros projetos.</footer></div>
+<script nonce="__NONCE__">
+(()=>{'use strict';
+const tabs=[...document.querySelectorAll('[data-tab]')];
+tabs.forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.tab;tabs.forEach(t=>t.classList.toggle('active',t===b));document.querySelectorAll('main section, .wrap>section').forEach(s=>s.hidden=s.id!==id)}));
+const list=[], box=document.getElementById('company-list');
+function show(){box.replaceChildren();if(!list.length){box.className='empty';box.textContent='Nenhuma empresa fictícia adicionada nesta sessão.';return;}box.className='';for(const item of list){const d=document.createElement('p');d.textContent=item.name+' · '+item.uf+' · Exemplo local';box.append(d)}}
+document.getElementById('company-form').addEventListener('submit',e=>{e.preventDefault();const field=document.getElementById('company-name'),name=field.value.trim(),uf=document.getElementById('company-uf').value;if(name.length<3)return;if(list.length>=10)return;list.push({name,uf});field.value='';show()});
+document.getElementById('clear-demo').addEventListener('click',()=>{list.length=0;show()});
+document.getElementById('simulation-form').addEventListener('submit',e=>{e.preventDefault();const o=document.getElementById('origin').value,d=document.getElementById('destination').value,p=document.getElementById('purpose').value,c=document.getElementById('category').value,out=document.getElementById('simulation-output');out.replaceChildren();const el=document.createElement('div');el.className='alert';el.textContent='Cenário demonstrativo: '+c+' · '+o+' → '+d+' · '+p+'. Resultado: NÃO DETERMINADO. A classificação e as regras tributárias ainda não foram homologadas; nenhuma informação foi salva.';out.append(el)});
+})();
+</script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script></body></html>
