@@ -144,6 +144,72 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </div>
 </div>
 <div class="card"><h3>Resumo dos cadastros e convites</h3><div id="company-summary" class="muted"></div></div>
+<section id="integrations-card" class="card" hidden>
+<h2>Integrações bancárias e inteligência artificial</h2>
+<p class="muted">Conexões específicas para a empresa selecionada. Todas começam em SANDBOX, sem credenciais, sem envio de dados e sem autorização de pagamentos.</p>
+<div id="integrations-overview"></div>
+<div class="grid">
+<div class="card" id="integration-create-card" hidden>
+<h3>Preparar conexão</h3>
+<form id="integration-connection-form">
+<label for="integration-kind">Modalidade</label>
+<select id="integration-kind" required>
+<option value="BANK_API">API bancária</option>
+<option value="OPEN_FINANCE">Open Finance (via instituição/parceira habilitada)</option>
+<option value="BANK_FILE">Importação futura de OFX/CSV</option>
+<option value="AI_PROVIDER">Provedor de inteligência artificial</option>
+</select>
+<label for="integration-provider">Banco / fornecedor / provedor</label>
+<input id="integration-provider" type="text" required minlength="2" maxlength="120" placeholder="Ex.: banco ou parceiro escolhido">
+<label for="integration-name">Nome da conexão nesta empresa</label>
+<input id="integration-name" type="text" required minlength="2" maxlength="120" placeholder="Ex.: conta matriz — homologação">
+<button type="submit">Criar configuração em sandbox</button>
+</form>
+<p class="muted">Não informe senhas bancárias, tokens, certificados, chaves Pix ou chaves de IA nestes campos. O vínculo externo exigirá credenciais no ambiente seguro do provedor, consentimento aplicável e homologação.</p>
+</div>
+<div class="card" id="ai-agent-create-card" hidden>
+<h3>Preparar agente de IA</h3>
+<form id="ai-agent-form">
+<label for="ai-agent-label">Nome do agente</label>
+<input id="ai-agent-label" type="text" required minlength="3" maxlength="120" placeholder="Ex.: assistente fiscal da empresa">
+<label for="ai-agent-purpose">Finalidade</label>
+<select id="ai-agent-purpose">
+<option value="ASSISTENTE_CONFIGURACAO">Apoiar configuração da empresa</option>
+<option value="SUGESTAO_NCM_CEST">Sugerir classificação NCM/CEST</option>
+<option value="EXPLICACAO_TRIBUTARIA">Explicar regra fiscal para revisão</option>
+<option value="SUGESTAO_CONCILIACAO">Sugerir conciliação bancária</option>
+<option value="ANALISE_INCONSISTENCIAS">Sinalizar inconsistências</option>
+</select>
+<label for="ai-agent-provider">Conexão de IA prevista</label>
+<select id="ai-agent-provider"><option value="">Ainda sem provedor</option></select>
+<button type="submit">Criar agente inativo</button>
+</form>
+<p class="muted">O agente não pode transmitir dados privados, aprovar tributos nem autorizar pagamentos. Toda análise gerada no futuro exigirá revisão humana.</p>
+</div>
+<div class="card" id="ai-request-create-card" hidden>
+<h3>Fila de solicitações à IA</h3>
+<form id="ai-request-form">
+<label for="ai-request-agent">Agente configurado</label><select id="ai-request-agent" required></select>
+<label for="ai-request-type">Tipo de solicitação</label>
+<select id="ai-request-type">
+<option value="REVISAR_CADASTRO">Revisar cadastro</option>
+<option value="SUGERIR_CLASSIFICACAO">Sugerir classificação</option>
+<option value="EXPLICAR_REGRA">Explicar regra</option>
+<option value="SUGERIR_CONCILIACAO">Sugerir conciliação</option>
+</select>
+<button type="submit">Registrar solicitação pendente</button>
+</form>
+<p class="muted">A solicitação guarda somente metadados da empresa e não envia conteúdo a modelos externos.</p>
+</div>
+<div class="card">
+<h3>Próximas validações obrigatórias</h3>
+<p><strong>Bancos:</strong> credenciamento/contrato com o provedor, autorizações, escopos, ambiente de testes e verificação de webhooks.</p>
+<p><strong>IA:</strong> escolha do provedor e modelo, credenciais server-side, política de compartilhamento de dados e testes das respostas.</p>
+<p class="muted">Open Finance exige consentimento válido no fluxo do parceiro autorizado; esta configuração interna não substitui esse consentimento.</p>
+</div>
+</div>
+<div id="integration-list" class="muted"></div>
+</section>
 </div>
 </section>
 <footer>Setor Fiscal Multiempresa · separado do APP CFOP e FORTE FISCAL · nenhuma emissão fiscal real disponível.</footer>
