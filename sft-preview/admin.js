@@ -110,6 +110,21 @@ async function details(company){
   table("company_memberships?select=role&company_id=eq."+company.id+"&user_id=eq."+user.id)
  ]);
  const role=isMaster?"ADMIN":(memberships[0]?.role||"CONSULTA");
+ $("onboarding-review-card").hidden=!["ADMIN","CONTADOR"].includes(role);
+ const checkSelect=$("review-check");checkSelect.replaceChildren();
+ for(const check of checks){
+  const opt=document.createElement("option");opt.value=check.check_code;
+  opt.textContent=(messages[check.check_code]||check.check_code)+" · "+check.status;
+  checkSelect.append(opt);
+ }
+ function configureApprovalOption(){
+  const critical=["CERTIFICADOS","REGRAS_VALIDAS","TESTES_SEFAZ"].includes(checkSelect.value);
+  const option=$("review-status").querySelector('[value="CONFERIDO"]');
+  option.disabled=!isMaster||critical;
+  if(option.disabled&&$("review-status").value==="CONFERIDO")$("review-status").value="EM_ANALISE";
+ }
+ checkSelect.onchange=configureApprovalOption;
+ configureApprovalOption();
  $("assign-group-card").hidden=!isMaster;
  if(isMaster){fillGroupSelect($("assign-group"),company.group_id||"");}
  $("branch-form").parentElement.hidden=role!=="ADMIN";
@@ -250,6 +265,21 @@ function fillGroupSelect(el,selected){
  for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
  el.value=selected||"";
 }
+onForm("onboarding-review-form",async form=>{
+ const company=requireCompany();
+ if(!["PENDENTE","EM_ANALISE","CONFERIDO"].includes($("review-status").value))
+ throw new Error("Etapa inválida.");
+ const code=$("review-check").value,status=$("review-status").value,
+ evidence=$("review-evidence").value.trim();
+ if(status==="CONFERIDO" && evidence.length<15)
+ throw new Error("A conferência final exige fundamentação de pelo menos 15 caracteres.");
+ await rpc("review_company_onboarding_check",{
+  p_company_id:company.id,p_check_code:code,p_new_status:status,p_evidence:evidence||null
+ });
+ company.onboarding_status="EM_CONFIGURACAO";
+ form.reset();await details(company);
+ say("Revisão registrada. Emissão fiscal continua bloqueada até homologação.");
+});
 onForm("group-form",async form=>{
  if(!isMaster)throw new Error("Somente Master pode cadastrar grupos empresariais.");
  const name=$("group-name").value.trim();
