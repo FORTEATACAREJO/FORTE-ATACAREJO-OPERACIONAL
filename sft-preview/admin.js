@@ -6,7 +6,7 @@ const MASTER="sistemasfortetech@gmail.com";
 const STORAGE_KEY="sft-secure-admin-session";
 const $=id=>document.getElementById(id);
 const knownStates="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-let session=null, user=null, isMaster=false, selectedCompany=null;
+let session=null, user=null, isMaster=false, selectedCompany=null, groups=[];
 const messages={
  CNPJ_E_ESTABELECIMENTOS:"CNPJ e estabelecimentos",
  REGIME_TRIBUTARIO:"Regime tributário",CNAE_E_ATIVIDADE:"CNAE e atividade",
@@ -80,6 +80,7 @@ async function details(company){
  $("details").hidden=false;
  container.replaceChildren();
  textLine(container,"Empresa",company.legal_name);
+ textLine(container,"Grupo empresarial",groups.find(g=>g.id===company.group_id)?.name||"Independente / não vinculado");
  textLine(container,"CNPJ raiz",company.cnpj_root);
  textLine(container,"Regime",company.tax_regime);
  textLine(container,"Atividade",company.industry_sector);
@@ -109,6 +110,8 @@ async function details(company){
   table("company_memberships?select=role&company_id=eq."+company.id+"&user_id=eq."+user.id)
  ]);
  const role=isMaster?"ADMIN":(memberships[0]?.role||"CONSULTA");
+ $("assign-group-card").hidden=!isMaster;
+ if(isMaster){fillGroupSelect($("assign-group"),company.group_id||"");}
  $("branch-form").parentElement.hidden=role!=="ADMIN";
  $("party-form").parentElement.hidden=!["ADMIN","CONTADOR","OPERADOR"].includes(role);
  $("product-form").parentElement.hidden=!["ADMIN","CONTADOR"].includes(role);
@@ -143,7 +146,10 @@ async function load(){
  $("role").textContent=isMaster?"Master Sistemas Forte Tech":"Usuário autenticado";
  $("activate").hidden=isMaster||user.email?.toLowerCase()!==MASTER;
  $("create-card").hidden=!isMaster;
- const companies=await table("companies?select=id,legal_name,cnpj_root,tax_regime,industry_sector,onboarding_status&order=legal_name.asc");
+ groups=isMaster?await table("business_groups?select=id,name&order=name.asc"):[];
+ $("group-card").hidden=!isMaster;
+ if(isMaster){fillGroupSelect($("company-group"),"");const gl=$("groups-list");gl.replaceChildren();for(const g of groups){const row=document.createElement("p");row.textContent=g.name;gl.append(row);}}
+ const companies=await table("companies?select=id,group_id,legal_name,cnpj_root,tax_regime,industry_sector,onboarding_status&order=legal_name.asc");
  renderCompanies(companies);
  if(selectedCompany&&!companies.some(c=>c.id===selectedCompany.id)){$("details").hidden=true;selectedCompany=null;}
  say(isMaster?"Painel Master conectado ao banco exclusivo.":"Acesso identificado. Mostrando apenas empresas autorizadas.");
@@ -179,7 +185,7 @@ $("company-form").addEventListener("submit",async e=>{
   p_city:$("company-city").value.trim(),
   p_tax_regime:$("company-regime").value,
   p_industry_sector:$("company-sector").value,
-  p_group_id:null,
+  p_group_id:$("company-group").value||null,
   p_state_registration:null,
   p_cnae_primary:$("company-cnae").value.trim()||null
  };
@@ -210,6 +216,31 @@ function onForm(formId,fn){
   finally{button.disabled=false;}
  });
 }
+function fillGroupSelect(el,selected){
+ el.replaceChildren();
+ const empty=document.createElement("option");empty.value="";empty.textContent="Nenhum grupo — empresa independente";el.append(empty);
+ for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
+ el.value=selected||"";
+}
+onForm("group-form",async form=>{
+ if(!isMaster)throw new Error("Somente Master pode cadastrar grupos empresariais.");
+ const name=$("group-name").value.trim();
+ if(name.length<3)throw new Error("Informe um nome de grupo válido.");
+ await insertRow("business_groups",{name});
+ form.reset();await load();say("Grupo empresarial criado; cada empresa permanece juridicamente independente.");
+});
+onForm("assign-group-form",async()=>{
+ const company=requireCompany();
+ if(!isMaster)throw new Error("Somente Master pode vincular empresas a grupos.");
+ const groupId=$("assign-group").value||null;
+ await request("/rest/v1/companies?id=eq."+company.id,{
+  auth:true,method:"PATCH",body:{group_id:groupId}
+ });
+ company.group_id=groupId;
+ await load();await details(company);
+ say(groupId?"Empresa vinculada ao grupo. CNPJ, estoque e operações permanecem independentes.":"Empresa desvinculada do grupo.");
+});
+
 onForm("branch-form",async form=>{
  const company=requireCompany();
  const cnpj=validateCnpj($("branch-cnpj").value);
