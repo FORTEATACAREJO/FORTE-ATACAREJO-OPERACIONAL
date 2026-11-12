@@ -32,8 +32,15 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 </style></head>
 <body><header><img src="/icon.svg" alt=""><div><strong>FORTE TECH</strong><small>Assistente de consulta fiscal • versão experimental</small></div></header>
 <main><div class="two"><div><h1>Consulta fiscal em quatro passos</h1><p>Responda apenas o que você sabe. O sistema identifica o que falta confirmar em fontes oficiais, sem adivinhar impostos.</p></div><a href="/">Consulta tradicional</a></div>
-<div class="progress" id="prog"><span class="on"></span><span></span><span></span><span></span></div>
-<div class="card" id="step1"><h2>1. Quem está fazendo a consulta?</h2><p>Uma vez identificado, você poderá reutilizar o cadastro no mesmo aparelho. Digitar documento não comprova titularidade.</p>
+<div class="card" id="step0">
+<h2 style="font-size:clamp(22px,5vw,29px);line-height:1.3">Você deseja comprar mercadorias ou vender mercadorias?</h2>
+<p>Escolha o que você quer fazer. Depois, vamos pedir apenas as informações necessárias para sua operação.</p>
+<div class="choices" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<button type="button" class="choice" data-entry-operation="entrada" style="min-height:115px;font-size:17px">🛒<span style="display:block;margin-top:9px">Comprar mercadorias</span><small style="display:block;margin-top:4px;font-weight:400">Consulta de entrada</small></button>
+<button type="button" class="choice" data-entry-operation="saida" style="min-height:115px;font-size:17px">🚚<span style="display:block;margin-top:9px">Vender mercadorias</span><small style="display:block;margin-top:4px;font-weight:400">Consulta de saída</small></button>
+</div></div>
+<div class="progress hidden" id="prog"><span class="on"></span><span></span><span></span><span></span></div>
+<div class="card hidden" id="step1"><h2>1. Quem está fazendo a consulta?</h2><p>Uma vez identificado, você poderá reutilizar o cadastro no mesmo aparelho. Digitar documento não comprova titularidade.</p>
 <div class="choices">
 <button type="button" class="choice selected" data-profile="company">🏢 Empresa com CNPJ</button>
 <button type="button" class="choice" data-profile="rural">🌾 Produtor rural com CPF e IE</button>
@@ -51,9 +58,8 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <p><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/" target="_blank" rel="noopener">Receita Federal — CNPJ</a> · <a href="https://www8.receita.fazenda.gov.br/SimplesNacional/" target="_blank" rel="noopener">Simples Nacional</a> · <a href="https://www.fazenda.mg.gov.br/empresas/Cadastro/cadastro/consultapublica.html" target="_blank" rel="noopener">Sintegra MG</a> · <a href="https://appasp.sefaz.go.gov.br/Sintegra/Consulta/default.html" target="_blank" rel="noopener">Sintegra GO</a></p></details>
 <label class="check"><input id="accept" type="checkbox"><span>Li e aceito os <a href="/privacidade.html" target="_blank" rel="noopener">termos e o aviso de privacidade</a> para usar a consulta.</span></label>
 <label class="check"><input id="insights" type="checkbox"><span>Autorizo opcionalmente vincular os assuntos pesquisados ao CNPJ da empresa, quando aplicável.</span></label>
-<div class="actions"><button class="gold" id="saveOwn" type="button">Salvar e continuar</button></div></div>
-<div class="card hidden" id="step2"><h2>2. O que você deseja fazer?</h2><div class="choices" style="grid-template-columns:1fr 1fr">
-<button type="button" class="choice selected" data-op="entrada">🛒 Comprar mercadoria</button><button type="button" class="choice" data-op="saida">🚚 Vender mercadoria</button></div>
+<div class="actions"><button id="backToChoice" type="button">Alterar compra ou venda</button><button class="gold" id="saveOwn" type="button">Salvar e continuar</button></div></div>
+<div class="card hidden" id="step2"><h2 id="counterpartyTitle">2. Identificar fornecedor</h2>
 <p id="otherHelp">Digite o CNPJ do fornecedor, se tiver. O sistema identificará o que falta para a conferência cadastral e tributária.</p>
 <div class="grid">
 <div class="field"><label id="otherLabel" for="otherDoc">CNPJ do fornecedor</label><input id="otherDoc" autocomplete="off" placeholder="CNPJ da outra parte"></div>
@@ -68,7 +74,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field"><label for="product">Produto</label><input id="product" placeholder="Ex.: cimento, cerveja, tijolo" maxlength="90"></div>
 <div class="field"><label for="ncm">NCM (se constar na nota ou catálogo)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
 <div class="field"><label for="cest">CEST (se constar no documento)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
-<div class="field"><label for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
+<div class="field"><label id="useLabel" for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
 </div>
 <div class="warning" style="margin-top:14px">O produto sozinho não determina se há substituição tributária. Para verificar ICMS-ST são necessários NCM, descrição, CEST quando aplicável, UF, data da operação, regras estaduais e responsabilidade tributária. O simulador atual não confirma essas informações automaticamente.</div>
 <div class="actions"><button id="back3">Voltar</button><button class="gold" id="next3">Analisar</button></div></div>
@@ -82,16 +88,27 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <script>
 (function(){
 'use strict'; const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
-let step=1,profile='company',op='entrada',saved=false;
+let step=0,profile='company',op='entrada',saved=false;
 ['ownUf','originUf','destUf'].forEach(id=>UF.forEach(uf=>{const e=document.createElement('option');e.value=uf;e.textContent=uf;$(id).appendChild(e)}));
 $('ownUf').value='MG';$('originUf').value='MG';$('destUf').value='MG';
 function msg(t){$('msg').textContent=t; if(t)$('msg').scrollIntoView({behavior:'smooth',block:'nearest'})}
-function goto(n){step=n;for(let k=1;k<=4;k++)$('step'+k).classList.toggle('hidden',k!==n);[...$('prog').children].forEach((p,i)=>p.classList.toggle('on',i<n));msg('');window.scrollTo({top:0,behavior:'smooth'})}
+function goto(n){step=n;$('step0').classList.toggle('hidden',n!==0);$('prog').classList.toggle('hidden',n===0);for(let k=1;k<=4;k++)$('step'+k).classList.toggle('hidden',k!==n);[...$('prog').children].forEach((p,i)=>p.classList.toggle('on',i<n));msg('');window.scrollTo({top:0,behavior:'smooth'})}
 function alpha(v){return String(v||'').toUpperCase().replace(/[^0-9A-Z]/g,'')}
 function cnpjValid(v){let s=alpha(v),a=[5,4,3,2,9,8,7,6,5,4,3,2],b=[6,5,4,3,2,9,8,7,6,5,4,3,2];if(!/^[A-Z0-9]{12}[0-9]{2}$/.test(s)||s.slice(0,12)===s[0].repeat(12))return false;const dv=(part,w)=>{let total=0;for(let i=0;i<w.length;i++)total+=(part.charCodeAt(i)-48)*w[i];let r=total%11;return r<2?0:11-r};let d1=dv(s.slice(0,12),a);return s.slice(-2)===String(d1)+dv(s.slice(0,12)+d1,b)}
 function cpfValid(value){let s=String(value||'').replace(/\D/g,'');if(!/^\d{11}$/.test(s)||s.split('').every(c=>c===s[0]))return false;for(let len=9;len<=10;len++){let sum=0;for(let i=0;i<len;i++)sum+=Number(s[i])*(len+1-i);let v=(sum*10)%11;if(v===10)v=0;if(v!==Number(s[len]))return false}return true}
 document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{profile=b.dataset.profile;document.querySelectorAll('[data-profile]').forEach(x=>x.classList.toggle('selected',x===b));$('idCnpj').classList.toggle('hidden',profile!=='company');$('idCpf').classList.toggle('hidden',profile==='company');$('idIe').classList.toggle('hidden',profile!=='rural');$('idUf').classList.toggle('hidden',profile!=='rural')});
-document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{op=b.dataset.op;document.querySelectorAll('[data-op]').forEach(x=>x.classList.toggle('selected',x===b));$('otherLabel').textContent=op==='entrada'?'CNPJ do fornecedor':'CPF/CNPJ do comprador';$('otherHelp').textContent=op==='entrada'?'De quem você vai comprar? Informe o CNPJ do fornecedor, quando disponível.':'Para quem vai vender? Informe CPF ou CNPJ do comprador, quando disponível.'});
+function setOperation(value){
+ if(value!=='entrada'&&value!=='saida')return;
+ op=value;
+ $('counterpartyTitle').textContent=value==='entrada'?'2. De quem você está comprando?':'2. Para quem você está vendendo?';
+ $('otherLabel').textContent=value==='entrada'?'CNPJ ou CPF do fornecedor':'CPF ou CNPJ do comprador';
+ $('otherHelp').textContent=value==='entrada'?'Informe o documento do fornecedor, quando disponível.':'Informe o documento do comprador, quando disponível.';
+ $('useLabel').textContent=value==='entrada'?'Para que você vai utilizar a mercadoria?':'Para que o comprador vai utilizar a mercadoria?';
+}
+document.querySelectorAll('[data-entry-operation]').forEach(b=>b.onclick=()=>{setOperation(b.dataset.entryOperation);goto(1)});
+$('backToChoice').onclick=()=>goto(0);
+const queryOperation=new URLSearchParams(location.search).get('operacao');
+if(queryOperation==='entrada'||queryOperation==='saida'){setOperation(queryOperation);goto(1)}else{goto(0)}
 try{let v=JSON.parse(sessionStorage.getItem('ft-cfop-access-v2')||'null');if(v&&cnpjValid(v.cnpj)){$('ownCnpj').value=v.cnpj;$('ownName').value=v.name||'';}}catch(e){}
 $('saveOwn').onclick=async()=>{
 if(!$('accept').checked){msg('É necessário aceitar os termos antes de continuar.');return}
