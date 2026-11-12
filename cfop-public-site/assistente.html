@@ -78,7 +78,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="divider"></div>
 <p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
 <div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="legacy">Abrir simulador experimental</button></div></div>
-<div id="msg" role="alert"></div></main><footer>Sistemas Forte Tech • Fluxo simplificado experimental • Documentos de outras partes não são enviados às estatísticas.</footer>
+<div id="msg" role="alert"></div></main><footer>Sistemas Forte Tech • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
 <script>
 (function(){
 'use strict'; const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
@@ -110,14 +110,25 @@ if(profile==='company'){
   }catch(e){msg('Cadastro não confirmado no servidor: '+e.message);return}finally{b.disabled=false;b.textContent='Salvar e continuar'}
 }else{saved=true}
 if(profile==='rural')$('destUf').value=$('ownUf').value;
-if(profile==='company'){$('destUf').value='MG'}
+// Estados informados na consulta. Não inferir a UF do estabelecimento pelo CNPJ.
 goto(2);
 };
 $('back2').onclick=()=>goto(1);$('back3').onclick=()=>goto(2);$('back4').onclick=()=>goto(3);
 $('next2').onclick=()=>{const doc=alpha($('otherDoc').value);if(doc&&!(cnpjValid(doc)||cpfValid(doc))){msg('O documento da outra parte não passou na validação de dígitos.');return}goto(3)};
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
 const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',profile==='company'?'CNPJ salvo, informações oficiais ainda não verificadas':'Dados validados localmente e não enviados ao servidor'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],['Fornecedor / comprador',$('otherDoc').value?'Documento informado, cadastro pendente de conferência':'Não informado'],['Produto',product],['NCM',ncm||'Não informado'],['CEST',cest||'Não informado'],['Finalidade',$('use').selectedOptions[0].text],['Regime federal','Não confirmado por fonte oficial'],['Situação ICMS-ST','Pendente: exige legislação atual e classificação do produto'],['CFOP','Pendente de validação']];
-$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4)};
+$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4);
+ const cleanProduct=product.slice(0,90);
+ const purpose=$('use').value==='particular'?'consumo':$('use').value;
+ const route=$('originUf').value+' → '+$('destUf').value;
+ const payload={operation:op,product:cleanProduct,route:route,routeProduct:route+' / '+cleanProduct,purpose:purpose,status:'pendente',cfop:'Pendente',regime:'indefinido',st:'indefinido',buyerKind:op==='entrada'?'empresa':'comprador',buyerTaxStatus:'indefinido'};
+ if(ncm)payload.ncm=ncm;
+ if(profile==='company'&&$('insights').checked)payload.company={cnpj:alpha($('ownCnpj').value),name:$('ownName').value.trim()||null};
+ const note=document.createElement('p');note.className='muted';note.textContent='Registrando estatísticas de consulta (sem documentos de terceiros)...';$('summary').appendChild(note);
+ fetch(BASE+'/api/consult',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+  .then(async res=>{if(!res.ok)throw Error('HTTP '+res.status);note.textContent='Consulta agregada registrada para inteligência comercial.'})
+  .catch(()=>{note.textContent='Estatísticas temporariamente indisponíveis; o resumo permanece válido como demonstração.'});
+};
 $('legacy').onclick=()=>location.assign('/');
 })();
 </script></body></html>
