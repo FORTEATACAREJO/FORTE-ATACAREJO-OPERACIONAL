@@ -57,11 +57,28 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <label for="company-city">Cidade</label><input id="company-city" required minlength="2" maxlength="120">
 <label for="company-regime">Regime tributário</label><select id="company-regime" required><option value="A_DEFINIR">A definir</option><option value="LUCRO_REAL">Lucro Real</option><option value="LUCRO_PRESUMIDO">Lucro Presumido</option><option value="SIMPLES_NACIONAL">Simples Nacional</option><option value="MEI">MEI</option><option value="IMUNE_ISENTA">Imune/isenta</option><option value="OUTRO">Outro</option></select>
 <label for="company-sector">Atividade principal</label><select id="company-sector" required><option value="A_DEFINIR">A definir</option><option value="COMERCIO">Comércio</option><option value="INDUSTRIA">Indústria</option><option value="SERVICOS">Serviços</option><option value="AGROPECUARIA">Agropecuária</option><option value="MISTO">Misto</option><option value="OUTROS">Outros</option></select>
+<label for="company-group">Grupo empresarial (opcional)</label><select id="company-group"><option value="">Empresa independente, sem grupo</option></select>
 <label for="company-cnae">CNAE principal (7 números, opcional)</label><input id="company-cnae" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" placeholder="Ex.: 4679604">
 <button type="submit">Criar empresa em configuração</button></form>
 <p class="muted">A emissão fiscal permanecerá bloqueada. Só o Master poderá iniciar novos cadastros nesta etapa.</p>
 </div></div>
+<div class="card" id="group-card" hidden>
+<h2>Grupos empresariais</h2>
+<p class="muted">Agrupa empresas juridicamente independentes para consulta administrativa. Cada empresa mantém CNPJ, estoque e dados fiscais próprios.</p>
+<form id="group-form" class="grid">
+<div><label for="group-name">Nome do novo grupo</label><input id="group-name" required minlength="3" maxlength="160" placeholder="Ex.: Grupo empresarial X"></div>
+<div><button type="submit">Criar grupo</button></div>
+</form>
+<div id="groups-list" class="muted"></div>
+</div>
 <div class="card" id="details" hidden>
+<div id="assign-group-card" hidden>
+<h3>Vincular empresa a grupo</h3>
+<form id="assign-group-form">
+<label for="assign-group">Grupo da empresa</label><select id="assign-group"><option value="">Nenhum grupo</option></select>
+<button type="submit">Salvar vínculo empresarial</button>
+</form>
+</div>
 <h2>Detalhes e configuração da empresa</h2><div id="detail-content"></div>
 <div class="grid">
 <div class="card">
