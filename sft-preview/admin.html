@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#10283b">
 <meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://tusmlfhzwlzwnoxfhomt.supabase.co; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'">
 <title>Sistemas Forte Tech | Administração segura</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="/sft-icon.svg">
@@ -42,7 +43,7 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <p class="muted">Para o primeiro acesso, utilize somente o e-mail administrativo já autorizado. Outros usuários precisarão ser cadastrados e autorizados antes do acesso.</p>
 <form id="otp-form"><label for="otp-email">E-mail autorizado</label><input id="otp-email" type="email" value="sistemasfortetech@gmail.com" autocomplete="email" maxlength="240" required>
 <button type="submit">Enviar link de acesso</button></form>
-<p class="muted">A mensagem pode conter um link de acesso, não necessariamente um código. O redirecionamento precisa estar habilitado nas configurações de autenticação do projeto Supabase.</p>
+<p class="muted">A mensagem de acesso vem por e-mail, sem senha fixa. Antes do primeiro uso, é preciso liberar o endereço <code>https://sistemas-forte-tech.onrender.com/admin.html</code> em <a href="https://supabase.com/dashboard/project/tusmlfhzwlzwnoxfhomt/auth/url-configuration" target="_blank" rel="noopener noreferrer">Supabase → Authentication → URL Configuration</a> (Redirect URLs). A entrega de e-mail também depende do provedor configurado no Supabase.</p>
 </section>
 <section id="dashboard" hidden>
 <div class="card"><div class="grid"><div><h1>Painel de empresas</h1><p id="identity" class="muted"></p><span class="pill" id="role">Conta autenticada</span></div><div><button type="button" id="activate" class="secondary" hidden>Ativar Master</button><button type="button" id="refresh" class="secondary">Atualizar dados</button><button type="button" id="logout" class="secondary">Sair</button></div></div></div>
