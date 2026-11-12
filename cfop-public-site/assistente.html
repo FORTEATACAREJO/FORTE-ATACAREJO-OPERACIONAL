@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTE TECH CFOP</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json">
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#152b42;background:#f3f5f9}
+*{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 870px)/2));display:flex;gap:12px;align-items:center}
+header img{width:44px;height:44px}header strong{font-size:18px}header small{display:block;color:#d8dce4}
+main{max-width:870px;margin:20px auto;padding:0 14px 30px}h1{font-size:clamp(23px,4vw,30px);letter-spacing:-.5px;margin:6px 0 8px}h2{font-size:19px;margin:0 0 9px}p{line-height:1.55;color:#53647a;font-size:14px}
+.card{padding:20px;background:white;border:1px solid #dce3ec;border-radius:15px;margin-bottom:14px;box-shadow:0 6px 25px rgba(16,38,64,.04)}
+.progress{display:flex;gap:6px;margin:16px 0}.progress span{flex:1;background:#dce4ed;height:6px;border-radius:6px}.progress span.on{background:#c39a43}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:13px;font-weight:700;color:#314862}
+.field input,.field select{height:46px;border:1px solid #c9d3df;border-radius:10px;font:inherit;padding:10px;color:#203653;width:100%;background:white}
+.field input:focus,.field select:focus{outline:2px solid #b58a36}
+.full{grid-column:1/-1}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:15px 0}
+.choice{border:1px solid #ced7e2;background:white;border-radius:12px;padding:14px 8px;cursor:pointer;font-weight:700;color:#2b4864;min-height:70px;text-align:center}
+.choice.selected{border:2px solid #ba8c37;background:#fff8e8}
+button{font:inherit;font-weight:700;cursor:pointer;padding:12px 16px;border-radius:11px;border:1px solid #cbd5e1;background:white;color:#173350}
+button.primary{background:#102640;color:white;border:0}button.gold{background:#d5aa4d;color:#102640;border:0}button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:10px;justify-content:space-between;margin-top:20px}.actions button{flex:1}
+.pill{font-size:12px;border-radius:20px;padding:5px 9px;background:#f0f4f8;color:#586e84;display:inline-block;margin:2px 5px 2px 0}
+.warning{border:1px solid #e7d9b6;background:#fff9ea;border-radius:11px;padding:12px;color:#654e1a;font-size:13px;line-height:1.6}
+.good{border-color:#bddcc9;background:#f2faf5;color:#296144}
+.hidden{display:none!important}.check{display:flex;gap:10px;align-items:start;font-size:13px;margin:12px 0;line-height:1.5}.check input{width:18px;height:18px;flex:none;margin-top:3px;accent-color:#102640}
+a{color:#976b22}small{font-size:12px;color:#6b7d90}.divider{height:1px;background:#e7ecf2;margin:17px 0}
+#msg{color:#8a2a19;font-size:13px;margin-top:12px}
+.two{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.two>div:first-child{flex:1}
+summary{cursor:pointer;font-weight:700}.table{width:100%;border-collapse:collapse;font-size:14px}td{padding:10px 6px;border-bottom:1px solid #e5e9ef;vertical-align:top}td:first-child{width:37%;color:#667a90}
+footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.card{padding:16px}.actions{flex-direction:column}}
+</style></head>
+<body><header><img src="/icon.svg" alt=""><div><strong>FORTE TECH</strong><small>Assistente de consulta fiscal • versão experimental</small></div></header>
+<main><div class="two"><div><h1>Consulta fiscal em quatro passos</h1><p>Responda apenas o que você sabe. O sistema identifica o que falta confirmar em fontes oficiais, sem adivinhar impostos.</p></div><a href="/">Consulta tradicional</a></div>
+<div class="progress" id="prog"><span class="on"></span><span></span><span></span><span></span></div>
+<div class="card" id="step1"><h2>1. Quem está fazendo a consulta?</h2><p>Uma vez identificado, você poderá reutilizar o cadastro no mesmo aparelho. Digitar documento não comprova titularidade.</p>
+<div class="choices">
+<button type="button" class="choice selected" data-profile="company">🏢 Empresa com CNPJ</button>
+<button type="button" class="choice" data-profile="rural">🌾 Produtor rural com CPF e IE</button>
+<button type="button" class="choice" data-profile="person">👤 Pessoa física</button>
+</div>
+<div class="grid">
+<div class="field" id="idCnpj"><label for="ownCnpj">CNPJ da empresa</label><input id="ownCnpj" placeholder="CNPJ numérico ou alfanumérico" autocomplete="off"></div>
+<div class="field hidden" id="idCpf"><label for="ownCpf">CPF</label><input id="ownCpf" inputmode="numeric" placeholder="000.000.000-00" autocomplete="off"></div>
+<div class="field hidden" id="idIe"><label for="ownIe">Inscrição estadual do produtor</label><input id="ownIe" placeholder="Número da inscrição estadual" autocomplete="off"></div>
+<div class="field hidden" id="idUf"><label for="ownUf">UF da inscrição estadual</label><select id="ownUf"></select></div>
+<div class="field full"><label for="ownName">Nome da empresa ou produtor (opcional)</label><input id="ownName" placeholder="Nome / razão social" maxlength="120" autocomplete="off"></div>
+</div>
+<div class="warning" id="ownStatus">As consultas automáticas do Serpro e das SEFAZ ainda não estão contratadas/integradas. O cadastro será identificado como informado, não verificado.</div>
+<details style="margin-top:12px"><summary>Consultar dados em fontes oficiais</summary><p>Use as consultas oficiais abaixo. Alguns portais exigem CAPTCHA e não permitem preenchimento automático por esta versão.</p>
+<p><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/" target="_blank" rel="noopener">Receita Federal — CNPJ</a> · <a href="https://www8.receita.fazenda.gov.br/SimplesNacional/" target="_blank" rel="noopener">Simples Nacional</a> · <a href="https://www.fazenda.mg.gov.br/empresas/Cadastro/cadastro/consultapublica.html" target="_blank" rel="noopener">Sintegra MG</a> · <a href="https://appasp.sefaz.go.gov.br/Sintegra/Consulta/default.html" target="_blank" rel="noopener">Sintegra GO</a></p></details>
+<label class="check"><input id="accept" type="checkbox"><span>Li e aceito os <a href="/privacidade.html" target="_blank" rel="noopener">termos e o aviso de privacidade</a> para usar a consulta.</span></label>
+<label class="check"><input id="insights" type="checkbox"><span>Autorizo opcionalmente vincular os assuntos pesquisados ao CNPJ da empresa, quando aplicável.</span></label>
+<div class="actions"><button class="gold" id="saveOwn" type="button">Salvar e continuar</button></div></div>
+<div class="card hidden" id="step2"><h2>2. O que você deseja fazer?</h2><div class="choices" style="grid-template-columns:1fr 1fr">
+<button type="button" class="choice selected" data-op="entrada">🛒 Comprar mercadoria</button><button type="button" class="choice" data-op="saida">🚚 Vender mercadoria</button></div>
+<p id="otherHelp">Digite o CNPJ do fornecedor, se tiver. O sistema identificará o que falta para a conferência cadastral e tributária.</p>
+<div class="grid">
+<div class="field"><label id="otherLabel" for="otherDoc">CNPJ do fornecedor</label><input id="otherDoc" autocomplete="off" placeholder="CNPJ da outra parte"></div>
+<div class="field"><label for="originUf">De qual estado sai a mercadoria?</label><select id="originUf"></select></div>
+<div class="field"><label for="destUf">Em qual estado será entregue?</label><select id="destUf"></select></div>
+<div class="field"><label for="otherIe">Inscrição estadual da outra parte (se houver)</label><input id="otherIe" placeholder="Opcional"></div>
+</div>
+<div class="warning" style="margin-top:14px">A busca automática do fornecedor ainda depende da API cadastral autorizada. Enquanto não estiver conectada, os estados e a situação tributária precisam ser conferidos nas fontes oficiais; não serão preenchidos por suposição.</div>
+<div class="actions"><button id="back2">Voltar</button><button class="gold" id="next2">Continuar</button></div></div>
+<div class="card hidden" id="step3"><h2>3. Qual é o produto e o destino dele?</h2>
+<div class="grid">
+<div class="field"><label for="product">Produto</label><input id="product" placeholder="Ex.: cimento, cerveja, tijolo" maxlength="90"></div>
+<div class="field"><label for="ncm">NCM (se constar na nota ou catálogo)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
+<div class="field"><label for="cest">CEST (se constar no documento)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
+<div class="field"><label for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
+</div>
+<div class="warning" style="margin-top:14px">O produto sozinho não determina se há substituição tributária. Para verificar ICMS-ST são necessários NCM, descrição, CEST quando aplicável, UF, data da operação, regras estaduais e responsabilidade tributária. O simulador atual não confirma essas informações automaticamente.</div>
+<div class="actions"><button id="back3">Voltar</button><button class="gold" id="next3">Analisar</button></div></div>
+<div class="card hidden" id="step4"><h2>4. Análise da operação</h2>
+<div id="summary"></div>
+<div class="warning" style="margin-top:15px"><strong>Classificação fiscal: pendente de validação.</strong> Não há integração ativa com bases oficiais de regime tributário, cadastro de IE e regras de ST de todas as UFs. Por segurança, esta etapa não inventa um CFOP definitivo.</div>
+<div class="divider"></div>
+<p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
+<div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="legacy">Abrir simulador experimental</button></div></div>
+<div id="msg" role="alert"></div></main><footer>Sistemas Forte Tech • Fluxo simplificado experimental • Documentos de outras partes não são enviados às estatísticas.</footer>
+<script>
+(function(){
+'use strict'; const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
+let step=1,profile='company',op='entrada',saved=false;
+['ownUf','originUf','destUf'].forEach(id=>UF.forEach(uf=>{const e=document.createElement('option');e.value=uf;e.textContent=uf;$(id).appendChild(e)}));
+$('ownUf').value='MG';$('originUf').value='MG';$('destUf').value='MG';
+function msg(t){$('msg').textContent=t; if(t)$('msg').scrollIntoView({behavior:'smooth',block:'nearest'})}
+function goto(n){step=n;for(let k=1;k<=4;k++)$('step'+k).classList.toggle('hidden',k!==n);[...$('prog').children].forEach((p,i)=>p.classList.toggle('on',i<n));msg('');window.scrollTo({top:0,behavior:'smooth'})}
+function alpha(v){return String(v||'').toUpperCase().replace(/[^0-9A-Z]/g,'')}
+function cnpjValid(v){let s=alpha(v),a=[5,4,3,2,9,8,7,6,5,4,3,2],b=[6,5,4,3,2,9,8,7,6,5,4,3,2];if(!/^[A-Z0-9]{12}[0-9]{2}$/.test(s)||s.slice(0,12)===s[0].repeat(12))return false;const dv=(part,w)=>{let total=0;for(let i=0;i<w.length;i++)total+=(part.charCodeAt(i)-48)*w[i];let r=total%11;return r<2?0:11-r};let d1=dv(s.slice(0,12),a);return s.slice(-2)===String(d1)+dv(s.slice(0,12)+d1,b)}
+function cpfValid(value){let s=String(value||'').replace(/\D/g,'');if(!/^\d{11}$/.test(s)||s.split('').every(c=>c===s[0]))return false;for(let len=9;len<=10;len++){let sum=0;for(let i=0;i<len;i++)sum+=Number(s[i])*(len+1-i);let v=(sum*10)%11;if(v===10)v=0;if(v!==Number(s[len]))return false}return true}
+document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{profile=b.dataset.profile;document.querySelectorAll('[data-profile]').forEach(x=>x.classList.toggle('selected',x===b));$('idCnpj').classList.toggle('hidden',profile!=='company');$('idCpf').classList.toggle('hidden',profile==='company');$('idIe').classList.toggle('hidden',profile!=='rural');$('idUf').classList.toggle('hidden',profile!=='rural')});
+document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{op=b.dataset.op;document.querySelectorAll('[data-op]').forEach(x=>x.classList.toggle('selected',x===b));$('otherLabel').textContent=op==='entrada'?'CNPJ do fornecedor':'CPF/CNPJ do comprador';$('otherHelp').textContent=op==='entrada'?'De quem você vai comprar? Informe o CNPJ do fornecedor, quando disponível.':'Para quem vai vender? Informe CPF ou CNPJ do comprador, quando disponível.'});
+try{let v=JSON.parse(sessionStorage.getItem('ft-cfop-access-v2')||'null');if(v&&cnpjValid(v.cnpj)){$('ownCnpj').value=v.cnpj;$('ownName').value=v.name||'';}}catch(e){}
+$('saveOwn').onclick=async()=>{
+if(!$('accept').checked){msg('É necessário aceitar os termos antes de continuar.');return}
+const ownName=$('ownName').value.trim(), company=alpha($('ownCnpj').value);
+if(profile==='company'&&!cnpjValid(company)){msg('Digite um CNPJ válido (numérico ou alfanumérico).');return}
+if(profile!=='company'&&!cpfValid($('ownCpf').value)){msg('Digite um CPF válido.');return}
+if(profile==='rural'&&!String($('ownIe').value).trim()){msg('Informe sua inscrição estadual.');return}
+if(profile==='company'){
+  let b=$('saveOwn');b.disabled=true;b.textContent='Registrando...';
+  try{
+  let response=await fetch(BASE+'/api/access',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cnpj:company,name:ownName||null,acceptTerms:true,analytics:!!$('insights').checked,version:'cfop-privacy-2026-11-12-v1'})});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok||!payload.ok)throw Error(payload.error||'Não foi possível confirmar os dados do CNPJ');
+  sessionStorage.setItem('ft-cfop-access-v2',JSON.stringify({cnpj:company,name:ownName,analytics:!!$('insights').checked,version:'cfop-privacy-2026-11-12-v1'}));
+  saved=true;
+  }catch(e){msg('Cadastro não confirmado no servidor: '+e.message);return}finally{b.disabled=false;b.textContent='Salvar e continuar'}
+}else{saved=true}
+if(profile==='rural')$('destUf').value=$('ownUf').value;
+if(profile==='company'){$('destUf').value='MG'}
+goto(2);
+};
+$('back2').onclick=()=>goto(1);$('back3').onclick=()=>goto(2);$('back4').onclick=()=>goto(3);
+$('next2').onclick=()=>{const doc=alpha($('otherDoc').value);if(doc&&!(cnpjValid(doc)||cpfValid(doc))){msg('O documento da outra parte não passou na validação de dígitos.');return}goto(3)};
+$('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
+const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',profile==='company'?'CNPJ salvo, informações oficiais ainda não verificadas':'Dados validados localmente e não enviados ao servidor'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],['Fornecedor / comprador',$('otherDoc').value?'Documento informado, cadastro pendente de conferência':'Não informado'],['Produto',product],['NCM',ncm||'Não informado'],['CEST',cest||'Não informado'],['Finalidade',$('use').selectedOptions[0].text],['Regime federal','Não confirmado por fonte oficial'],['Situação ICMS-ST','Pendente: exige legislação atual e classificação do produto'],['CFOP','Pendente de validação']];
+$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4)};
+$('legacy').onclick=()=>location.assign('/');
+})();
+</script></body></html>
