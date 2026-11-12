@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#10283b">
+<meta name="referrer" content="no-referrer">
+<title>Sistemas Forte Tech | Administração segura</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/sft-icon.svg">
+<style>
+:root{--navy:#10283b;--teal:#13848b;--pale:#f1f6f8;--line:#d9e5eb;--muted:#617988;--dark:#1b3443}
+*{box-sizing:border-box}body{margin:0;background:var(--pale);color:var(--dark);font:15px/1.45 system-ui,sans-serif}
+header{background:var(--navy);color:white;padding:18px 6vw;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
+header strong{font-size:22px}header small{display:block;color:#c5dce4}main{max-width:1120px;margin:auto;padding:22px 16px 65px}
+a{color:#086b83}header a{color:#e1f9fa}h1{font-size:25px;margin:0 0 7px}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:8px 0}
+p{margin:7px 0 15px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.card{background:white;border:1px solid var(--line);border-radius:13px;padding:20px;margin-bottom:15px}
+.note{background:#fff5df;border:1px solid #ebd6a0;padding:14px 17px;border-radius:10px;margin-bottom:18px}
+.muted{color:var(--muted)}label{display:block;font-weight:650;margin:11px 0 5px}
+input,select{font:inherit;width:100%;padding:11px;border:1px solid #c6d9e1;border-radius:8px;background:#fff}
+button{font:650 14px system-ui;border:0;border-radius:9px;padding:11px 14px;cursor:pointer;background:var(--teal);color:white;margin:11px 8px 0 0}
+button.secondary{background:#e8f1f3;color:#244b5c}button:disabled{opacity:.65;cursor:wait}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #75c4d2;outline-offset:2px}
+#status{white-space:pre-wrap;min-height:16px;color:#0e685c;margin:8px 0 16px}
+#status.bad{color:#ab3330}.pill{display:inline-block;border-radius:30px;padding:5px 11px;background:#e2f5ef;font-size:12px;color:#126c5a;font-weight:650}
+code{font-size:12px}.hidden,[hidden]{display:none!important}.company{padding:12px 2px;border-bottom:1px solid #e5edf1}
+.company:last-child{border-bottom:0}.company button{margin-top:8px}
+.check{padding:9px 0;border-bottom:1px solid #ebf0f2}.state{font-size:12px;color:#836428}
+footer{font-size:12px;color:var(--muted);padding:12px 0}
+@media(max-width:740px){.grid{grid-template-columns:1fr}header strong{font-size:19px}}
+</style>
+</head>
+<body>
+<header><div><strong>SISTEMAS FORTE TECH</strong><small>Administração de empresas · Acesso protegido</small></div><a href="/">Voltar à demonstração pública</a></header>
+<main>
+<div class="note"><strong>Ambiente de configuração — sem emissão fiscal.</strong> Este acesso usa um link temporário enviado ao e-mail autorizado, sem senha fixa. Empresas e documentos permanecem protegidos no Supabase. Não compartilhe links recebidos por e-mail.</div>
+<div id="status" role="status" aria-live="polite"></div>
+<section id="login-area" class="card">
+<h1>Entrar sem senha</h1>
+<p class="muted">Para o primeiro acesso, utilize somente o e-mail administrativo já autorizado. Outros usuários precisarão ser cadastrados e autorizados antes do acesso.</p>
+<form id="otp-form"><label for="otp-email">E-mail autorizado</label><input id="otp-email" type="email" value="sistemasfortetech@gmail.com" autocomplete="email" maxlength="240" required>
+<button type="submit">Enviar link de acesso</button></form>
+<p class="muted">A mensagem pode conter um link de acesso, não necessariamente um código. O redirecionamento precisa estar habilitado nas configurações de autenticação do projeto Supabase.</p>
+</section>
+<section id="dashboard" hidden>
+<div class="card"><div class="grid"><div><h1>Painel de empresas</h1><p id="identity" class="muted"></p><span class="pill" id="role">Conta autenticada</span></div><div><button type="button" id="activate" class="secondary" hidden>Ativar Master</button><button type="button" id="refresh" class="secondary">Atualizar dados</button><button type="button" id="logout" class="secondary">Sair</button></div></div></div>
+<div class="grid">
+<div class="card"><h2>Empresas autorizadas</h2><div id="companies"><p class="muted">Nenhuma empresa autorizada.</p></div></div>
+<div class="card" id="create-card" hidden><h2>Cadastrar nova empresa</h2><p class="muted">Pessoa jurídica independente. Registro começa com emissão e tributação não homologadas.</p>
+<form id="company-form">
+<label for="company-name">Razão social</label><input id="company-name" required minlength="3" maxlength="160" placeholder="Razão social conforme CNPJ">
+<label for="company-cnpj">CNPJ completo</label><input id="company-cnpj" required maxlength="24" placeholder="00.000.000/0001-00">
+<label for="company-state">Estado da matriz</label><select id="company-state" required></select>
+<label for="company-city">Cidade</label><input id="company-city" required minlength="2" maxlength="120">
+<label for="company-regime">Regime tributário</label><select id="company-regime" required><option value="A_DEFINIR">A definir</option><option value="LUCRO_REAL">Lucro Real</option><option value="LUCRO_PRESUMIDO">Lucro Presumido</option><option value="SIMPLES_NACIONAL">Simples Nacional</option><option value="MEI">MEI</option><option value="IMUNE_ISENTA">Imune/isenta</option><option value="OUTRO">Outro</option></select>
+<label for="company-sector">Atividade principal</label><select id="company-sector" required><option value="A_DEFINIR">A definir</option><option value="COMERCIO">Comércio</option><option value="INDUSTRIA">Indústria</option><option value="SERVICOS">Serviços</option><option value="AGROPECUARIA">Agropecuária</option><option value="MISTO">Misto</option><option value="OUTROS">Outros</option></select>
+<label for="company-cnae">CNAE principal (7 números, opcional)</label><input id="company-cnae" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" placeholder="Ex.: 4679604">
+<button type="submit">Criar empresa em configuração</button></form>
+<p class="muted">A emissão fiscal permanecerá bloqueada. Só o Master poderá iniciar novos cadastros nesta etapa.</p>
+</div></div>
+<div class="card" id="details" hidden><h2>Detalhes da empresa</h2><div id="detail-content"></div></div>
+</section>
+<footer>Setor Fiscal Multiempresa · separado do APP CFOP e FORTE FISCAL · nenhuma emissão fiscal real disponível.</footer>
+</main>
+<script src="/admin.js" defer></script>
+</body></html>
