@@ -6,7 +6,7 @@ const MASTER="sistemasfortetech@gmail.com";
 const STORAGE_KEY="sft-secure-admin-session";
 const $=id=>document.getElementById(id);
 const knownStates="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-let session=null, user=null, isMaster=false;
+let session=null, user=null, isMaster=false, selectedCompany=null;
 const messages={
  CNPJ_E_ESTABELECIMENTOS:"CNPJ e estabelecimentos",
  REGIME_TRIBUTARIO:"Regime tributário",CNAE_E_ATIVIDADE:"CNAE e atividade",
@@ -15,7 +15,7 @@ const messages={
  REGRAS_VALIDAS:"Regras fiscais homologadas",TESTES_SEFAZ:"Testes SEFAZ"
 };
 function say(message,error=false){$("status").textContent=message;$("status").classList.toggle("bad",error);}
-function showLogin(){session=null;user=null;isMaster=false;sessionStorage.removeItem(STORAGE_KEY);$("login-area").hidden=false;$("dashboard").hidden=true;}
+function showLogin(){session=null;user=null;isMaster=false;selectedCompany=null;sessionStorage.removeItem(STORAGE_KEY);$("login-area").hidden=false;$("dashboard").hidden=true;$("details").hidden=true;}
 function storeSession(s){
  if(!s || typeof s.access_token!=="string" || typeof s.refresh_token!=="string")throw new Error("Resposta de autenticação incompleta.");
  const expiresIn=Number(s.expires_in)||3600;
@@ -75,6 +75,7 @@ function textLine(parent,heading,text){
  const p=document.createElement("p");const strong=document.createElement("strong");strong.textContent=heading+": ";p.append(strong,document.createTextNode(text??"—"));parent.append(p);
 }
 async function details(company){
+ selectedCompany=company;
  const container=$("detail-content");
  $("details").hidden=false;
  container.replaceChildren();
@@ -101,6 +102,25 @@ async function details(company){
  const notice=document.createElement("p");notice.className="muted";
  notice.textContent="Todas as empresas permanecem com emissão fiscal real bloqueada.";
  container.append(notice);
+ const [parties,products,invites,memberships]=await Promise.all([
+  table("company_parties?select=id&company_id=eq."+company.id),
+  table("company_products?select=id&company_id=eq."+company.id),
+  table("company_user_invitations?select=id,status,email,role&company_id=eq."+company.id),
+  table("company_memberships?select=role&company_id=eq."+company.id+"&user_id=eq."+user.id)
+ ]);
+ const role=isMaster?"ADMIN":(memberships[0]?.role||"CONSULTA");
+ $("branch-form").parentElement.hidden=role!=="ADMIN";
+ $("party-form").parentElement.hidden=!["ADMIN","CONTADOR","OPERADOR"].includes(role);
+ $("product-form").parentElement.hidden=!["ADMIN","CONTADOR"].includes(role);
+ $("invite-form").parentElement.hidden=role!=="ADMIN";
+ $("company-summary").replaceChildren();
+ const summary=[
+  "Clientes/fornecedores: "+parties.length,
+  "Produtos e serviços: "+products.length,
+  "Convites pendentes visíveis ao administrador: "+invites.filter(i=>i.status==="PENDENTE").length,
+  "Seu perfil nesta empresa: "+role
+ ];
+ for(const line of summary){const el=document.createElement("p");el.textContent=line;$("company-summary").append(el);}
 }
 function renderCompanies(companies){
  const node=$("companies");node.replaceChildren();
@@ -125,6 +145,7 @@ async function load(){
  $("create-card").hidden=!isMaster;
  const companies=await table("companies?select=id,legal_name,cnpj_root,tax_regime,industry_sector,onboarding_status&order=legal_name.asc");
  renderCompanies(companies);
+ if(selectedCompany&&!companies.some(c=>c.id===selectedCompany.id)){$("details").hidden=true;selectedCompany=null;}
  say(isMaster?"Painel Master conectado ao banco exclusivo.":"Acesso identificado. Mostrando apenas empresas autorizadas.");
 }
 $("otp-form").addEventListener("submit",async e=>{
@@ -135,7 +156,7 @@ $("otp-form").addEventListener("submit",async e=>{
  try{
   await request("/auth/v1/otp?redirect_to="+encodeURIComponent(location.origin+"/admin.html"),{
    method:"POST",
-   body:{email,create_user:email===MASTER}
+   body:{email,create_user:true}
   });
   say("Solicitação enviada. Abra o e-mail de acesso no mesmo navegador. Caso o link não retorne ao painel, verifique as URLs de redirecionamento autorizadas no Supabase.");
  }catch(err){say("Falha no envio: "+err.message,true);}
@@ -171,6 +192,90 @@ $("company-form").addEventListener("submit",async e=>{
  }catch(err){say("Cadastro não concluído: "+err.message,true);}
  finally{button.disabled=false;}
 });
+
+const branchState=$("branch-uf");
+for(const code of knownStates){const opt=document.createElement("option");opt.value=code;opt.textContent=code;branchState.append(opt);}
+branchState.value="MG";
+function requireCompany(){if(!selectedCompany)throw new Error("Selecione primeiro uma empresa autorizada.");return selectedCompany;}
+async function insertRow(tableName,payload){
+ return request("/rest/v1/"+tableName,{auth:true,method:"POST",body:payload});
+}
+function onForm(formId,fn){
+ $(formId).addEventListener("submit",async e=>{
+  e.preventDefault();
+  const button=e.currentTarget.querySelector("button");
+  button.disabled=true;
+  try{await fn(e.currentTarget);}
+  catch(ex){say("Operação não concluída: "+ex.message,true);}
+  finally{button.disabled=false;}
+ });
+}
+onForm("branch-form",async form=>{
+ const company=requireCompany();
+ const cnpj=validateCnpj($("branch-cnpj").value);
+ if(!cnpj||cnpj.slice(0,8)!==company.cnpj_root)throw new Error("O CNPJ da filial deve ser válido e possuir a mesma raiz da empresa.");
+ const city=$("branch-city").value.trim();
+ await insertRow("establishments",{
+  company_id:company.id,cnpj,state:$("branch-uf").value,legal_name:$("branch-name").value.trim(),
+  city,state_registration:$("branch-ie").value.trim()||null,
+  address:{city},is_headquarters:false
+ });
+ form.reset();branchState.value="MG";
+ await details(company);
+ say("Filial adicionada com estoque inicial zero e emissão fiscal bloqueada.");
+});
+onForm("party-form",async form=>{
+ const company=requireCompany();
+ const kind=$("party-kind").value;
+ const raw=$("party-document").value.trim();
+ const documentNumber=kind==="CNPJ"?validateCnpj(raw):kind==="CPF"?raw.replace(/\D/g,""):raw;
+ if(!documentNumber||kind==="CPF"&&!/^\d{11}$/.test(documentNumber))throw new Error("Documento inválido. Confira os dígitos.");
+ const role=$("party-role").value;
+ await insertRow("company_parties",{
+  company_id:company.id,legal_name:$("party-name").value.trim(),
+  document_kind:kind,document:documentNumber,
+  is_customer:role==="CUSTOMER"||role==="BOTH",
+  is_supplier:role==="SUPPLIER"||role==="BOTH",
+  is_service_provider:role==="SERVICE_PROVIDER",
+  created_by:user.id
+ });
+ form.reset();await details(company);
+ say("Cliente/fornecedor cadastrado somente para esta empresa; classificação fiscal pendente.");
+});
+onForm("product-form",async form=>{
+ const company=requireCompany();
+ const kind=$("product-kind").value;
+ const ncm=$("product-ncm").value.trim(),cest=$("product-cest").value.trim();
+ if(ncm&&!/^[0-9]{8}$/.test(ncm))throw new Error("NCM deve conter 8 dígitos.");
+ if(cest&&!/^[0-9]{7}$/.test(cest))throw new Error("CEST deve conter 7 dígitos.");
+ await insertRow("company_products",{
+  company_id:company.id,sku:$("product-sku").value.trim(),description:$("product-name").value.trim(),
+  category:$("product-category").value.trim(),item_kind:kind,
+  commercial_unit:kind==="SERVICO"?"SV":"UN",ncm:ncm||null,cest:cest||null,
+  classification_status:"PENDENTE_REVISAO"
+ });
+ form.reset();await details(company);
+ say(kind==="SERVICO"?"Serviço cadastrado sem estoque físico.":"Mercadoria cadastrada com saldo inicial zero.");
+});
+onForm("invite-form",async form=>{
+ const company=requireCompany();
+ const email=$("invite-email").value.trim().toLowerCase(),role=$("invite-role").value;
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw new Error("E-mail inválido");
+ await insertRow("company_user_invitations",{
+  company_id:company.id,email,role,invited_by:user.id,
+  status:"PENDENTE",establishment_ids:null
+ });
+ form.reset();await details(company);
+ say("Convite registrado. Informe ao colaborador que ele deve acessar o painel, confirmar seu e-mail e aceitar o convite.");
+});
+$("accept-invites").addEventListener("click",async()=>{
+ try{
+  const num=await rpc("accept_my_company_invitations");
+  await load();
+  say(num>0?num+" convite(s) aceito(s) para esta conta.":"Nenhum convite pendente para este e-mail confirmado.");
+ }catch(e){say("Não foi possível aceitar convites: "+e.message,true);}
+});
+
 try{
  parseLoginLink();
  if(!session){
