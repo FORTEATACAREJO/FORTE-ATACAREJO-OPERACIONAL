@@ -20,7 +20,7 @@ p{margin:7px 0 15px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 .card{background:white;border:1px solid var(--line);border-radius:13px;padding:20px;margin-bottom:15px}
 .note{background:#fff5df;border:1px solid #ebd6a0;padding:14px 17px;border-radius:10px;margin-bottom:18px}
 .muted{color:var(--muted)}label{display:block;font-weight:650;margin:11px 0 5px}
-input,select{font:inherit;width:100%;padding:11px;border:1px solid #c6d9e1;border-radius:8px;background:#fff}
+input,select,textarea{font:inherit;width:100%;padding:11px;border:1px solid #c6d9e1;border-radius:8px;background:#fff}
 button{font:650 14px system-ui;border:0;border-radius:9px;padding:11px 14px;cursor:pointer;background:var(--teal);color:white;margin:11px 8px 0 0}
 button.secondary{background:#e8f1f3;color:#244b5c}button:disabled{opacity:.65;cursor:wait}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #75c4d2;outline-offset:2px}
@@ -80,6 +80,21 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </form>
 </div>
 <h2>Detalhes e configuração da empresa</h2><div id="detail-content"></div>
+<div class="card" id="onboarding-review-card" hidden>
+<h3>Verificações de implantação da empresa</h3>
+<p class="muted">A análise administrativa não libera emissão de notas. Certificados, legislação e SEFAZ continuarão pendentes até homologação.</p>
+<form id="onboarding-review-form">
+<label for="review-check">Verificação</label><select id="review-check" required></select>
+<label for="review-status">Etapa</label><select id="review-status" required>
+<option value="PENDENTE">Pendente</option>
+<option value="EM_ANALISE">Em análise</option>
+<option value="CONFERIDO">Conferido (somente Master, quando permitido)</option>
+</select>
+<label for="review-evidence">Evidência resumida para conferência</label>
+<textarea id="review-evidence" rows="3" maxlength="900" placeholder="Fundamentação da conferência; não informe senhas, chaves ou dados sensíveis"></textarea>
+<button type="submit">Registrar revisão na auditoria</button>
+</form>
+</div>
 <div class="grid">
 <div class="card">
 <h3>Cadastrar filial ou unidade</h3>
