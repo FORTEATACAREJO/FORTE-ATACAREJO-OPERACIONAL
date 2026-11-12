@@ -167,6 +167,58 @@ async function details(company){
    $("company-summary").append(line);
   }
  }
+ await loadIntegrationSettings(company,role);
+}
+const connectionKinds={
+ BANK_API:"API bancária",OPEN_FINANCE:"Open Finance",BANK_FILE:"Arquivo bancário (OFX/CSV)",
+ AI_PROVIDER:"Inteligência artificial"
+};
+async function loadIntegrationSettings(company,role){
+ const box=$("integrations-card");
+ if(!["ADMIN","CONTADOR"].includes(role)){box.hidden=true;return;}
+ box.hidden=false;
+ const [connections,agents,requests,accounts]=await Promise.all([
+  table("integration_connections?select=id,kind,provider_name,display_name,status,environment,credential_status&company_id=eq."+company.id+"&order=created_at.desc"),
+  table("ai_agent_profiles?select=id,label,purpose,status,connection_id&company_id=eq."+company.id+"&order=created_at.desc"),
+  table("ai_assistance_requests?select=id,task_type,state,created_at&company_id=eq."+company.id+"&order=created_at.desc&limit=30"),
+  table("bank_account_profiles?select=id,bank_name,account_label,status&company_id=eq."+company.id+"&limit=40")
+ ]);
+ $("integration-create-card").hidden=role!=="ADMIN";
+ $("ai-agent-create-card").hidden=role!=="ADMIN";
+ $("ai-request-create-card").hidden=agents.length===0;
+ const providerSelect=$("ai-agent-provider");
+ providerSelect.replaceChildren();
+ const empty=document.createElement("option");empty.value="";empty.textContent="Ainda sem provedor";providerSelect.append(empty);
+ for(const c of connections.filter(c=>c.kind==="AI_PROVIDER")){
+  const option=document.createElement("option");option.value=c.id;option.textContent=c.display_name+" · "+c.provider_name;providerSelect.append(option);
+ }
+ const agentSelect=$("ai-request-agent");
+ agentSelect.replaceChildren();
+ for(const a of agents){
+  const option=document.createElement("option");option.value=a.id;option.textContent=a.label+" · "+a.status;agentSelect.append(option);
+ }
+ const summary=$("integrations-overview");summary.replaceChildren();
+ const text=document.createElement("p");text.className="muted";
+ text.textContent="Conexões previstas: "+connections.length+
+ " · Agentes de IA inativos: "+agents.length+
+ " · Contas bancárias ligadas: "+accounts.length+
+ " · Solicitações de IA aguardando configuração: "+requests.length;
+ summary.append(text);
+ const list=$("integration-list");list.replaceChildren();
+ const display=[...connections.map(c=>({
+ title:c.display_name,detail:(connectionKinds[c.kind]||c.kind)+" · "+c.provider_name,
+ status:c.status+" · credenciais "+c.credential_status
+ })),...agents.map(a=>({title:a.label,detail:"Agente de IA · "+a.purpose.replaceAll("_"," "),
+ status:a.status+" · revisão humana obrigatória"}))];
+ if(!display.length){const p=document.createElement("p");p.className="muted";
+ p.textContent="Nenhuma integração configurada. Inicie pelo cadastro de uma conexão em sandbox, sem informar credenciais.";list.append(p);}
+ for(const item of display){
+  const p=document.createElement("p");p.className="check";
+  const strong=document.createElement("strong");strong.textContent=item.title;
+  const small=document.createElement("small");small.className="state";
+  small.textContent=" · "+item.detail+" · "+item.status;
+  p.append(strong,small);list.append(p);
+ }
 }
 function renderCompanies(companies){
  const node=$("companies");node.replaceChildren();
@@ -265,6 +317,46 @@ function fillGroupSelect(el,selected){
  for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
  el.value=selected||"";
 }
+onForm("integration-connection-form",async form=>{
+ const company=requireCompany();
+ const kind=$("integration-kind").value;
+ if(!["BANK_API","OPEN_FINANCE","BANK_FILE","AI_PROVIDER"].includes(kind))throw new Error("Modalidade inválida");
+ const scopes=kind==="BANK_FILE"?["ARQUIVOS_OFX_CSV"]:
+  kind==="AI_PROVIDER"?["ASSISTENTE_CADASTROS"]:
+  ["CONSULTA_SALDO","CONSULTA_EXTRATO"];
+ await insertRow("integration_connections",{
+  company_id:company.id,kind,
+  provider_name:$("integration-provider").value.trim(),
+  display_name:$("integration-name").value.trim(),
+  environment:"SANDBOX",status:"RASCUNHO",
+  requested_scopes:scopes,
+  created_by:user.id
+ });
+ form.reset();await details(company);
+ say("Conexão preparada em sandbox. Não foram vinculadas credenciais nem dados bancários.");
+});
+onForm("ai-agent-form",async form=>{
+ const company=requireCompany();
+ const label=$("ai-agent-label").value.trim(), purpose=$("ai-agent-purpose").value;
+ const connectionId=$("ai-agent-provider").value||null;
+ await insertRow("ai_agent_profiles",{
+  company_id:company.id,connection_id:connectionId,
+  label,purpose,created_by:user.id,status:"PLANEJADO"
+ });
+ form.reset();await details(company);
+ say("Agente de IA criado inativo, com revisão humana e sem envio de dados externos.");
+});
+onForm("ai-request-form",async form=>{
+ const company=requireCompany();
+ await insertRow("ai_assistance_requests",{
+  company_id:company.id,agent_id:$("ai-request-agent").value,
+  requested_by:user.id,task_type:$("ai-request-type").value,
+  record_kind:"EMPRESA",record_id:company.id,
+  state:"AGUARDANDO_CONFIGURACAO"
+ });
+ form.reset();await details(company);
+ say("Solicitação registrada como pendente. Nenhuma requisição foi enviada a uma IA externa.");
+});
 onForm("onboarding-review-form",async form=>{
  const company=requireCompany();
  if(!["PENDENTE","EM_ANALISE","CONFERIDO"].includes($("review-status").value))
