@@ -1,0 +1,19 @@
+{
+  "name": "Sistemas Forte Tech — Setor Fiscal de Empresas",
+  "short_name": "Sistemas Forte Tech",
+  "description": "Setor Fiscal Multiempresa — prévia sem senha para homologação.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f2538",
+  "theme_color": "#0f2538",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/sft-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
