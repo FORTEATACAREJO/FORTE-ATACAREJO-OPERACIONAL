@@ -106,7 +106,7 @@ async function details(company){
  const [parties,products,invites,memberships]=await Promise.all([
   table("company_parties?select=id&company_id=eq."+company.id),
   table("company_products?select=id&company_id=eq."+company.id),
-  table("company_user_invitations?select=id,status,email,role&company_id=eq."+company.id),
+  table("company_user_invitations?select=id,status,email,role,accepted_by&company_id=eq."+company.id),
   table("company_memberships?select=role&company_id=eq."+company.id+"&user_id=eq."+user.id)
  ]);
  const role=isMaster?"ADMIN":(memberships[0]?.role||"CONSULTA");
@@ -124,6 +124,34 @@ async function details(company){
   "Seu perfil nesta empresa: "+role
  ];
  for(const line of summary){const el=document.createElement("p");el.textContent=line;$("company-summary").append(el);}
+ if(role==="ADMIN"){
+  const members=await table("company_memberships?select=user_id,role&company_id=eq."+company.id);
+  const h=document.createElement("h3");h.textContent="Gerenciar usuários autorizados";$("company-summary").append(h);
+  const map=new Map(invites.filter(i=>i.status==="ACEITO"&&i.accepted_by).map(i=>[i.accepted_by,i.email]));
+  for(const m of members){
+   const line=document.createElement("div");line.className="check";
+   const label=document.createElement("p");label.textContent=(m.user_id===user.id?user.email:map.get(m.user_id)||"Usuário "+m.user_id.slice(0,8))+" · "+m.role;
+   line.append(label);
+   if(m.user_id!==user.id){
+    const field=document.createElement("input");field.type="text";field.maxLength=400;field.placeholder="Motivo da revogação (mínimo 15 caracteres)";
+    field.setAttribute("aria-label","Justificativa da revogação de acesso");
+    const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent="Revogar acesso";
+    button.addEventListener("click",async()=>{
+     if(field.value.trim().length<15){say("Informe uma justificativa com pelo menos 15 caracteres.",true);return;}
+     if(!confirm("Revogar o acesso deste usuário à empresa selecionada?"))return;
+     button.disabled=true;
+     try{
+      await rpc("revoke_company_user_access",{p_company_id:company.id,p_user_id:m.user_id,p_reason:field.value.trim()});
+      await details(company);
+      say("Acesso revogado e registrado na auditoria.");
+     }catch(e){say("Não foi possível revogar: "+e.message,true);}
+     finally{button.disabled=false;}
+    });
+    line.append(field,button);
+   }
+   $("company-summary").append(line);
+  }
+ }
 }
 function renderCompanies(companies){
  const node=$("companies");node.replaceChildren();
