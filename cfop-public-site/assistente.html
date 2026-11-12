@@ -22,7 +22,7 @@ button.primary{background:#102640;color:white;border:0}button.gold{background:#d
 .pill{font-size:12px;border-radius:20px;padding:5px 9px;background:#f0f4f8;color:#586e84;display:inline-block;margin:2px 5px 2px 0}
 .warning{border:1px solid #e7d9b6;background:#fff9ea;border-radius:11px;padding:12px;color:#654e1a;font-size:13px;line-height:1.6}
 .good{border-color:#bddcc9;background:#f2faf5;color:#296144}
-.hidden{display:none!important}.check{display:flex;gap:10px;align-items:start;font-size:13px;margin:12px 0;line-height:1.5}.check input{width:18px;height:18px;flex:none;margin-top:3px;accent-color:#102640}
+.lookup-controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}.lookup-controls button{flex:1;min-width:210px}.lookup-result{border:1px solid #b9d6c4;background:#f2faf5;color:#214a33;border-radius:10px;font-size:13px;line-height:1.55;padding:12px;margin-top:10px;white-space:pre-line}.hidden{display:none!important}.check{display:flex;gap:10px;align-items:start;font-size:13px;margin:12px 0;line-height:1.5}.check input{width:18px;height:18px;flex:none;margin-top:3px;accent-color:#102640}
 a{color:#976b22}small{font-size:12px;color:#6b7d90}.divider{height:1px;background:#e7ecf2;margin:17px 0}
 #msg{color:#8a2a19;font-size:13px;margin-top:12px}
 .two{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.two>div:first-child{flex:1}
@@ -53,7 +53,12 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field hidden" id="idUf"><label for="ownUf">UF da inscrição estadual</label><select id="ownUf"></select></div>
 <div class="field full"><label for="ownName">Nome da empresa ou produtor (opcional)</label><input id="ownName" placeholder="Nome / razão social" maxlength="120" autocomplete="off"></div>
 </div>
-<div class="warning" id="ownStatus">As consultas automáticas do Serpro e das SEFAZ ainda não estão contratadas/integradas. O cadastro será identificado como informado, não verificado.</div>
+<div class="lookup-controls" id="ownLookupControls">
+<button type="button" id="lookupOwn" class="primary">Buscar cadastro automaticamente</button>
+<label id="ownIncludeIeWrap" class="check" style="margin:0"><input id="ownIncludeIe" type="checkbox"><span>Consultar também IE do CNPJ (usa cota gratuita)</span></label>
+</div>
+<label class="check hidden" id="ownRuralConsentWrap"><input id="ownRuralConsent" type="checkbox"><span>Autorizo o envio deste CPF e UF à SintegrAPI para consultar o cadastro estadual do produtor rural. Essa consulta pode ser registrada e armazenada temporariamente pelo provedor.</span></label>
+<div class="warning" id="ownStatus" role="status">A busca automática depende da ativação das credenciais gratuitas. O cadastro pode continuar manualmente enquanto não houver consulta disponível.</div>
 <details style="margin-top:12px"><summary>Consultar dados em fontes oficiais</summary><p>Use as consultas oficiais abaixo. Alguns portais exigem CAPTCHA e não permitem preenchimento automático por esta versão.</p>
 <p><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/" target="_blank" rel="noopener">Receita Federal — CNPJ</a> · <a href="https://www8.receita.fazenda.gov.br/SimplesNacional/" target="_blank" rel="noopener">Simples Nacional</a> · <a href="https://www.fazenda.mg.gov.br/empresas/Cadastro/cadastro/consultapublica.html" target="_blank" rel="noopener">Sintegra MG</a> · <a href="https://appasp.sefaz.go.gov.br/Sintegra/Consulta/default.html" target="_blank" rel="noopener">Sintegra GO</a></p></details>
 <label class="check"><input id="accept" type="checkbox"><span>Li e aceito os <a href="/privacidade.html" target="_blank" rel="noopener">termos e o aviso de privacidade</a> para usar a consulta.</span></label>
@@ -74,7 +79,12 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field"><label for="originUf">De qual estado sai a mercadoria?</label><select id="originUf"></select></div>
 <div class="field"><label for="destUf">Em qual estado será entregue?</label><select id="destUf"></select></div>
 </div>
-<div class="warning" style="margin-top:14px"><strong>Consulta cadastral ainda não conectada.</strong> O CPF, CNPJ e a inscrição estadual são informações declaradas nesta etapa; a existência da inscrição e o enquadramento de contribuinte do ICMS precisam ser confirmados na SEFAZ. Não presumiremos o CFOP nem a ST com base apenas nesses documentos.</div>
+<div class="lookup-controls">
+<button id="lookupOther" class="primary" type="button">Buscar cadastro da outra parte</button>
+<label id="otherIncludeIeWrap" class="check" style="margin:0"><input id="otherIncludeIe" type="checkbox"><span>Consultar também IE (usa cota gratuita)</span></label>
+</div>
+<label class="check hidden" id="otherRuralConsentWrap"><input id="otherRuralConsent" type="checkbox"><span>Declaro ter uma finalidade legítima para consultar este CPF rural e concordo com seu envio à SintegrAPI para pesquisa cadastral. O CPF não será incluído nas estatísticas da Forte Tech.</span></label>
+<div class="warning" id="otherLookupStatus" role="status" style="margin-top:14px"><strong>Conferência cadastral.</strong> A consulta automática depende das credenciais dos fornecedores. Sem retorno verificado, estados, IE e situação tributária continuam informados e sujeitos a conferência. Não presumiremos CFOP ou ICMS-ST.</div>
 <div class="actions"><button id="back2">Voltar</button><button class="gold" id="next2">Continuar</button></div></div>
 <div class="card hidden" id="step3"><h2>3. Qual é o produto e o destino dele?</h2>
 <div class="grid">
@@ -94,7 +104,8 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div id="msg" role="alert"></div></main><footer>Sistemas Forte Tech • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
 <script>
 (function(){
-'use strict'; const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
+'use strict'; const REGISTRY='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-cadastros';
+const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
 let step=0,profile='company',op='entrada',otherKind='company',saved=false;
 ['ownUf','originUf','destUf','otherIeUf'].forEach(id=>UF.forEach(uf=>{const e=document.createElement('option');e.value=uf;e.textContent=uf;$(id).appendChild(e)}));
 $('ownUf').value='MG';$('originUf').value='MG';$('destUf').value='MG';$('otherIeUf').value='MG';
@@ -103,7 +114,12 @@ function goto(n){step=n;$('step0').classList.toggle('hidden',n!==0);$('prog').cl
 function alpha(v){return String(v||'').toUpperCase().replace(/[^0-9A-Z]/g,'')}
 function cnpjValid(v){let s=alpha(v),a=[5,4,3,2,9,8,7,6,5,4,3,2],b=[6,5,4,3,2,9,8,7,6,5,4,3,2];if(!/^[A-Z0-9]{12}[0-9]{2}$/.test(s)||s.slice(0,12)===s[0].repeat(12))return false;const dv=(part,w)=>{let total=0;for(let i=0;i<w.length;i++)total+=(part.charCodeAt(i)-48)*w[i];let r=total%11;return r<2?0:11-r};let d1=dv(s.slice(0,12),a);return s.slice(-2)===String(d1)+dv(s.slice(0,12)+d1,b)}
 function cpfValid(value){let s=String(value||'').replace(/\D/g,'');if(!/^\d{11}$/.test(s)||s.split('').every(c=>c===s[0]))return false;for(let len=9;len<=10;len++){let sum=0;for(let i=0;i<len;i++)sum+=Number(s[i])*(len+1-i);let v=(sum*10)%11;if(v===10)v=0;if(v!==Number(s[len]))return false}return true}
-document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{profile=b.dataset.profile;document.querySelectorAll('[data-profile]').forEach(x=>x.classList.toggle('selected',x===b));$('idCnpj').classList.toggle('hidden',profile!=='company');$('idCpf').classList.toggle('hidden',profile==='company');$('idIe').classList.toggle('hidden',profile!=='rural');$('idUf').classList.toggle('hidden',profile!=='rural')});
+document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{
+ profile=b.dataset.profile;document.querySelectorAll('[data-profile]').forEach(x=>x.classList.toggle('selected',x===b));
+ $('idCnpj').classList.toggle('hidden',profile!=='company');$('idCpf').classList.toggle('hidden',profile==='company');
+ $('idIe').classList.toggle('hidden',profile!=='rural');$('idUf').classList.toggle('hidden',profile!=='rural');
+ refreshProviderButtons();
+});
 function setOtherKind(value){
  if(!['company','rural','person'].includes(value))return;
  otherKind=value;
@@ -119,6 +135,7 @@ function setOtherKind(value){
  $('otherIe').placeholder=rural?'Número da inscrição estadual (obrigatório)':'Opcional para empresa';
  if(person){$('otherIe').value='';}
  if(rural){$('otherIeUf').value=op==='entrada'?$('originUf').value:$('destUf').value;}
+ refreshProviderButtons();
 }
 document.querySelectorAll('[data-other-kind]').forEach(b=>b.onclick=()=>setOtherKind(b.dataset.otherKind));
 function setOperation(value){
@@ -132,6 +149,95 @@ function setOperation(value){
 }
 document.querySelectorAll('[data-entry-operation]').forEach(b=>b.onclick=()=>{setOperation(b.dataset.entryOperation);goto(1)});
 $('backToChoice').onclick=()=>goto(0);
+
+const providerStatus={cnpjAvailable:false,ruralAvailable:false,checked:false};
+function refreshProviderButtons(){
+ const selfType=profile==='company'?'cnpj':profile==='rural'?'rural':'none';
+ const otherType=otherKind==='company'?'cnpj':otherKind==='rural'?'rural':'none';
+ $('ownLookupControls').classList.toggle('hidden',selfType==='none');
+ $('ownRuralConsentWrap').classList.toggle('hidden',selfType!=='rural');
+ $('ownIncludeIeWrap').classList.toggle('hidden',selfType!=='cnpj');
+ $('otherRuralConsentWrap').classList.toggle('hidden',otherType!=='rural');
+ $('otherIncludeIeWrap').classList.toggle('hidden',otherType!=='cnpj');
+ $('lookupOwn').disabled=!providerStatus.checked||!providerStatus[selfType==='cnpj'?'cnpjAvailable':'ruralAvailable'];
+ $('lookupOther').classList.toggle('hidden',otherType==='none');
+ $('lookupOther').disabled=!providerStatus.checked||!providerStatus[otherType==='cnpj'?'cnpjAvailable':'ruralAvailable'];
+ const message=providerStatus.checked?'Conector '+(selfType==='rural'?'SintegrAPI':selfType==='cnpj'?'CNPJ API':'cadastral')+
+ (selfType!=='none'&&!providerStatus[selfType==='cnpj'?'cnpjAvailable':'ruralAvailable']?' ainda não ativado. É possível continuar preenchendo manualmente.':' disponível para consulta. A informação retornada será exibida com a fonte e a data da pesquisa.'):'Verificando disponibilidade das fontes cadastrais...';
+ $('ownStatus').textContent=message;
+ $('otherLookupStatus').textContent=providerStatus.checked?(otherType!=='none'&&providerStatus[otherType==='cnpj'?'cnpjAvailable':'ruralAvailable']?'Conector disponível. Toque em Buscar cadastro para preencher os dados verificados.':'Conector da outra parte ainda não ativado. Continue manualmente; os dados permanecerão não verificados.'):'Verificando conexão cadastral...';
+}
+async function lookup(type,documentValue,uf,extra){
+ const response=await fetch(REGISTRY+'/lookup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({type:type,document:documentValue,uf:uf},extra||{}))});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok){
+   if(data.error==='provider_not_configured')throw Error('A integração gratuita ainda não possui chave configurada.');
+   if(data.error==='free_quota_exhausted')throw Error('A cota gratuita da consulta foi atingida. Faça a conferência manual.');
+   if(data.error==='invalid_cnpj'||data.error==='invalid_cpf')throw Error('O documento informado é inválido.');
+   if(data.error==='rural_lookup_requires_consent')throw Error('Autorize expressamente a consulta de CPF no provedor externo.');
+   if(data.error==='not_found')throw Error('Cadastro não encontrado pelo provedor.');
+   throw Error('Consulta indisponível ou não confirmada. Continue manualmente.');
+ }
+ return data;
+}
+function statusSummary(data){
+ const title=data.name||data.tradeName||'Cadastro encontrado sem nome divulgado';
+ const items=[title, 'Fonte: '+data.source,'Consultado: '+new Date(data.verifiedAt).toLocaleString('pt-BR')];
+ if(data.situation)items.push('Situação cadastral: '+data.situation);
+ if(data.uf)items.push('UF: '+data.uf);
+ if(data.simplesNacional===true)items.push('Simples Nacional: optante');
+ else if(data.simplesNacional===false)items.push('Simples Nacional: não optante');
+ else items.push('Simples Nacional: não confirmado');
+ items.push('Lucro Real/Presumido e regime do ICMS: não confirmados');
+ if(data.registrations?.length){items.push('IEs retornadas: '+data.registrations.map(x=>x.ie+' ('+x.uf+')'+(x.active===true?' — ativa':x.active===false?' — não ativa':'')).join('; '))}
+ return items.join('\n');
+}
+$('lookupOwn').onclick=async()=>{
+ const button=$('lookupOwn');if(!$('accept').checked){msg('Antes da consulta automática, aceite os Termos de Uso e Privacidade.');return}
+ if(profile==='person')return;
+ const type=profile==='company'?'cnpj':'rural';
+ const doc=type==='cnpj'?alpha($('ownCnpj').value):String($('ownCpf').value).replace(/\D/g,'');
+ if(type==='cnpj'&&!cnpjValid(doc)){msg('Informe um CNPJ válido.');return}
+ if(type==='rural'&&(!cpfValid(doc)||!$('ownRuralConsent').checked)){msg('Informe CPF válido e autorize a consulta à SintegrAPI.');return}
+ button.disabled=true;button.textContent='Consultando...';
+ try{
+  const data=await lookup(type,doc,type==='cnpj'?'':$('ownUf').value,type==='cnpj'?{includeIE:$('ownIncludeIe').checked}:{consent:true});
+  if(data.name&&!$('ownName').value.trim())$('ownName').value=data.name;
+  if(type==='company'||type==='cnpj'){
+   if(data.uf){if(op==='entrada')$('destUf').value=data.uf;else $('originUf').value=data.uf}
+  }else if(data.registrations?.length===1){
+   const ie=data.registrations[0];if(ie.ie)$('ownIe').value=ie.ie;
+  }
+  $('ownStatus').className='warning good';$('ownStatus').textContent=statusSummary(data);
+  if(type==='cnpj'){try{sessionStorage.setItem('ft-cfop-verified-company',JSON.stringify({name:data.name,uf:data.uf,simplesNacional:data.simplesNacional,verifiedAt:data.verifiedAt,source:data.source}))}catch(e){}}
+ }catch(err){$('ownStatus').className='warning';$('ownStatus').textContent=err.message||'Consulta indisponível.'}
+ finally{button.disabled=false;button.textContent='Buscar cadastro automaticamente'}
+};
+$('lookupOther').onclick=async()=>{
+ const button=$('lookupOther');const type=otherKind==='company'?'cnpj':otherKind==='rural'?'rural':'none';
+ if(type==='none')return;
+ const doc=type==='cnpj'?alpha($('otherDoc').value):String($('otherDoc').value).replace(/\D/g,'');
+ if(type==='cnpj'&&!cnpjValid(doc)){msg('Informe um CNPJ válido da outra parte.');return}
+ if(type==='rural'&&(!cpfValid(doc)||!$('otherRuralConsent').checked)){msg('Informe um CPF válido e autorize a consulta cadastral do produtor rural.');return}
+ button.disabled=true;button.textContent='Consultando...';
+ try{
+  const data=await lookup(type,doc,type==='cnpj'?'':$('otherIeUf').value,type==='cnpj'?{includeIE:$('otherIncludeIe').checked}:{consent:true});
+  if(type==='cnpj'){
+   if(data.uf){if(op==='entrada')$('originUf').value=data.uf;else $('destUf').value=data.uf}
+  }else if(data.registrations?.length===1){
+   const ie=data.registrations[0];if(ie.ie)$('otherIe').value=ie.ie;
+  }
+  if(data.registrations?.length===1&&type==='cnpj'&&data.registrations[0].ie)$('otherIe').value=data.registrations[0].ie;
+  $('otherLookupStatus').className='warning good';$('otherLookupStatus').textContent=statusSummary(data);
+ }catch(err){$('otherLookupStatus').className='warning';$('otherLookupStatus').textContent=err.message||'Consulta indisponível.'}
+ finally{button.disabled=false;button.textContent='Buscar cadastro da outra parte'}
+};
+fetch(REGISTRY+'/status').then(r=>r.ok?r.json():Promise.reject()).then(s=>{
+ providerStatus.checked=true;
+ providerStatus.cnpjAvailable=s.cnpjAvailable===true;
+ providerStatus.ruralAvailable=s.ruralAvailable===true;
+ refreshProviderButtons();
+}).catch(()=>{providerStatus.checked=true;refreshProviderButtons()});
 const queryOperation=new URLSearchParams(location.search).get('operacao');
 if(queryOperation==='entrada'||queryOperation==='saida'){setOperation(queryOperation);goto(1)}else{goto(0)}
 try{let v=JSON.parse(sessionStorage.getItem('ft-cfop-access-v2')||'null');if(v&&cnpjValid(v.cnpj)){$('ownCnpj').value=v.cnpj;$('ownName').value=v.name||'';}}catch(e){}
