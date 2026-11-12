@@ -1,0 +1,54 @@
+{
+  "testedAt": "2026-11-12T22:05:46.019245+00:00",
+  "tests": [
+    {
+      "test": "status",
+      "status": 200,
+      "response": {
+        "cnpjAvailable": false,
+        "ruralAvailable": false,
+        "cnpjProvider": "CNPJ API",
+        "ruralProvider": "SintegrAPI",
+        "cnpjIncludesIE": "opcional",
+        "automaticFederalProfitRegime": false
+      }
+    },
+    {
+      "test": "invalid_cnpj",
+      "status": 422,
+      "response": {
+        "error": "invalid_cnpj"
+      }
+    },
+    {
+      "test": "unconfigured_cnpj",
+      "status": 503,
+      "response": {
+        "error": "provider_not_configured",
+        "provider": "CNPJ API"
+      }
+    },
+    {
+      "test": "rural_without_consent",
+      "status": 403,
+      "response": {
+        "error": "rural_lookup_requires_consent"
+      }
+    },
+    {
+      "test": "unconfigured_rural_GO",
+      "status": 503,
+      "response": {
+        "error": "provider_not_configured",
+        "provider": "SintegrAPI"
+      }
+    },
+    {
+      "test": "forbidden_origin",
+      "status": 403,
+      "response": {
+        "error": "origin_forbidden"
+      }
+    }
+  ]
+}
