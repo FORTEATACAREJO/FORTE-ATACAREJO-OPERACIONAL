@@ -46,7 +46,7 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <p class="muted">A mensagem de acesso vem por e-mail, sem senha fixa. Antes do primeiro uso, é preciso liberar o endereço <code>https://sistemas-forte-tech.onrender.com/admin.html</code> em <a href="https://supabase.com/dashboard/project/tusmlfhzwlzwnoxfhomt/auth/url-configuration" target="_blank" rel="noopener noreferrer">Supabase → Authentication → URL Configuration</a> (Redirect URLs). A entrega de e-mail também depende do provedor configurado no Supabase.</p>
 </section>
 <section id="dashboard" hidden>
-<div class="card"><div class="grid"><div><h1>Painel de empresas</h1><p id="identity" class="muted"></p><span class="pill" id="role">Conta autenticada</span></div><div><button type="button" id="activate" class="secondary" hidden>Ativar Master</button><button type="button" id="refresh" class="secondary">Atualizar dados</button><button type="button" id="logout" class="secondary">Sair</button></div></div></div>
+<div class="card"><div class="grid"><div><h1>Painel de empresas</h1><p id="identity" class="muted"></p><span class="pill" id="role">Conta autenticada</span></div><div><button type="button" id="activate" class="secondary" hidden>Ativar Master</button><button type="button" id="accept-invites" class="secondary">Aceitar convites do meu e-mail</button><button type="button" id="refresh" class="secondary">Atualizar dados</button><button type="button" id="logout" class="secondary">Sair</button></div></div></div>
 <div class="grid">
 <div class="card"><h2>Empresas autorizadas</h2><div id="companies"><p class="muted">Nenhuma empresa autorizada.</p></div></div>
 <div class="card" id="create-card" hidden><h2>Cadastrar nova empresa</h2><p class="muted">Pessoa jurídica independente. Registro começa com emissão e tributação não homologadas.</p>
@@ -61,7 +61,58 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <button type="submit">Criar empresa em configuração</button></form>
 <p class="muted">A emissão fiscal permanecerá bloqueada. Só o Master poderá iniciar novos cadastros nesta etapa.</p>
 </div></div>
-<div class="card" id="details" hidden><h2>Detalhes da empresa</h2><div id="detail-content"></div></div>
+<div class="card" id="details" hidden>
+<h2>Detalhes e configuração da empresa</h2><div id="detail-content"></div>
+<div class="grid">
+<div class="card">
+<h3>Cadastrar filial ou unidade</h3>
+<p class="muted">Use o mesmo CNPJ raiz da matriz; o estoque será zerado.</p>
+<form id="branch-form">
+<label for="branch-cnpj">CNPJ da filial</label><input id="branch-cnpj" required maxlength="24" placeholder="00.000.000/0002-00">
+<label for="branch-name">Nome da unidade</label><input id="branch-name" required minlength="3" maxlength="160">
+<label for="branch-uf">UF</label><select id="branch-uf" required></select>
+<label for="branch-city">Cidade</label><input id="branch-city" required minlength="2" maxlength="120">
+<label for="branch-ie">Inscrição estadual (opcional)</label><input id="branch-ie" maxlength="30">
+<button type="submit">Cadastrar filial sem movimento</button>
+</form>
+</div>
+<div class="card">
+<h3>Clientes, fornecedores e parceiros</h3>
+<p class="muted">Cadastro isolado para cada empresa, sem classificação tributária automática.</p>
+<form id="party-form">
+<label for="party-name">Nome / razão social</label><input id="party-name" required minlength="2" maxlength="160">
+<label for="party-kind">Documento</label><select id="party-kind"><option value="CNPJ">CNPJ</option><option value="CPF">CPF</option><option value="EXTERIOR">Exterior</option></select>
+<label for="party-document">Número do documento</label><input id="party-document" required maxlength="48">
+<label for="party-role">Relação comercial</label><select id="party-role"><option value="CUSTOMER">Cliente</option><option value="SUPPLIER">Fornecedor</option><option value="BOTH">Cliente e fornecedor</option><option value="SERVICE_PROVIDER">Prestador de serviço</option></select>
+<button type="submit">Cadastrar parceiro</button>
+</form>
+</div>
+<div class="card">
+<h3>Mercadorias e serviços</h3>
+<p class="muted">Sem preços, estoques anteriores ou tratamento fiscal herdado.</p>
+<form id="product-form">
+<label for="product-sku">Código interno</label><input id="product-sku" maxlength="50" required>
+<label for="product-name">Descrição</label><input id="product-name" required minlength="3" maxlength="180">
+<label for="product-category">Categoria</label><input id="product-category" required minlength="2" maxlength="90" placeholder="Ex.: material elétrico, manutenção">
+<label for="product-kind">Tipo</label><select id="product-kind"><option value="MERCADORIA">Mercadoria (estoque zerado)</option><option value="SERVICO">Serviço (sem estoque)</option></select>
+<label for="product-ncm">NCM (opcional, 8 números)</label><input id="product-ncm" inputmode="numeric" pattern="[0-9]{8}" maxlength="8">
+<label for="product-cest">CEST (opcional, 7 números)</label><input id="product-cest" inputmode="numeric" pattern="[0-9]{7}" maxlength="7">
+<button type="submit">Cadastrar item pendente de classificação</button>
+</form>
+</div>
+<div class="card">
+<h3>Usuários da empresa</h3>
+<p class="muted">Convide por e-mail. O novo usuário precisa confirmar esse e-mail para receber acesso.</p>
+<form id="invite-form">
+<label for="invite-email">E-mail do colaborador</label><input id="invite-email" type="email" required maxlength="240">
+<label for="invite-role">Permissão</label><select id="invite-role"><option value="CONSULTA">Somente consulta</option><option value="OPERADOR">Operador</option><option value="CONTADOR">Contador</option><option value="ADMIN">Administrador da empresa</option></select>
+<button type="submit">Registrar convite (14 dias)</button>
+</form>
+<p class="muted">O convite fica registrado no banco; o colaborador usa o mesmo painel e clica em “Aceitar convites”. O envio automático de convites por e-mail ainda não foi configurado.</p>
+</div>
+</div>
+<div class="card"><h3>Resumo dos cadastros e convites</h3><div id="company-summary" class="muted"></div></div>
+</div>
 </section>
 <footer>Setor Fiscal Multiempresa · separado do APP CFOP e FORTE FISCAL · nenhuma emissão fiscal real disponível.</footer>
 </main>
