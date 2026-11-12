@@ -59,15 +59,22 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <label class="check"><input id="accept" type="checkbox"><span>Li e aceito os <a href="/privacidade.html" target="_blank" rel="noopener">termos e o aviso de privacidade</a> para usar a consulta.</span></label>
 <label class="check"><input id="insights" type="checkbox"><span>Autorizo opcionalmente vincular os assuntos pesquisados ao CNPJ da empresa, quando aplicável.</span></label>
 <div class="actions"><button id="backToChoice" type="button">Alterar compra ou venda</button><button class="gold" id="saveOwn" type="button">Salvar e continuar</button></div></div>
-<div class="card hidden" id="step2"><h2 id="counterpartyTitle">2. Identificar fornecedor</h2>
-<p id="otherHelp">Digite o CNPJ do fornecedor, se tiver. O sistema identificará o que falta para a conferência cadastral e tributária.</p>
+<div class="card hidden" id="step2"><h2 id="counterpartyTitle">2. De quem você está comprando?</h2>
+<p id="otherHelp">Identifique o fornecedor. Ele pode ser empresa, produtor rural ou pessoa física.</p>
+<p style="font-weight:700;color:#243f58;margin-top:12px">Qual é o tipo do <span id="otherRole">fornecedor</span>?</p>
+<div class="choices" id="counterpartyKinds">
+<button type="button" class="choice selected" data-other-kind="company">🏢 Empresa com CNPJ</button>
+<button type="button" class="choice" data-other-kind="rural">🌾 Produtor rural — CPF e IE</button>
+<button type="button" class="choice" data-other-kind="person">👤 Pessoa física — CPF</button>
+</div>
 <div class="grid">
-<div class="field"><label id="otherLabel" for="otherDoc">CNPJ do fornecedor</label><input id="otherDoc" autocomplete="off" placeholder="CNPJ da outra parte"></div>
+<div class="field"><label id="otherLabel" for="otherDoc">CNPJ do fornecedor</label><input id="otherDoc" autocomplete="off" maxlength="22" placeholder="Digite o CNPJ"></div>
+<div class="field" id="otherIeWrap"><label id="otherIeLabel" for="otherIe">Inscrição estadual do fornecedor (se houver)</label><input id="otherIe" autocomplete="off" maxlength="22" placeholder="Opcional para empresa"></div>
+<div class="field hidden" id="otherIeUfWrap"><label for="otherIeUf">Estado da inscrição estadual</label><select id="otherIeUf"></select></div>
 <div class="field"><label for="originUf">De qual estado sai a mercadoria?</label><select id="originUf"></select></div>
 <div class="field"><label for="destUf">Em qual estado será entregue?</label><select id="destUf"></select></div>
-<div class="field"><label for="otherIe">Inscrição estadual da outra parte (se houver)</label><input id="otherIe" placeholder="Opcional"></div>
 </div>
-<div class="warning" style="margin-top:14px">A busca automática do fornecedor ainda depende da API cadastral autorizada. Enquanto não estiver conectada, os estados e a situação tributária precisam ser conferidos nas fontes oficiais; não serão preenchidos por suposição.</div>
+<div class="warning" style="margin-top:14px"><strong>Consulta cadastral ainda não conectada.</strong> O CPF, CNPJ e a inscrição estadual são informações declaradas nesta etapa; a existência da inscrição e o enquadramento de contribuinte do ICMS precisam ser confirmados na SEFAZ. Não presumiremos o CFOP nem a ST com base apenas nesses documentos.</div>
 <div class="actions"><button id="back2">Voltar</button><button class="gold" id="next2">Continuar</button></div></div>
 <div class="card hidden" id="step3"><h2>3. Qual é o produto e o destino dele?</h2>
 <div class="grid">
@@ -88,22 +95,40 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <script>
 (function(){
 'use strict'; const $=id=>document.getElementById(id), UF='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '), BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
-let step=0,profile='company',op='entrada',saved=false;
-['ownUf','originUf','destUf'].forEach(id=>UF.forEach(uf=>{const e=document.createElement('option');e.value=uf;e.textContent=uf;$(id).appendChild(e)}));
-$('ownUf').value='MG';$('originUf').value='MG';$('destUf').value='MG';
+let step=0,profile='company',op='entrada',otherKind='company',saved=false;
+['ownUf','originUf','destUf','otherIeUf'].forEach(id=>UF.forEach(uf=>{const e=document.createElement('option');e.value=uf;e.textContent=uf;$(id).appendChild(e)}));
+$('ownUf').value='MG';$('originUf').value='MG';$('destUf').value='MG';$('otherIeUf').value='MG';
 function msg(t){$('msg').textContent=t; if(t)$('msg').scrollIntoView({behavior:'smooth',block:'nearest'})}
 function goto(n){step=n;$('step0').classList.toggle('hidden',n!==0);$('prog').classList.toggle('hidden',n===0);for(let k=1;k<=4;k++)$('step'+k).classList.toggle('hidden',k!==n);[...$('prog').children].forEach((p,i)=>p.classList.toggle('on',i<n));msg('');window.scrollTo({top:0,behavior:'smooth'})}
 function alpha(v){return String(v||'').toUpperCase().replace(/[^0-9A-Z]/g,'')}
 function cnpjValid(v){let s=alpha(v),a=[5,4,3,2,9,8,7,6,5,4,3,2],b=[6,5,4,3,2,9,8,7,6,5,4,3,2];if(!/^[A-Z0-9]{12}[0-9]{2}$/.test(s)||s.slice(0,12)===s[0].repeat(12))return false;const dv=(part,w)=>{let total=0;for(let i=0;i<w.length;i++)total+=(part.charCodeAt(i)-48)*w[i];let r=total%11;return r<2?0:11-r};let d1=dv(s.slice(0,12),a);return s.slice(-2)===String(d1)+dv(s.slice(0,12)+d1,b)}
 function cpfValid(value){let s=String(value||'').replace(/\D/g,'');if(!/^\d{11}$/.test(s)||s.split('').every(c=>c===s[0]))return false;for(let len=9;len<=10;len++){let sum=0;for(let i=0;i<len;i++)sum+=Number(s[i])*(len+1-i);let v=(sum*10)%11;if(v===10)v=0;if(v!==Number(s[len]))return false}return true}
 document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{profile=b.dataset.profile;document.querySelectorAll('[data-profile]').forEach(x=>x.classList.toggle('selected',x===b));$('idCnpj').classList.toggle('hidden',profile!=='company');$('idCpf').classList.toggle('hidden',profile==='company');$('idIe').classList.toggle('hidden',profile!=='rural');$('idUf').classList.toggle('hidden',profile!=='rural')});
+function setOtherKind(value){
+ if(!['company','rural','person'].includes(value))return;
+ otherKind=value;
+ document.querySelectorAll('[data-other-kind]').forEach(b=>b.classList.toggle('selected',b.dataset.otherKind===value));
+ const role=op==='entrada'?'fornecedor':'comprador';
+ const rural=value==='rural',person=value==='person';
+ $('otherLabel').textContent=(rural||person?'CPF':'CNPJ')+' do '+role;
+ $('otherDoc').placeholder=rural?'CPF do produtor rural':person?'CPF do '+role:'CNPJ do '+role;
+ $('otherDoc').inputMode=rural||person?'numeric':'text';
+ $('otherIeWrap').classList.toggle('hidden',person);
+ $('otherIeUfWrap').classList.toggle('hidden',!rural);
+ $('otherIeLabel').textContent=rural?'Inscrição estadual do produtor rural *':'Inscrição estadual do '+role+' (se houver)';
+ $('otherIe').placeholder=rural?'Número da inscrição estadual (obrigatório)':'Opcional para empresa';
+ if(person){$('otherIe').value='';}
+ if(rural){$('otherIeUf').value=op==='entrada'?$('originUf').value:$('destUf').value;}
+}
+document.querySelectorAll('[data-other-kind]').forEach(b=>b.onclick=()=>setOtherKind(b.dataset.otherKind));
 function setOperation(value){
  if(value!=='entrada'&&value!=='saida')return;
  op=value;
  $('counterpartyTitle').textContent=value==='entrada'?'2. De quem você está comprando?':'2. Para quem você está vendendo?';
- $('otherLabel').textContent=value==='entrada'?'CNPJ ou CPF do fornecedor':'CPF ou CNPJ do comprador';
- $('otherHelp').textContent=value==='entrada'?'Informe o documento do fornecedor, quando disponível.':'Informe o documento do comprador, quando disponível.';
+ $('otherHelp').textContent=value==='entrada'?'Informe quem está fornecendo a mercadoria: empresa, produtor rural ou pessoa física.':'Informe quem está comprando a mercadoria: empresa, produtor rural ou pessoa física.';
+ $('otherRole').textContent=value==='entrada'?'fornecedor':'comprador';
  $('useLabel').textContent=value==='entrada'?'Para que você vai utilizar a mercadoria?':'Para que o comprador vai utilizar a mercadoria?';
+ setOtherKind(otherKind);
 }
 document.querySelectorAll('[data-entry-operation]').forEach(b=>b.onclick=()=>{setOperation(b.dataset.entryOperation);goto(1)});
 $('backToChoice').onclick=()=>goto(0);
@@ -131,9 +156,26 @@ if(profile==='rural')$('destUf').value=$('ownUf').value;
 goto(2);
 };
 $('back2').onclick=()=>goto(1);$('back3').onclick=()=>goto(2);$('back4').onclick=()=>goto(3);
-$('next2').onclick=()=>{const doc=alpha($('otherDoc').value);if(doc&&!(cnpjValid(doc)||cpfValid(doc))){msg('O documento da outra parte não passou na validação de dígitos.');return}goto(3)};
+$('next2').onclick=()=>{
+ const raw=$('otherDoc').value;
+ const doc=otherKind==='company'?alpha(raw):String(raw||'').replace(/\D/g,'');
+ const role=op==='entrada'?'fornecedor':'comprador';
+ if(otherKind==='company'){
+  if(doc&&!cnpjValid(doc)){msg('O CNPJ do '+role+' não passou na validação dos dígitos verificadores.');return}
+ }else if(!cpfValid(doc)){
+  msg('Informe um CPF válido do '+role+(otherKind==='rural'?' (produtor rural)':'')+'.');return
+ }
+ if(otherKind==='rural'){
+  const ie=$('otherIe').value.trim();
+  if(ie.length<2||ie.length>22){msg('Informe a inscrição estadual do produtor rural.');return}
+  if(!UF.includes($('otherIeUf').value)){msg('Selecione o estado da inscrição estadual.');return}
+ }
+ goto(3)
+};
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
-const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',profile==='company'?'CNPJ salvo, informações oficiais ainda não verificadas':'Dados validados localmente e não enviados ao servidor'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],['Fornecedor / comprador',$('otherDoc').value?'Documento informado, cadastro pendente de conferência':'Não informado'],['Produto',product],['NCM',ncm||'Não informado'],['CEST',cest||'Não informado'],['Finalidade',$('use').selectedOptions[0].text],['Regime federal','Não confirmado por fonte oficial'],['Situação ICMS-ST','Pendente: exige legislação atual e classificação do produto'],['CFOP','Pendente de validação']];
+const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',profile==='company'?'CNPJ salvo, informações oficiais ainda não verificadas':'Dados validados localmente e não enviados ao servidor'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],[op==='entrada'?'Tipo do fornecedor':'Tipo do comprador',otherKind==='rural'?'Produtor rural com CPF e IE':otherKind==='person'?'Pessoa física com CPF':'Empresa com CNPJ'],
+[op==='entrada'?'Documento do fornecedor':'Documento do comprador',$('otherDoc').value?'Informado e validado apenas no formato. Cadastro ainda não verificado.':'Não informado'],
+['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm||'Não informado'],['CEST',cest||'Não informado'],['Finalidade',$('use').selectedOptions[0].text],['Regime federal','Não confirmado por fonte oficial'],['Situação ICMS-ST','Pendente: exige legislação atual e classificação do produto'],['CFOP','Pendente de validação']];
 $('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4);
  const cleanProduct=product.slice(0,90);
  const purpose=$('use').value==='particular'?'consumo':$('use').value;
