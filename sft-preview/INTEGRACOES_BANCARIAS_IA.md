@@ -1,4 +1,4 @@
-# Sistemas Forte Tech — Integrações Bancárias e IA
+# Sistemas Forte Tech — Integrações Bancárias, Cartões e IA
 
 **Escopo:** módulo multiempresa independente do APP CFOP e do FORTE FISCAL.
 **Estado:** infraestrutura de preparação e sandbox. **Nenhum banco, parceiro Open Finance ou modelo de IA foi conectado.**
@@ -21,6 +21,29 @@
 5. Validar assinatura de webhook sobre bytes brutos, timestamp contra replay, tenant/conta do evento, escopos, validade do consentimento e idempotência **antes de processar eventos**. Não usar evento não verificado como comprovação de crédito.
 6. Normalizar saldo/extrato como valores decimais exatos (string ou centavos inteiros), com moeda, data, identificador externo e conta; não usar números float para valores monetários.
 7. Homologar duplicidades, reversões, falhas de rede, paginação e conciliação manual; só então permitir, com aprovação separada, operações bancárias reais. **Iniciação de pagamento, transferências, Pix e cobranças não estão implementadas.**
+
+## Cartões de crédito/débito — credenciadoras e maquininhas
+
+**Preparação instalada:** módulos de conexões `CARD_ACQUIRER`, `CARD_POS`, `CARD_GATEWAY`, `CARD_FILE`, todos com ambiente SANDBOX e nenhum processamento ativo. Há cinco tabelas próprias com chaves estrangeiras compostas `company_id`, mantendo isoladas empresas distintas:
+
+- `card_merchant_profiles`: identificação interna de credenciadora, ponto de venda e filial; sem credenciais. Admin poderá criar vínculo no painel, porém não configurar tokens/segredos.
+- `card_sales`: registros futuros de venda por crédito/débito/benefício, captura POS/TEF/e-commerce, bandeira, NSU, referência externa, valor bruto e parcelas; não contém campos de número de cartão, CVV, PIN ou trilha.
+- `card_receivable_installments`: parcelas previstas, taxa de adquirência (MDR), custo de antecipação, ajustes e líquido gerado com aritmética decimal.
+- `card_adjustment_events`: estornos, cancelamentos, chargebacks, reversões e diferenças de taxas; trilha separada da venda original.
+- `card_settlement_batches`: repasses esperados/pagos e conciliação opcional com `bank_statement_entries` da **mesma empresa**, vínculo único por lançamento bancário.
+
+**Proibido:** armazenar PAN completo (número do cartão), CVV, PIN, senha, trilha magnética ou dados brutos da adquirente nas tabelas de cadastros. O PCI SSC proíbe especificamente a retenção de CVV após autorização. Não habilitar processamento de cartão por APIs até validação de PCI DSS, contrato com o provedor e mecanismos próprios de tokenização/checkout hospedado. Qualquer captura futura de cartão deve ser delegada ao provedor de pagamento em ambiente apropriado.
+
+**Fluxo futuro:**
+1. Escolher credenciadora ou gateway, confirmar existência de APIs/arquivos de vendas, recebíveis, taxas, antecipações e disputas para cada CNPJ autorizado.
+2. Realizar credenciamento e guardar credenciais de API somente no servidor; validar autenticação e assinatura de eventos específicos do provedor.
+3. Receber registros por adaptador de servidor, com validação de CNPJ/unidade, identificador único, idempotência e consistência de parcelas.
+4. Comparar valor bruto, taxa, antecipação e líquido da agenda com repasse bancário; propor uma **conciliação pendente de aprovação humana**.
+5. Tratar estornos/chargebacks e repasses parciais sem efetuar baixa automática por uma única referência.
+6. Homologar extratos e agenda com casos de parcelamento, datas bancárias, antecipações, contestação, repasses consolidados e arredondamento.
+7. Somente após homologação, habilitar recursos opcionais de cobrança online/tokenização via provedor com PCI DSS aplicável, em decisão de produto **separada**.
+
+**No momento, nenhum pagamento é autorizado, capturado, cancelado ou estornado pelo SFT; não há dados reais de cartões importados.**
 
 ## Integração de IA — implantação futura
 1. Escolher provedor/modelo, condições de tratamento e retenção, limites de custo e credenciais do backend.
