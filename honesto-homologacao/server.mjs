@@ -81,10 +81,18 @@ const server=http.createServer(async(req,res)=>{
    const [filename,type]=map[u.pathname];const b=fs.readFileSync(path.join(__dirname,filename));
    res.writeHead(200,{'Content-Type':type,'Cache-Control':filename==='sw.js'?'no-cache':'public, max-age=3600'});return res.end(b);
   }
+  if(req.method==='GET'&&u.pathname==='/pdv-simulado'){
+   const b=fs.readFileSync(path.join(__dirname,'pdv-simulado.html'));
+   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(b);
+  }
   if(req.method==='GET'&&u.pathname==='/'){
    const b=fs.readFileSync(path.join(__dirname,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});return res.end(b);
   }
-  if(req.method==='GET'&&u.pathname==='/api/demo'){const s=newDemo();return reply(res,200,{token:s.viewToken,staff:s.staffToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});}
+  if(req.method==='GET'&&u.pathname==='/api/demo'){const s=newDemo();return reply(res,200,{token:s.viewToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});}
+  if(req.method==='POST'&&u.pathname==='/api/pdv-demo/create'){
+   // Exclusively a demonstration bootstrap; NEVER use a public credential bootstrap in production.
+   const s=newDemo();return reply(res,201,{token:s.viewToken,staff:s.staffToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});
+  }
   if(req.method==='POST'&&u.pathname==='/api/table/enter'){
    const x=await body(req);
    const venue=restaurants.get(String(x.establishmentId||''));
