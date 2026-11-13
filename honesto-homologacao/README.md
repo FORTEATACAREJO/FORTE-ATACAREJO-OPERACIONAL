@@ -47,3 +47,11 @@ O preço aprovado para a licença futura é R$ 4,99/mês por estabelecimento; cl
 - Número da mesa atual é um atributo do participante. O vínculo da comanda (itens, pagamentos e eventos) permanece igual, ainda que o participante mude de lugar.
 - A conta **não é automaticamente quitada ao zerar o saldo**; somente o PDV pode confirmar quitação, e o histórico permanece acessível ao titular da sessão até essa confirmação.
 - IMPORTANTE: o protótipo público usa dados inteiramente fictícios, memória volátil e acesso a mesas de demonstração apenas pelo número. Não é seguro para contas reais sem verificação adicional da mesa, acesso autorizado, RLS e banco persistente.
+
+## Diretriz: aceitação e recusa SOMENTE no PDV (13/11/2026)
+
+A interface HONESTO do cliente `/` não possui abas, botões nem autorização para cancelar lançamentos ou aprovar/recusar devoluções. A pessoa pode solicitar a devolução, mas o item fica cobrado até a confirmação originada do **sistema do restaurante**.
+
+Integração de produção: o PDV recebe a solicitação (identificador de comanda, item, participante, motivo) e envia decisão assinada de forma idempotente com `status=aprovada|recusada`, horário, ID externo de cancelamento e motivo obrigatório na recusa. **Somente** o registro confirmado do cancelamento no PDV poderá abater o saldo no HONESTO. A recusa mantém o item e mostra motivo e horário ao cliente. Nenhuma escolha do cliente tem autoridade para mudar a soma.
+
+Para teste sem um PDV real, existe um **simulador técnico separado** em `/pdv-simulado`. Não é parte do HONESTO entregue a clientes nem um novo sistema a ser utilizado por garçons. A página apenas representa mensagens que, em operação real, deverão vir do PDV já existente. A rota pública de demonstração `/api/demo` não fornece chave de operador. A rota `/api/pdv-demo/create` é exclusiva da homologação e **deve ser removida/substituída** por autenticação empresarial real antes de produção.
