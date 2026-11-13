@@ -113,6 +113,16 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div id="ncmOfficialResults" aria-live="polite" style="display:grid;gap:7px;margin-top:10px"></div>
 <div id="ncmOfficialStatus" class="warning" style="margin-top:10px">O banco oficial confirma a existência do código, não o seu enquadramento para a mercadoria. Confira composição e documentos técnicos.</div>
 </div>
+<div class="field full" style="border:1px solid #ddd5c2;border-radius:12px;background:#fffdf8;padding:14px">
+<label for="cest">CEST possíveis a partir do NCM</label>
+<p style="margin:6px 0 10px">Pesquisa em uma compilação pública do Convênio ICMS 142/18. <strong>A associação ao NCM não prova que o produto se enquadra nem que haverá ICMS-ST.</strong> Confira sempre a descrição oficial.</p>
+<button type="button" id="findCestFromNcm" class="primary">Pesquisar possíveis CEST do NCM</button>
+<button type="button" id="verifyTypedCest" style="margin-top:6px">Consultar CEST informado</button>
+<small id="cestVersion" style="display:block;margin:10px 0 0">Carregando referência CEST...</small>
+<div id="cestCandidates" aria-live="polite" style="display:grid;gap:8px;margin-top:10px"></div>
+<div id="cestLegalStatus" class="warning" role="status" style="margin-top:10px">Escolha apenas se a descrição fiscal corresponder ao produto. O enquadramento por UF, data e operação permanece pendente.</div>
+<a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener noreferrer" style="font-size:12px;display:inline-block;margin-top:9px">Conferir Convênio ICMS 142/18 no CONFAZ</a>
+</div>
 <div class="field full hidden" id="catalogOptionsWrap"><label style="font-size:13px;font-weight:700" for="catalogOptions">Há mais de uma possibilidade de NCM/CEST. Selecione apenas se a descrição corresponder ao XML ou ficha técnica:</label><select id="catalogOptions" style="display:block;width:100%;min-height:45px;margin-top:7px"></select></div>
 <div class="field"><label for="stEvidence">ICMS-ST nesta operação</label><select id="stEvidence">
 <option value="unknown">Não tenho informação</option>
@@ -411,6 +421,68 @@ async function ncmGet(route,params){
  if(!r.ok)throw Error('Serviço NCM indisponível ou código não encontrado.');
  return r.json();
 }
+
+let cestLookup=null;
+let cestSelected=null;
+function selectedCestEvidence(){
+ if(!cestSelected||cestSelected.ncm!==$('ncm').value.replace(/\D/g,'')||cestSelected.cest!==$('cest').value.replace(/\D/g,''))return null;
+ return cestSelected;
+}
+function cestMessage(message,success){
+ $('cestLegalStatus').textContent=message;
+ $('cestLegalStatus').className='warning'+(success?' good':'');
+}
+function printCestChoices(items,ncm){
+ const panel=$('cestCandidates');panel.replaceChildren();
+ if(!items.length){const t=document.createElement('p');t.textContent='Não há vínculo CEST registrado nesta compilação para o NCM informado. Isso não comprova ausência de ST ou CEST.';panel.appendChild(t);return}
+ for(const item of items){
+  const row=document.createElement('div');row.style.cssText='border:1px solid #d6dfe8;border-radius:10px;padding:10px;background:#fff;display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap';
+  const main=document.createElement('div');main.style.flex='1';
+  const title=document.createElement('strong');title.textContent=String(item.cest||'').replace(/^(\d{2})(\d{3})(\d{2})$/,'$1.$2.$3')+' — '+(item.descricao||'');
+  const caption=document.createElement('small');caption.style.display='block';caption.textContent=(item.segmento||'')+' • NCM/SH referência: '+(item.matchPrefixes||[]).join(', ');
+  main.append(title,caption);
+  const btn=document.createElement('button');btn.type='button';btn.textContent='Usar após conferir';
+  btn.onclick=()=>{
+   if($('ncm').value.replace(/\D/g,'')!==ncm){cestMessage('O NCM foi alterado desde a busca. Consulte novamente.',false);return}
+   $('cest').value=item.cest;
+   cestSelected={cest:item.cest,ncm,descricao:item.descricao,segmento:item.segmento,origem:'Tabelas Fiscais / Convênio 142/18',timestamp:new Date().toISOString()};
+   suggestedCest='';
+   cestMessage('CEST '+title.textContent+' selecionado como referência. A correspondência com a descrição da mercadoria, vigência e ST da operação ainda precisa ser conferida na legislação.',true);
+  };
+  row.append(main,btn);panel.appendChild(row);
+ }
+}
+async function lookupCestByNcm(value){
+ const ncm=String(value||'').replace(/\D/g,'');
+ if(ncm.length!==8){cestMessage('Informe primeiro um NCM válido de oito dígitos.',false);return}
+ const requestId=ncm;
+ cestSelected=null;
+ cestMessage('Pesquisando possíveis vínculos CEST da referência pública...',false);
+ try{
+  const data=await ncmGet('cest-by-ncm',{ncm});
+  if($('ncm').value.replace(/\D/g,'')!==requestId)return;
+  cestLookup=data;
+  printCestChoices(data.items||[],ncm);
+  cestMessage('Consulta informativa: '+(data.items||[]).length+' possibilidade(s) para '+ncm+'. Não determina ICMS-ST. Compare a descrição e a data com o Convênio ICMS 142/18 e a regra da UF.',false);
+ }catch(error){cestLookup=null;printCestChoices([],ncm);cestMessage('Não foi possível pesquisar CEST: '+String(error?.message||error),false)}
+}
+$('findCestFromNcm').onclick=()=>lookupCestByNcm($('ncm').value);
+$('verifyTypedCest').onclick=async()=>{
+ const code=$('cest').value.replace(/\D/g,'');
+ if(code.length!==7){cestMessage('Informe o CEST completo com sete dígitos.',false);return}
+ try{
+  const data=await ncmGet('cest-code',{code});
+  cestSelected=null;
+  $('cestCandidates').replaceChildren();
+  cestMessage('CEST encontrado na compilação: '+code+' — '+data.item.descricao+' ('+data.item.segmento+'). NCM/SH relacionados: '+(data.ncmPrefixes||[]).join(', ')+'. Não comprova enquadramento do produto nem ICMS-ST.',true);
+ }catch(error){cestMessage('CEST não confirmado: '+String(error?.message||error),false)}
+};
+$('ncm').addEventListener('input',()=>{cestSelected=null;cestLookup=null;$('cestCandidates').replaceChildren();cestMessage('NCM alterado; pesquise novamente os CEST associados.',false)});
+$('cest').addEventListener('input',()=>{cestSelected=null});
+ncmGet('cest-version',{}).then(data=>{
+ const snapshot=data.snapshot||{};
+ $('cestVersion').textContent='Base de referência: '+(snapshot.registros_cest||'?')+' CEST; gerada em '+(snapshot.gerado_em?new Date(snapshot.gerado_em).toLocaleDateString('pt-BR'):'data desconhecida')+'. Dados agregados, não homologados.';
+}).catch(()=>{$('cestVersion').textContent='Referência CEST temporariamente indisponível.'});
 function showNcmStatus(text,isOk){
  $('ncmOfficialStatus').textContent=text;
  $('ncmOfficialStatus').className='warning'+(isOk?' good':'');
@@ -460,6 +532,7 @@ async function verifyNcmCode(value,apply){
    if(candidate&&candidate.cest){$('cest').value=candidate.cest;suggestedCest=candidate.cest;}
   }
   showNcmStatus('Código '+officialCodeFmt(code)+' encontrado na NCM vigente. Hierarquia: '+desc+'. Importante: a existência do código NÃO comprova sua aplicação ao produto informado.',true);
+  if($('ncm').value.replace(/\D/g,'')===code)lookupCestByNcm(code);
  }catch(e){officialNcm=null;showNcmStatus('Não foi possível confirmar o NCM: '+String(e.message||e),false)}
 }
 $('findOfficialNcm').onclick=async()=>{
@@ -527,6 +600,7 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
  const official=officialNcm?.code===ncm&&dateWithinNcm;
  const ncmMatchesCurated=!!productAnalysis&&(productAnalysis.ncm===ncm || (productAnalysis.options||[]).some(x=>x.ncm===ncm));
  const cestMatchesCurated=!!productAnalysis&&!!cest&&((productAnalysis.cest===cest&&ncmMatchesCurated)||(productAnalysis.options||[]).some(x=>x.ncm===ncm&&x.cest===cest));
+ const cestExternal=selectedCestEvidence();
  const sourceOwn=currentResult('own'),sourceOther=currentResult('other');
  const currentBuyer=op==='entrada'?sourceOwn:sourceOther;
  const currentSeller=op==='entrada'?sourceOther:sourceOwn;
@@ -555,8 +629,8 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
  const ncmReg=official?'Código existente na tabela oficial vigente, com datas compatíveis no snapshot; aplicação ao produto ainda depende de comprovação':officialNcm?.code===ncm&&!dateWithinNcm?'Data da operação fora da vigência indicada na tabela NCM consultada; verifique histórico oficial':ncm?'Código informado ou sugerido, ainda não conferido na NCM oficial':'NCM de 8 dígitos ainda não identificado';
  const ncmTag=official?'Código verificado':ncmMatchesCurated?'Sugestão do catálogo':ncm?'Informado':'Pendente';
  const ncmState=official?'known':ncmMatchesCurated?'hypothesis':'';
- const cestTag=cestMatchesCurated?'Referência do catálogo':cest?'Informado':'Pendente';
- const cestState=cestMatchesCurated?'hypothesis':'';
+ const cestTag=cestExternal?'Vínculo NCM–CEST selecionado':cestMatchesCurated?'Referência do catálogo':cest?'Informado':'Pendente';
+ const cestState=(cestExternal||cestMatchesCurated)?'hypothesis':'';
  const ncmValue=ncm?engine.ncmFmt(ncm):productAnalysis?.ncmGroup?'Família NCM '+productAnalysis.ncmGroup:'Não identificado';
  const cestValue=cest?engine.cestFmt(cest):'Não identificado / não aplicável ainda não confirmado';
  const simStatus=currentBuyer?.simplesNacional===true?'Optante do Simples Nacional':currentBuyer?.simplesNacional===false?'Não optante do Simples Nacional':'Não confirmado';
@@ -565,7 +639,7 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
   {label:'Descrição comercial',value:product,tag:'Informado'},
   {label:'NCM',value:ncmValue,tag:ncmTag,state:ncmState,note:ncmReg},
   {label:'Descrição/posição NCM',value:official?officialNcm.hierarchy:'Sem hierarquia confirmada nesta consulta',tag:official?'Tabela oficial':'Pendente',state:official?'known':'',note:official?'Fonte: RFB / Sistema Classif (NCM vigente)':'Utilize a busca da tabela NCM oficial na etapa anterior'},
-  {label:'CEST',value:cestValue,tag:cestTag,state:cestState,note:cestMatchesCurated?'Correspondência no catálogo curado com o Convênio ICMS 142/2018; exigência documental e aplicação por UF dependem da descrição':'NCM sozinho não determina CEST: verificar descrição, anexo e vigência'},
+  {label:'CEST',value:cestValue,tag:cestTag,state:cestState,note:cestExternal?'Compilação pública: '+cestExternal.descricao+' — '+cestExternal.segmento+'. Precisa confirmar a descrição no CONFAZ e a tributação por UF.':cestMatchesCurated?'Correspondência no catálogo curado com o Convênio ICMS 142/2018; exigência documental e aplicação por UF dependem da descrição':'NCM sozinho não determina CEST: verificar descrição, anexo e vigência'},
   {label:'Segmento do CEST',value:cest?('Segmento '+cest.slice(0,2)+' (código informado)'):'Não identificado',tag:cest?'Indicativo':'Pendente',state:cest?'hypothesis':''},
   {label:'TIPI / IPI',value:'Não calculado',tag:'Pendente',note:'Exige enquadramento válido na TIPI, tipo de operação, contribuinte e benefícios aplicáveis'},
   {label:'GTIN / EAN / cEAN',value:'Não informado',tag:'Pendente',note:'Pode ser recuperado do XML/GTIN do fabricante quando disponível'},
