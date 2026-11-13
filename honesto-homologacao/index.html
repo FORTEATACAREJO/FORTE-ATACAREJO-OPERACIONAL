@@ -110,7 +110,7 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  renderQR();
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
 $('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+(i.active?'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+i.id+'\')">Não reconheço</button>':'<span class="pill warn">Cancelado</span>')+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
-$('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
+$('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
 $('splitMode').value=d.mode;$('splitCount').value=d.count;
 const rate=d.mode==='individual'?d.people.map(p=>[p.name,d.individually[p.id]]):Object.entries(d.rateio).map(([p,amount])=>[ids[p]||p,amount]);
 $('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+escapeHtml(name)+'</span><strong class="value">'+fmt(amount)+'</strong></div>').join('');
@@ -134,6 +134,26 @@ for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerH
 $('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div></div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
 $('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div></div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
 }
+function renderQR(){if(!token||typeof qrcode!=='function'||qrRendered===token)return;
+ const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);
+ try{const qr=qrcode(0,'M');qr.addData(link);qr.make();$('tableQRCode').innerHTML=qr.createSvgTag({cellSize:5,margin:12,scalable:true,alt:'QR Code para abrir o HONESTO'});$('tableQRLink').textContent=link;qrRendered=token}
+ catch(e){$('tableQRLink').textContent=link}
+}
+function chooseMenu(id){
+ if(!data.orderingEnabled){note('Este estabelecimento permite apenas visualizar o cardápio',true);return}
+ $('orderProduct').value=id;displayOrderPrice();$('orderCard').scrollIntoView({behavior:'smooth',block:'center'})
+}
+async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.trim();
+ try{const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
+ try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}))}catch{}
+ await refresh();note('Bem-vindo(a), '+name+'! O cardápio já está disponível.');}
+ catch(ex){note(ex.message,true)}
+}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').textContent='Instalar grátis'});
+async function installHonesto(){if(installPrompt){try{await installPrompt.prompt();await installPrompt.userChoice;installPrompt=null}catch(e){note('Use o menu do navegador para instalar o HONESTO.')}}else{
+ const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);note(ios?'No Safari, toque em Compartilhar e em Adicionar à Tela de Início.':'No Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial.')}
+}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 function displayOrderPrice(){if(!data)return;const m=data.menu.find(x=>x.id===$('orderProduct').value);const q=Number($('orderQty').value)||1;$('orderPrice').textContent=fmt(m?m.unit*q:0)}
 async function setOrderEnabled(enabled){await action('/api/pdv/order-settings',{enabled},true,enabled?'Pedidos habilitados nesta demonstração':'Pedidos desabilitados para esta mesa')}
 async function orderStatusChange(id,status){await action('/api/pdv/order-status',{id,status},true,'Situação do pedido atualizada pelo PDV simulado')}
@@ -143,6 +163,7 @@ async function cancelItem(id){if(confirm('Cancelar este produto na demonstraçã
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
 async function copyInvite(){const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);try{await navigator.clipboard.writeText(link);note('Link copiado para convidar participantes')}catch{prompt('Copie o link',link)}}
 $('newDemo').addEventListener('click',startNew);
+$('joinForm').addEventListener('submit',joinHonesto);
 $('orderProduct').addEventListener('change',displayOrderPrice);
 $('orderQty').addEventListener('input',displayOrderPrice);
 $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
