@@ -22,7 +22,7 @@ function newDemo(){
  const s={id:rand(),viewToken:mk(),staffToken:mk(),name:'Restaurante Exemplo',table:'Mesa 12',createdAt:now(),expires:Date.now()+3*3600_000,closed:false,mode:'restante',count:4,
  people:['Ana','Bruno','Carla','Diego'].map((name)=>({id:rand(),name,present:true,service:false})),items:[],payments:[],disputes:[],events:[],
  // In the public demonstration this represents the restaurant POS menu and its optional receive-orders feature.
- orderingEnabled:true,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[]};
+ orderingEnabled:true,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
  const add=(name,qty,price,person)=>s.items.push({id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now()});
  add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);
  store.set(s.viewToken,s);return s;
@@ -54,6 +54,11 @@ const server=http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://localhost');
   if(req.method==='GET'&&u.pathname==='/health')return reply(res,200,{ok:true,mode:'homologacao-demo',payments:'disabled'});
+  if(req.method==='GET'&&['/manifest.webmanifest','/sw.js','/icon.svg'].includes(u.pathname)){
+   const map={'/manifest.webmanifest':['manifest.webmanifest','application/manifest+json'],'/sw.js':['sw.js','text/javascript; charset=utf-8'],'/icon.svg':['icon.svg','image/svg+xml']};
+   const [filename,type]=map[u.pathname];const b=fs.readFileSync(path.join(__dirname,filename));
+   res.writeHead(200,{'Content-Type':type,'Cache-Control':filename==='sw.js'?'no-cache':'public, max-age=3600'});return res.end(b);
+  }
   if(req.method==='GET'&&u.pathname==='/'){
    const b=fs.readFileSync(path.join(__dirname,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});return res.end(b);
   }
@@ -66,11 +71,31 @@ const server=http.createServer(async(req,res)=>{
   if(req.method!=='POST'||!u.pathname.startsWith('/api/'))return reply(res,404,{error:'Não encontrado'});
   const x=await body(req);const s=getSession(String(x.token||''));if(s.closed)throw new Error('Comanda encerrada');
   const pos=u.pathname.startsWith('/api/pdv/');if(pos)staff(req,s);
+  if(u.pathname==='/api/client/join'){
+   // In the demonstration, the name is the only information asked from the customer.
+   const previous=String(x.memberToken||'');
+   const existing=s.memberTokens.get(previous);
+   if(existing)return reply(res,200,{ok:true,memberToken:previous,person:existing,returning:true});
+   const name=String(x.name||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,40);
+   if(name.length<2||name.length>40)throw new Error('Informe apenas seu primeiro nome');
+   if(s.people.length>=30)throw Object.assign(new Error('Limite de pessoas nesta mesa demonstrativa'),{http:429});
+   const person={id:rand(),name,present:true,service:false};
+   const memberToken=mk();s.people.push(person);s.memberTokens.set(memberToken,person.id);
+   s.count=Math.max(s.count,s.people.filter(p=>p.present).length);
+   broadcast(s);return reply(res,201,{ok:true,memberToken,person:person.id});
+  }
+  const verifyMember=(expectedPerson)=>{
+   const id=s.memberTokens.get(String(x.memberToken||''));
+   if(!id||!s.people.some(p=>p.id===id&&p.present))throw Object.assign(new Error('Entre com seu nome para acessar esta funcionalidade'),{http:403});
+   if(expectedPerson&&expectedPerson!==id)throw Object.assign(new Error('Não é possível agir por outra pessoa'),{http:403});
+   return id;
+  };
   if(u.pathname==='/api/client/order'){
    // A request is NOT an invoiceable item until the simulated POS confirms it.
    if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo HONESTO'),{http:403});
-   const person=existingPerson(s,x.person);
-   if(!person||!person.present)throw new Error('Identifique um participante que ainda está na mesa');
+   const memberId=verifyMember(x.person);
+   const person=existingPerson(s,memberId);
+   if(!person||!person.present)throw new Error('Participante não encontrado na mesa');
    const product=s.menu.find(m=>m.id===x.menuId),qty=Number(x.qty);
    const note=String(x.note||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,180);
    const requestId=String(x.requestId||'');
@@ -115,16 +140,20 @@ const server=http.createServer(async(req,res)=>{
    s.payments.push({id:rand(),person:person?.id||null,amount,method:x.method,status:'confirmed',at:now()});
    if(person&&x.leaves){person.present=false;s.count=Math.max(1,s.count-1);}
   }else if(u.pathname==='/api/client/service'){
+   verifyMember(x.person);
    const p=existingPerson(s,x.person);if(!p)throw new Error('Participante obrigatório');
    const previous=p.service;p.service=Boolean(x.enabled);if(snapshot(s).balance<0){p.service=previous;throw new Error('Serviço já coberto por pagamento confirmado');}
   }else if(u.pathname==='/api/client/contest'){
+   verifyMember();
    const item=s.items.find(i=>i.id===x.id),reason=String(x.reason||'').trim();
    if(!item||reason.length<5||reason.length>220)throw new Error('Contestação inválida');
    s.disputes.push({id:rand(),item:item.id,reason,status:'pendente',at:now()});
   }else if(u.pathname==='/api/client/split'){
+   verifyMember();
    if(!['restante','todos','individual'].includes(x.mode)||!Number.isInteger(x.count)||x.count<1||x.count>30)throw new Error('Divisão inválida');
    s.mode=x.mode;s.count=x.count;
   }else if(u.pathname==='/api/client/assign'){
+   verifyMember(x.person);
    const item=s.items.find(i=>i.id===x.id&&i.active);if(!item)throw new Error('Produto não encontrado');
    const next=existingPerson(s,x.person)?.id||null,old=item.person;item.person=next;
    if(snapshot(s).balance<0){item.person=old;throw new Error('Pagamentos impedem esta alteração');}
