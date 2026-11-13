@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff"><title>HONESTO | Sua conta sob seu controle</title>
+<style>
+:root{color:#101511;background:#f7faf8;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}button:disabled{opacity:.5;cursor:not-allowed}
+header{background:white;border-bottom:1px solid #e2eee7;position:sticky;top:0;z-index:2}.head{max-width:1100px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px;font-size:23px;letter-spacing:-.7px;font-weight:950;color:#101511}
+.mark{width:44px;height:44px;border-radius:13px;background:#fff;border:1px solid #d4e7d9;display:grid;place-items:center}
+.mini{font-size:11px;color:#668173;margin-top:3px;font-weight:550;letter-spacing:.2px}
+.badge{background:#e4f9eb;color:#077738;padding:7px 10px;font-size:11px;border-radius:999px;font-weight:800;white-space:nowrap}
+main{max-width:1100px;margin:auto;padding:20px 20px 45px}
+.hero{display:flex;align-items:center;gap:20px;justify-content:space-between;padding:22px 0 10px}
+.hero h1{font-size:clamp(27px,4vw,46px);line-height:1.07;letter-spacing:-1.5px;margin:0 0 10px;max-width:700px}
+.hero p{margin:0 0 14px;line-height:1.6;color:#66776b;max-width:690px}
+.accent{color:#119c45}.pill{font-size:11px;font-weight:750;border-radius:100px;padding:5px 9px;background:#edf3ef;color:#4e6658;display:inline-block}.pill.ok{background:#e3f9ec;color:#0a843c}.pill.warn{background:#fff0d2;color:#80571b}
+.warnbox{font-size:12px;background:#fff8e7;border:1px solid #f5e9c3;border-radius:12px;padding:12px 15px;color:#6a551b;margin:10px 0 18px}
+.cols{display:grid;grid-template-columns:1.35fr .9fr;gap:17px}.card{background:#fff;border:1px solid #e4eee7;border-radius:18px;padding:19px;margin-bottom:16px;box-shadow:0 8px 25px #21402d08}
+.card h2{font-size:18px;margin:0 0 16px}.small{font-size:12px;color:#647568}.label{font-size:12px;font-weight:700;color:#44594b}
+.btn{background:#13a34a;color:#fff;font-weight:790;padding:11px 16px;border-radius:12px;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:42px}
+.btn.dark{background:#101b13}.btn.light{background:#eef7f1;color:#126c35}.btn.red{background:#fff0ef;color:#a72d24}.btn.sm{min-height:29px;padding:6px 9px;font-size:11px}
+.tabs{display:flex;gap:5px;background:#eaf2ed;border-radius:13px;padding:5px;margin:15px 0}.tabs button{border-radius:10px;padding:12px 9px;flex:1;background:transparent;font-weight:760;color:#5d6d61}.tabs button.on{background:white;color:#111;box-shadow:0 1px 5px #24462916}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #edf1ee;padding:10px 0}.row:last-child{border:0}.value{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.muted{color:#738176}.sum{background:#e7f8ec;border-radius:14px;padding:16px;margin-top:14px}.sum strong{font-size:34px;letter-spacing:-1.1px}
+form{display:flex;flex-direction:column;gap:12px}.field{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:740}
+input:not([type=checkbox]),select,textarea{width:100%;padding:10px 11px;min-height:42px;border:1px solid #d7e4d9;border-radius:10px;background:white;color:#142419}
+input[type=checkbox]{accent-color:#0aad48;width:18px;height:18px;flex-shrink:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #13a34a;outline-offset:2px}
+.checkbox{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:650}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info{font-size:12px;color:#53715d;background:#f0f8f2;padding:12px;border-radius:12px;line-height:1.55}
+.divider{height:1px;background:#e8eee9;margin:13px 0}
+.count{font-size:11px;color:#718675}.cut{text-decoration:line-through;color:#97a79a}
+#message{min-height:0}.toast{border-radius:10px;padding:12px;background:#e1f8e9;color:#145c32;margin-bottom:12px;font-size:13px}.toast.error{background:#fff0ec;color:#a32416}
+.hidden{display:none!important}footer{max-width:1100px;margin:auto;border-top:1px solid #e5ebe5;padding:22px;color:#819388;font-size:11px}
+@media(max-width:740px){main{padding:14px 14px 30px}.cols{grid-template-columns:1fr}.card{padding:15px}.hero{padding:15px 0}.head{padding:10px 14px}.brand{font-size:21px}.badge{font-size:10px}.two{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<header><div class="head"><div class="brand"><span class="mark"><svg width="34" height="36" viewBox="0 0 40 43" fill="none" aria-hidden="true"><rect x="7" y="3" width="26" height="37" rx="6" stroke="#0B0B0B" stroke-width="3"/><path d="M13 17h14M13 22h10" stroke="#121212" stroke-width="2.6" stroke-linecap="round"/><path d="m14 30 4 4 10-11" stroke="#12B449" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round"/><path d="m23 12 4-3 3 1" stroke="#12B449" stroke-width="2.5" stroke-linecap="round"/></svg></span><span>HONESTO<div class="mini">Sua conta, sob seu controle</div></span></div><span class="badge">HOMOLOGAÇÃO · DEMO</span></div></header>
+<main>
+ <section class="hero"><div><h1>Transparência na conta.<br><span class="accent">Controle no celular.</span></h1><p>Acompanhe cada produto lançado pelo garçom, divida o saldo com a mesa e confira os pagamentos recebidos pelo caixa. Tudo em uma experiência digital simples.</p><button class="btn" id="newDemo">Experimentar demonstração</button></div></section>
+ <div class="warnbox"><strong>Ambiente exclusivamente de testes:</strong> restaurante e pagamentos fictícios; dados apagados ao reiniciar o servidor. Não há cobrança pelo celular, integrações reais de PDV ou assinatura ativa. O HONESTO pertence ao projeto da Forte Atacarejo Ltda.</div>
+ <div id="message"></div>
+ <div id="workspace" class="hidden">
+ <div class="tabs"><button id="clientTab" class="on" onclick="viewMode('cliente')">📱 Conta do cliente</button><button id="staffTab" class="hidden" onclick="viewMode('pdv')">🧾 Caixa / garçom (demo)</button></div>
+ <section id="clientSection" class="cols">
+  <div>
+   <div class="card"><div class="row"><div><div class="label">CONTA AO VIVO</div><h2 id="restaurant" style="margin:3px 0">Restaurante Exemplo</h2><span class="muted" id="table">Mesa 12</span></div><span class="pill ok" id="connection">Conectado</span></div><div class="divider"></div><h2>Produtos da comanda</h2><div id="items"></div></div>
+   <div class="card"><h2>Pessoas na mesa e serviço opcional</h2><div id="people"></div><div class="info">Cada pessoa pode marcar ou desmarcar 10% de serviço. Na demonstração não há cobrança fiscal nem pagamento direto pelo aplicativo.</div></div>
+   <div class="card"><h2>Dividir a conta</h2><div class="two"><label class="field">Como dividir<select id="splitMode"><option value="restante">Saldo entre quem ficou</option><option value="todos">Igualmente entre todos</option><option value="individual">Por consumo individual</option></select></label><label class="field">Quantidade de pessoas<input id="splitCount" type="number" min="1" max="30" value="4"></label></div><button class="btn light" style="margin-top:12px" onclick="changeSplit()">Calcular divisão</button><div class="divider"></div><div id="splitResult"></div></div>
+  </div>
+  <aside>
+   <div class="card"><h2>Resumo financeiro</h2><div class="row"><span>Consumo</span><span class="value" id="subtotal"></span></div><div class="row"><span>Serviço (opcional)</span><span class="value" id="service"></span></div><div class="row"><span>Pago ao garçom / caixa</span><span class="value" id="paid"></span></div><div class="sum"><div class="label">SALDO RESTANTE</div><strong id="balance"></strong></div><p class="small">Somente pagamentos confirmados pelo operador do caixa aparecem como pagos.</p></div>
+   <div class="card"><h2>Convidar alguém</h2><p class="small">Compartilhe este acesso de conferência com outro celular. O link não concede acesso ao caixa.</p><button class="btn light" onclick="copyInvite()">Copiar link de conferência</button><div class="small" style="margin-top:8px" id="inviteUrl"></div></div>
+   <div class="card"><h2>Contestações</h2><div id="disputes"></div></div>
+  </aside>
+ </section>
+ <section id="staffSection" class="cols hidden">
+  <div>
+    <div class="card"><h2>Garçom — lançar produto</h2><form id="itemForm"><label class="field">Produto<input id="product" value="Água mineral" required></label><div class="two"><label class="field">Quantidade<input id="qty" type="number" min="1" max="50" value="1" required></label><label class="field">Preço unitário (R$)<input id="price" value="6,00" required></label></div><label class="field">Consumo atribuído a<select id="assignPerson"></select></label><button class="btn" type="submit">+ Lançar na comanda</button></form></div>
+    <div class="card"><h2>Produtos e cancelamentos</h2><div id="cashItems"></div></div>
+    <div class="card"><h2>Contestações recebidas</h2><div id="cashDisputes"></div></div>
+  </div>
+  <aside>
+    <div class="card"><h2>Confirmar pagamento presencial</h2><form id="payForm"><label class="field">Valor (R$)<input id="payAmount" value="30,00" required></label><label class="field">Quem pagou?<select id="payPerson"></select></label><label class="field">Recebido via<select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select></label><label class="checkbox"><input type="checkbox" id="leaves"> Pessoa está saindo da mesa</label><button class="btn dark" type="submit">✓ Confirmar recebimento (demo)</button></form><p class="small">Este botão não movimenta dinheiro, apenas simula o lançamento recebido pelo garçom.</p></div>
+    <div class="card"><h2>Histórico de pagamentos</h2><div id="payments"></div></div>
+    <div class="card"><h2>Conectar sistema do restaurante</h2><div class="info">HONESTO CONNECT será ativado após homologação do protocolo seguro. Nesta versão, apenas o PDV simulado envia lançamentos.</div></div>
+  </aside>
+ </section>
+ </div>
+</main><footer>HONESTO · Projeto da FORTE ATACAREJO LTDA. · Identidade visual branca, preta e verde · Versão demonstrativa, não comercial</footer>
+<script>
+let token='',staff='',data=null,es=null,loading=false,mode='cliente';
+const $=(x)=>document.getElementById(x);
+const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
+const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
+async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
+async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
+async function connect(){if(es)es.close();$('workspace').classList.remove('hidden');$('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?mode=cliente&token='+token;await refresh();
+try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
+viewMode(new URLSearchParams(location.search).get('mode')==='pdv'&&staff?'pdv':'cliente');}
+function viewMode(next){mode=next;$('clientSection').classList.toggle('hidden',mode!=='cliente');$('staffSection').classList.toggle('hidden',mode!=='pdv');$('clientTab').classList.toggle('on',mode==='cliente');$('staffTab').classList.toggle('on',mode==='pdv');history.replaceState({},'',location.pathname+'?mode='+mode+'&token='+encodeURIComponent(token));}
+async function refresh(){if(!token||loading)return;loading=true;try{data=await api('/api/session/'+encodeURIComponent(token));render();$('connection').textContent='Conectado'}catch(e){$('connection').textContent='Sem conexão'}finally{loading=false;}}
+async function action(endpoint,payload,needStaff=false,message='Atualizado'){try{await api(endpoint,payload,needStaff);await refresh();note(message)}catch(e){note(e.message,true);await refresh();}}
+const names=()=>Object.fromEntries(data.people.map(p=>[p.id,p.name]));
+const options=(empty)=>'<option value="">'+empty+'</option>'+data.people.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+(p.present?'':' (saiu)')+'</option>').join('');
+function render(){const d=data,ids=names();$('restaurant').textContent=d.restaurant;$('table').textContent=d.table;
+$('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
+$('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+(i.active?'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+i.id+'\')">Não reconheço</button>':'<span class="pill warn">Cancelado</span>')+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
+$('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
+$('splitMode').value=d.mode;$('splitCount').value=d.count;
+const rate=d.mode==='individual'?d.people.map(p=>[p.name,d.individually[p.id]]):Object.entries(d.rateio).map(([p,amount])=>[ids[p]||p,amount]);
+$('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+escapeHtml(name)+'</span><strong class="value">'+fmt(amount)+'</strong></div>').join('');
+const disputes=d.disputes.map(x=>'<div class="row"><div><strong>'+escapeHtml(d.items.find(i=>i.id===x.item)?.name||'Produto')+'</strong><div class="small">'+escapeHtml(x.reason)+'</div></div><span class="pill warn">'+escapeHtml(x.status)+'</span></div>').join('')||'<p class="small">Nenhuma contestação</p>';
+$('disputes').innerHTML=$('cashDisputes').innerHTML=disputes;
+for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerHTML=options(id==='payPerson'?'Pagamento da mesa':'Compartilhado');e.value=old;}
+$('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div></div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
+$('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div></div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
+}
+async function serviceChoice(person,enabled){await action('/api/client/service',{person,enabled},false,'Escolha de serviço registrada')}
+async function contest(id){const reason=prompt('Qual o motivo da contestação?');if(reason)await action('/api/client/contest',{id,reason},false,'Contestação enviada ao caixa')}
+async function cancelItem(id){if(confirm('Cancelar este produto na demonstração?'))await action('/api/pdv/cancel',{id},true,'Produto cancelado')}
+async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
+async function copyInvite(){const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);try{await navigator.clipboard.writeText(link);note('Link copiado para convidar participantes')}catch{prompt('Copie o link',link)}}
+$('newDemo').addEventListener('click',startNew);
+$('itemForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('product').value,qty:Number($('qty').value),price:$('price').value,person:$('assignPerson').value||null},true,'Produto enviado à conta do cliente')});
+$('payForm').addEventListener('submit',e=>{e.preventDefault();if(!confirm('Confirmar recebimento somente na demonstração?'))return;action('/api/pdv/payment',{amount:$('payAmount').value,person:$('payPerson').value||null,method:$('method').value,leaves:$('leaves').checked},true,'Pagamento simulado confirmado')});
+(async()=>{const qs=new URLSearchParams(location.search);if(qs.get('token')){token=qs.get('token');staff=sessionStorage.getItem('honesto-demo-staff:'+token)||'';try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}else{await startNew()}})();
+setInterval(refresh,5000);
+</script></body></html>
