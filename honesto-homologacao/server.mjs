@@ -20,7 +20,9 @@ const now=()=>new Date().toISOString();
 
 function newDemo(){
  const s={id:rand(),viewToken:mk(),staffToken:mk(),name:'Restaurante Exemplo',table:'Mesa 12',createdAt:now(),expires:Date.now()+3*3600_000,closed:false,mode:'restante',count:4,
- people:['Ana','Bruno','Carla','Diego'].map((name)=>({id:rand(),name,present:true,service:false})),items:[],payments:[],disputes:[],events:[]};
+ people:['Ana','Bruno','Carla','Diego'].map((name)=>({id:rand(),name,present:true,service:false})),items:[],payments:[],disputes:[],events:[],
+ // In the public demonstration this represents the restaurant POS menu and its optional receive-orders feature.
+ orderingEnabled:true,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[]};
  const add=(name,qty,price,person)=>s.items.push({id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now()});
  add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);
  store.set(s.viewToken,s);return s;
@@ -39,7 +41,7 @@ function snapshot(s){
  const peopleToSplit=s.mode==='todos'?s.people:s.people.filter(p=>p.present);
  const candidate=peopleToSplit.slice(0,s.count).map(p=>p.id);
  while(candidate.length<s.count)candidate.push('Convidado '+(candidate.length+1));
- return {table:s.table,restaurant:s.name,closed:s.closed,people:s.people,items:s.items,payments:s.payments,disputes:s.disputes,mode:s.mode,count:s.count,subtotal,service,paid,balance,shares,individually,rateio:splitAmount(Math.max(0,balance),candidate),at:now(),expires:s.expires};
+ return {table:s.table,restaurant:s.name,closed:s.closed,people:s.people,items:s.items,payments:s.payments,disputes:s.disputes,orders:s.orders,menu:s.menu,orderingEnabled:s.orderingEnabled,mode:s.mode,count:s.count,subtotal,service,paid,balance,shares,individually,rateio:splitAmount(Math.max(0,balance),candidate),at:now(),expires:s.expires};
 }
 function getSession(token){const s=store.get(token);if(!s||Date.now()>s.expires)throw Object.assign(new Error('Sessão não encontrada ou expirada'),{http:404});return s;}
 function broadcast(s){for(const res of streams.get(s.viewToken)||[]){try{res.write('event: change\ndata: {}\n\n')}catch{}}}
@@ -64,7 +66,41 @@ const server=http.createServer(async(req,res)=>{
   if(req.method!=='POST'||!u.pathname.startsWith('/api/'))return reply(res,404,{error:'Não encontrado'});
   const x=await body(req);const s=getSession(String(x.token||''));if(s.closed)throw new Error('Comanda encerrada');
   const pos=u.pathname.startsWith('/api/pdv/');if(pos)staff(req,s);
-  if(u.pathname==='/api/pdv/item'){
+  if(u.pathname==='/api/client/order'){
+   // A request is NOT an invoiceable item until the simulated POS confirms it.
+   if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo HONESTO'),{http:403});
+   const person=existingPerson(s,x.person);
+   if(!person||!person.present)throw new Error('Identifique um participante que ainda está na mesa');
+   const product=s.menu.find(m=>m.id===x.menuId),qty=Number(x.qty);
+   const note=String(x.note||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,180);
+   const requestId=String(x.requestId||'');
+   if(!product||!Number.isInteger(qty)||qty<1||qty>10||!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Pedido inválido');
+   const previous=s.orders.find(o=>o.requestId===requestId);
+   if(previous)return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});
+   if(s.orders.length>=50)throw Object.assign(new Error('Limite de pedidos da sessão de teste atingido'),{http:429});
+   const requested={id:rand(),requestId,person:person.id,menuId:product.id,name:product.name,qty,unit:product.unit,note,table:s.table,status:'solicitado',itemId:null,createdAt:now(),updatedAt:now()};
+   s.orders.push(requested);
+   s.events.push({at:now(),path:u.pathname,orderId:requested.id});broadcast(s);
+   return reply(res,201,{ok:true,orderId:requested.id,status:'solicitado'});
+  }else if(u.pathname==='/api/pdv/order-status'){
+   const order=s.orders.find(o=>o.id===x.id);
+   if(!order)throw new Error('Solicitação não encontrada');
+   const next=String(x.status||'');
+   if(next===order.status)return reply(res,200,{ok:true,duplicate:true,status:order.status});
+   if(order.status==='solicitado'&&next==='recusado'){
+    order.status='recusado';
+   }else if(order.status==='solicitado'&&next==='aceito'){
+    // Only POS acknowledgement creates the bill item. Repeating the acknowledgement never bills twice.
+    const item={id:rand(),name:order.name,qty:order.qty,unit:order.unit,person:order.person,active:true,at:now(),fromOrder:order.id};
+    s.items.push(item);order.itemId=item.id;order.status='aceito';
+   }else if(order.status==='aceito'&&next==='entregue'){
+    order.status='entregue';
+   }else throw new Error('Transição de status inválida');
+   order.updatedAt=now();
+  }else if(u.pathname==='/api/pdv/order-settings'){
+   if(typeof x.enabled!=='boolean')throw new Error('Configuração inválida');
+   s.orderingEnabled=x.enabled;
+  }else if(u.pathname==='/api/pdv/item'){
    const name=String(x.name||'').trim(),qty=Number(x.qty),unit=money(x.price);
    if(name.length<2||name.length>90||!Number.isInteger(qty)||qty<1||qty>50)throw new Error('Produto ou quantidade inválidos');
    const person=existingPerson(s,x.person)?.id||null;
