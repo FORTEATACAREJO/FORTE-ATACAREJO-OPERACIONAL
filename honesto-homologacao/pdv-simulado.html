@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador de PDV — Homologação HONESTO</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3f5f4;color:#172218}
+*{box-sizing:border-box}body{margin:0}header{background:#18251b;color:white;padding:18px 20px}header div,main{max-width:1060px;margin:auto}
+h1{margin:0;font-size:22px}main{padding:22px 16px}p{line-height:1.5}.tag{font-weight:800;font-size:11px;color:#1f7d40;background:#e3f7e9;padding:6px 10px;border-radius:99px}.panel{background:white;border:1px solid #dbe7dd;border-radius:15px;padding:19px;margin:15px 0}h2{font-size:18px;margin:0 0 13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.line{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ecf0ed}.line:last-child{border:0}.muted{font-size:12px;color:#697b70}.status{color:#207a39;font-size:12px;font-weight:800}.warn{color:#9e5b00}.btn{border:0;border-radius:10px;padding:10px 13px;background:#178444;color:#fff;font:inherit;font-weight:750;cursor:pointer}.btn.alt{background:#e8f2eb;color:#176b33}.btn.danger{background:#a5382f}.btn:disabled{opacity:.5}input,select{font:inherit;border:1px solid #ccd9cf;border-radius:9px;padding:11px;width:100%}.cols{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}label{font-size:12px;font-weight:700;display:block;margin-bottom:5px}form{display:grid;gap:10px}.buttons{display:flex;gap:6px;flex-wrap:wrap}.note{background:#fffae9;border:1px solid #efe1b2;border-radius:11px;padding:11px 13px;font-size:13px}.small{font-size:12px}.mono{overflow-wrap:anywhere;font-family:monospace;font-size:11px}#qr svg{max-width:210px;height:auto}#notice{margin-top:10px;color:#176b33;font-weight:700}.hidden{display:none!important}
+@media(max-width:680px){.grid,.cols{grid-template-columns:1fr}.panel{padding:14px}.line{flex-wrap:wrap}}
+</style></head>
+<body><header><div><h1>PDV de testes — Restaurante Exemplo</h1><span class="small">SIMULADOR EXTERNO AO APLICATIVO HONESTO</span></div></header>
+<main>
+<div class="note"><strong>Somente para homologação.</strong> Esta é uma representação técnica do sistema do restaurante, separada do HONESTO usado pelo cliente. Em produção, todos estes botões pertencem ao PDV já contratado pelo estabelecimento. Nenhuma transação é real.</div>
+<div class="panel">
+<h2>Restaurante fictício</h2>
+<button class="btn" id="new">Criar restaurante e comanda demonstrativa</button>
+<div id="connection" class="hidden">
+<p><span class="tag">Simulação conectada</span> <strong id="mesa"></strong></p>
+<div class="grid">
+ <div><h2>QR Code único do restaurante</h2><div id="qr"></div><div class="mono" id="venueLink"></div></div>
+ <div><h2>Teste com dois dispositivos</h2><p class="muted">Abra o HONESTO em outro aparelho usando o QR. Informe mesa 12 e seu nome, escolha um produto e solicite a devolução. Somente aqui, no simulador de PDV, será possível aceitar ou recusar.</p>
+ <a id="guest" target="_blank" rel="noopener">Abrir HONESTO do cliente</a></div>
+</div>
+</div>
+</div>
+<div id="work" class="hidden">
+<div class="grid">
+<section>
+ <div class="panel"><h2>Devoluções enviadas pelo HONESTO</h2><div id="returns"></div></div>
+ <div class="panel"><h2>Pedidos enviados pelo HONESTO</h2><div id="orders"></div></div>
+ <div class="panel"><h2>Trocas de mesa solicitadas</h2><div id="moves"></div></div>
+</section>
+<section>
+ <div class="panel"><h2>Lançar produto no PDV (teste)</h2><form id="productForm"><input id="prodName" value="Água mineral" required placeholder="Produto"><div class="cols"><input id="qty" type="number" min="1" value="1" required><input id="price" value="6,00" required placeholder="Preço"></div><button class="btn" type="submit">Lançar produto</button></form></div>
+ <div class="panel"><h2>Recebimento presencial (simulado)</h2><p class="muted">O HONESTO não recebe dinheiro.</p><form id="payForm"><input id="amount" required placeholder="Valor (R$)" value="10,00"><select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select><button class="btn" type="submit">Confirmar pagamento no PDV</button></form><div class="small" id="balance"></div></div>
+ <div class="panel"><h2>Movimentações no PDV</h2><div id="audit"></div></div>
+</section>
+</div>
+</div>
+<div id="notice" role="status"></div>
+</main><script src="/vendor/qrcode.js"></script><script>
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
+const stamp=t=>t?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'medium'}).format(new Date(t)):'';
+let token='',staff='',est='',sse=null;
+function alertMessage(v,error=false){$('notice').textContent=v;$('notice').style.color=error?'#ad3828':'#176b33'}
+async function api(path,body,needStaff=false){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'x-honesto-staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});const data=await r.json();if(!r.ok)throw Error(data.error||'Falha do PDV');return data}
+async function action(path,body,message){try{await api(path,body,true);alertMessage(message);await refresh()}catch(e){alertMessage(e.message,true)}}
+async function start(){try{const d=await api('/api/pdv-demo/create',{});token=d.token;staff=d.staff;est=d.establishmentId;sessionStorage.setItem('honesto-pdv-demo',JSON.stringify({token,staff,est}));
+connect()}catch(e){alertMessage(e.message,true)}}
+async function connect(){if(sse)sse.close();
+ $('work').classList.remove('hidden');$('connection').classList.remove('hidden');
+ const url=location.origin+'/?est='+encodeURIComponent(est);
+ $('venueLink').textContent=url;$('guest').href=url;
+ const qr=qrcode(0,'M');qr.addData(url);qr.make();$('qr').innerHTML=qr.createSvgTag({cellSize:5,margin:7,scalable:true});
+ await refresh();sse=new EventSource('/api/events/'+encodeURIComponent(token));sse.addEventListener('change',()=>refresh());
+}
+async function refresh(){if(!token)return;try{const d=await api('/api/session/'+encodeURIComponent(token));$('mesa').textContent=' · '+d.table;
+ $('balance').textContent='Saldo em aberto: '+money(d.balance);
+ $('returns').innerHTML=[...d.disputes].reverse().map(x=>{const item=d.items.find(i=>i.id===x.item);return '<div class="line"><div><strong>'+esc(item?.name||'Produto')+'</strong><div class="muted">Cliente: '+esc(d.people.find(p=>p.id===x.requestedBy)?.name||'Não identificado')+'</div><div class="muted">Solicitação: '+esc(x.reason)+'</div><div class="muted">'+stamp(x.at)+'</div><div class="status">'+esc(x.status)+'</div>'+(x.decisionReason?'<div class="muted">Resposta: '+esc(x.decisionReason)+'</div>':'')+'</div>'+(x.status==='pendente'?'<div class="buttons"><button class="btn" onclick="decide(\\''+x.id+'\\',\\'aprovada\\')">Aceitar no PDV</button><button class="btn danger" onclick="decide(\\''+x.id+'\\',\\'recusada\\')">Recusar no PDV</button></div>':'')+'</div>'}).join('')||'<p class="muted">Nenhuma devolução recebida.</p>';
+ $('orders').innerHTML=d.orders.map(x=>'<div class="line"><div><strong>'+esc(x.qty)+' × '+esc(x.name)+'</strong><div class="muted">'+esc(x.table)+' · '+esc(d.people.find(p=>p.id===x.person)?.name||'')+' · '+stamp(x.createdAt)+'</div><div class="muted">'+esc(x.note)+'</div><div class="status">'+esc(x.status)+'</div></div>'+(x.status==='solicitado'?'<div class="buttons"><button class="btn" onclick="order(\\''+x.id+'\\',\\'aceito\\')">Aceitar</button><button class="btn danger" onclick="order(\\''+x.id+'\\',\\'recusado\\')">Recusar</button></div>':x.status==='aceito'?'<button class="btn alt" onclick="order(\\''+x.id+'\\',\\'entregue\\')">Marcar entregue</button>':'')+'</div>').join('')||'<p class="muted">Nenhum pedido novo.</p>';
+ $('moves').innerHTML=d.transfers.map(x=>'<div class="line"><div><strong>'+esc(x.from)+' → '+esc(x.to)+'</strong><div class="muted">'+stamp(x.requestedAt)+' · '+esc(x.status)+'</div></div>'+(x.status==='pendente'?'<div class="buttons"><button class="btn" onclick="move(\\''+x.id+'\\',\\'aprovada\\')">Confirmar</button><button class="btn danger" onclick="move(\\''+x.id+'\\',\\'recusada\\')">Recusar</button></div>':'')+'</div>').join('')||'<p class="muted">Nenhuma troca.</p>';
+ $('audit').innerHTML=[...d.timeline].reverse().slice(0,35).map(x=>'<div class="line"><div>'+esc(x.detail)+'<div class="muted">'+stamp(x.at)+'</div></div></div>').join('');
+}catch(e){alertMessage(e.message,true)}}
+async function decide(id,status){let reason='';if(status==='recusada'){reason=prompt('Motivo da devolução recusada:')?.trim()||'';if(reason.length<5){alertMessage('Motivo obrigatório de pelo menos 5 caracteres.',true);return}}else if(!confirm('Confirmar devolução no sistema do restaurante?'))return;
+ await action('/api/pdv/dispute-status',{id,status,reason},status==='aprovada'?'Devolução aprovada no PDV':'Devolução recusada no PDV')}
+async function order(id,status){await action('/api/pdv/order-status',{id,status},'Pedido atualizado no PDV')}
+async function move(id,status){await action('/api/pdv/transfer-status',{id,status},'Troca de mesa atualizada no PDV')}
+$('new').addEventListener('click',start);
+$('productForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('prodName').value,qty:Number($('qty').value),price:$('price').value},'Produto lançado pelo PDV')});
+$('payForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/payment',{amount:$('amount').value,method:$('method').value},'Pagamento presencial registrado no PDV')});
+try{const d=JSON.parse(sessionStorage.getItem('honesto-pdv-demo')||'null');if(d?.token&&d?.staff&&d?.est){token=d.token;staff=d.staff;est=d.est;connect().catch(()=>{})}}catch{}
+</script></body></html>
