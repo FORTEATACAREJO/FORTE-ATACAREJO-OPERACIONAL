@@ -45,6 +45,17 @@
 
 **No momento, nenhum pagamento é autorizado, capturado, cancelado ou estornado pelo SFT; não há dados reais de cartões importados.**
 
+## Cartão empresarial (despesas e faturas)
+
+Fluxo separado das vendas com cartão: `CARD_ISSUER` identifica o banco/emissor para consulta futura de **compras corporativas, faturas e pagamentos**. Não recebe escopos de adquirente nem de contas bancárias comuns.
+
+- `corporate_card_profiles`: vínculo de emissor e estabelecimento, apelido do cartão e, opcionalmente, **somente os 4 últimos dígitos**; sem número completo do cartão nem CVV.
+- `corporate_card_expenses`: despesas por empresa, data, referência externa e valor; sem dados completos do cartão, inserção futura exclusiva de adaptadores de servidor.
+- `corporate_card_statements`: faturas, períodos, vencimento, valor e referência de lançamento bancário, sempre por empresa, sem conciliação automática.
+- RLS por empresa, leitura ADMIN/CONTADOR; somente administradores cadastram perfis sem credenciais. Faturas e despesas não podem ser inseridas diretamente pelo navegador.
+
+Futuro: consultar a API do emissor com autorização específica, validar faturas, lançamentos, cobranças, pagamentos bancários, contestações e gastos de cartões adicionais. Conciliação será sugerida para revisão humana; **não se inicia pagamento de fatura**.
+
 ## Integração de IA — implantação futura
 1. Escolher provedor/modelo, condições de tratamento e retenção, limites de custo e credenciais do backend.
 2. Aprovar por empresa e finalidade quais dados poderão ser compartilhados. Como padrão, **nenhuma informação empresarial é enviada**; dados pessoais, bancários e fiscais devem ser minimizados/mascarados e só transmitidos sob base legal e controles apropriados.
