@@ -44,6 +44,7 @@ function cfopSuggest(o){
  var unknown={code:"",status:"pendente",explanation:"Dados ainda insuficientes para indicar CFOP.",assumptions:[]};
  if(!o.originUf||!o.destUf)return unknown;
  if(!["entrada","saida"].includes(op))return unknown;
+ if(op==="entrada" && o.consultantKind==="person")return {code:"",status:"pendente",explanation:"Pessoa física sem inscrição estadual não deve receber CFOP de escrituração de compra como se fosse estabelecimento contribuinte. A operação exige análise específica.",assumptions:[]};
  if(op==="entrada"){
   if(purpose==="revenda"){
    if(st==="no_st")return {code:same?"1.102":"2.102",status:"hipótese",explanation:"Compra para comercialização sem ST, conforme condição declarada.",assumptions:["Revenda de mercadorias","Operação normal sem antecipação ou ST","Conferir a NF-e original e exceções legais"]};
