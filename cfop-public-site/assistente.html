@@ -612,6 +612,27 @@ sec('2. Tributos e natureza da operação',[
   unsure('cBenef e desoneração','Depende de eventual benefício fiscal por UF e data'),
   unsure('CFOP correspondente na outra parte','A escrituração de entrada do comprador não é sempre simétrica à saída do fornecedor')
  ]);
+
+ const involvedStates=[...new Set([$('originUf').value,$('destUf').value])].filter(x=>x==='MG'||x==='GO');
+ if(involvedStates.length){
+  const legal=document.createElement('section');legal.className='fiscal-group';
+  const header=document.createElement('h3');header.textContent='3. Legislação estadual a conferir — origem e destino';
+  legal.appendChild(header);
+  const links={
+    MG:{title:'Minas Gerais — RICMS 2023, anexos e substituição tributária',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/sumario2023seco.html'},
+    GO:{title:'Goiás — compilação da legislação tributária e RCTE/Anexo VIII',url:'https://goias.gov.br/economia/legislacao-tributaria/'}
+  };
+  const body=document.createElement('div');body.style.cssText='padding:12px 14px;font-size:13px;display:grid;gap:10px';
+  for(const uf of involvedStates){
+   const item=document.createElement('div');
+   const link=document.createElement('a');link.href=links[uf].url;link.target='_blank';link.rel='noopener noreferrer';
+   link.textContent=links[uf].title;
+   item.append(link);body.appendChild(item);
+  }
+  const caution=document.createElement('p');caution.textContent='Fontes oficiais para conferência humana. O aplicativo não calcula automaticamente MVA/PMPF, pauta, protocolos interestaduais ou alíquotas dessas normas nesta versão.';
+  body.appendChild(caution);legal.appendChild(body);root.appendChild(legal);
+ }
+
  const notice=document.createElement('p');notice.className='warning';
  notice.textContent='Situação: ficha informativa, NÃO homologada para emissão de NF-e. O NCM oficial confirma apenas códigos existentes; CEST e CFOP demandam confronto com o produto e com a operação. Campos pendentes não são tributos calculados.';
  root.appendChild(notice);
