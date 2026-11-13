@@ -29,6 +29,19 @@ a{color:#976b22}small{font-size:12px;color:#6b7d90}.divider{height:1px;backgroun
 summary{cursor:pointer;font-weight:700}.fiscal-dossier{display:grid;gap:14px;margin:13px 0}.fiscal-group{border:1px solid #dce4ee;border-radius:12px;overflow:hidden;background:#fff}.fiscal-group h3{background:#f4f7fb;padding:12px 14px;font-size:15px;margin:0;color:#173550}.fiscal-data{width:100%;border-collapse:collapse;font-size:13px}.fiscal-data td{padding:9px 12px;border-top:1px solid #edf0f3;vertical-align:top;line-height:1.48}.fiscal-data td:first-child{width:39%;font-weight:650;color:#385068}.fiscal-sub{display:block;color:#697e90;font-size:11px;margin-top:3px}.fiscal-status{display:inline-block;border-radius:14px;padding:3px 8px;font-size:11px;background:#e8edf4;color:#52657c;font-weight:700;margin-bottom:2px}.fiscal-status.known{background:#e9f5ee;color:#246943}.fiscal-status.hypothesis{background:#fff3d9;color:#8c601a}.fiscal-lead{padding:15px;background:#f7f9fb;border-radius:13px;margin-bottom:14px;font-size:13px;line-height:1.6}.fiscal-lead strong{font-size:16px;color:#102640}.fiscal-audit{margin-top:17px}.fiscal-audit summary{padding:11px 0}.table{width:100%;border-collapse:collapse;font-size:14px}td{padding:10px 6px;border-bottom:1px solid #e5e9ef;vertical-align:top}td:first-child{width:37%;color:#667a90}
 footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.card{padding:16px}.actions{flex-direction:column}}
+@media print{
+ body{background:#fff;color:#111;font:11px Arial,sans-serif}
+ header,footer,.actions,#msg,.fiscal-audit,#legacy,#printDossier{display:none!important}
+ main{max-width:none!important;margin:0!important;padding:0!important}
+ #step0,#step1,#step2,#step3{display:none!important}
+ #step4{display:block!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important}
+ #step4 h2{margin:0 0 6px!important}
+ .fiscal-group{page-break-inside:avoid;break-inside:avoid;border:1px solid #aaa!important}
+ .fiscal-group h3{padding:8px!important;color:#111!important}
+ .fiscal-data td{padding:6px!important}
+ .fiscal-lead,.warning{background:#fff!important}
+ a{color:#111!important}
+}
 </style></head>
 <body><header><img src="/icon.svg" alt=""><div><strong>FORTECOMPANNY</strong><small>Assistente de consulta fiscal • versão experimental</small></div></header>
 <main><div class="two"><div><h1>Consulta fiscal em quatro passos</h1><p>Responda apenas o que você sabe. O sistema identifica o que falta confirmar em fontes oficiais, sem adivinhar impostos.</p></div><a href="/">Consulta tradicional</a></div>
@@ -143,12 +156,13 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="card hidden" id="step4"><h2>4. Ficha fiscal completa da consulta</h2>
 <p>Dados do produto e tratamento de compras/vendas. Cada campo informa se é um código existente, sugestão ou informação ainda não confirmada.</p>
 <div id="fiscalDossier" class="fiscal-dossier" aria-live="polite"></div>
+<div id="fiscalCrossCheck" class="warning" style="margin:10px 0 17px;white-space:pre-line" role="status">Conferência automática dos códigos fiscais pendente.</div>
 <details class="fiscal-audit"><summary>Ver todos os dados informados na consulta</summary><div id="summary"></div></details>
 <div id="fiscalReview" class="warning" style="margin-top:15px"><strong>Classificação fiscal condicionada:</strong> sugestões não substituem a legislação vigente, o XML do produto nem a análise da operação. CST/CSOSN, PIS/COFINS, bases e alíquotas ainda requerem validação.</div>
 <div style="font-size:13px;margin-top:12px;line-height:1.8">Fontes: <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">CONFAZ — CEST e ST</a> · <a href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif" target="_blank" rel="noopener">Receita — NCM/Classif</a> · <a href="https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm" target="_blank" rel="noopener">Tabela CFOP</a></div>
 <div class="divider"></div>
 <p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
-<div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="legacy">Abrir simulador experimental</button></div></div>
+<div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="printDossier" type="button">Imprimir / salvar PDF</button><button id="legacy">Abrir simulador experimental</button></div></div>
 <div id="msg" role="alert"></div></main><footer>FORTECOMPANNY • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
 <script>
 (function(){
@@ -418,7 +432,10 @@ async function ncmGet(route,params){
  const u=new URL(NCM_DATABASE+'/'+route);
  for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));
  const r=await fetch(u,{headers:{Accept:'application/json'}});
- if(!r.ok)throw Error('Serviço NCM indisponível ou código não encontrado.');
+ if(!r.ok){
+  const err=new Error(r.status===404?'Código não encontrado na tabela consultada.':'Serviço de consulta de códigos fiscais temporariamente indisponível.');
+  err.status=r.status;throw err;
+ }
  return r.json();
 }
 
@@ -712,6 +729,52 @@ sec('2. Tributos e natureza da operação',[
  root.appendChild(notice);
 }
 
+
+let crossCheckId=0;
+async function checkNcmCestForOperation(ncm,cest,when){
+ const nonce=++crossCheckId;
+ const output=$('fiscalCrossCheck');
+ output.className='warning';
+ output.textContent='Conferindo códigos na tabela oficial NCM e nos vínculos públicos CEST…';
+ const checkNcm=/^\d{8}$/.test(ncm);
+ const checkCest=/^\d{7}$/.test(cest);
+ const tasks=[
+  checkNcm?ncmGet('code',{code:ncm}):Promise.resolve(null),
+  checkNcm&&checkCest?ncmGet('cest-by-ncm',{ncm}):Promise.resolve(null),
+  checkCest?ncmGet('cest-code',{code:cest}):Promise.resolve(null)
+ ];
+ const results=await Promise.allSettled(tasks);
+ if(nonce!==crossCheckId || step!==4 || $('ncm').value.trim()!==ncm || $('cest').value.trim()!==cest)return;
+ const lines=['CONFERÊNCIA DOCUMENTAL AUTOMATIZADA (não é homologação tributária)'];
+ let foundNcm=false,foundCest=false,pairFound=false;
+ if(!checkNcm){lines.push('NCM: pendente — é necessário código de 8 dígitos.')}
+ else if(results[0].status==='fulfilled'){
+   const entry=results[0].value.entry||{};
+   foundNcm=true;
+   const activeForDate=!when||((!entry.data_inicio||when>=entry.data_inicio)&&(!entry.data_fim||when<=entry.data_fim));
+   lines.push('NCM '+ncm+': existe na base oficial RFB/Classif.'+(activeForDate?' Data compatível com o registro consultado.':' ATENÇÃO: data fora da vigência do registro consultado.'));
+   lines.push('Descrição oficial do código: '+ncmDescr(entry.descricao||'Consulte a hierarquia na pesquisa NCM.'));
+   if(!activeForDate)foundNcm=false;
+ }else{const error=results[0].reason;
+   lines.push('NCM '+ncm+': '+(error?.status===404?'NÃO ENCONTRADO na tabela oficial consultada.':'consulta indisponível; não foi possível verificar.'))}
+ if(!checkCest){lines.push('CEST: não informado; isso não comprova ausência de substituição tributária.')}
+ else if(results[2].status==='fulfilled'){
+   const entry=results[2].value.item||{};
+   foundCest=true;
+   lines.push('CEST '+cest+': consta na compilação pública como "'+(entry.descricao||'?')+'".');
+ }else{
+   const error=results[2].reason;
+   lines.push('CEST '+cest+': '+(error?.status===404?'não localizado na compilação disponível.':'pesquisa temporariamente indisponível.'))}
+ if(checkNcm&&checkCest&&results[1].status==='fulfilled'){
+   const options=results[1].value.items||[];
+   pairFound=options.some(o=>o.cest===cest);
+   lines.push(pairFound?'Vínculo NCM–CEST: CONSTA na compilação de terceiros (NCM/SH compatível).':'Vínculo NCM–CEST: NÃO CONSTA na compilação consultada. Verifique a descrição e o CONFAZ; ausência não prova incorreção.');
+ }else if(checkNcm&&checkCest){lines.push('Vínculo NCM–CEST: ainda não verificado.')}
+ if(foundNcm&&(!checkCest || (foundCest&&pairFound)))output.className='warning good';
+ lines.push('Resultado fiscal da operação: NÃO HOMOLOGADO. O vínculo CEST não define ST; confirme Convênio 142/18, legislação MG/GO, regime, finalidade, data e responsabilidade do imposto.');
+ output.textContent=lines.join('\n');
+}
+
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
 const fiscalEngine=window.FORTE_CLASSIFICACAO;
 const productAnalysis=fiscalEngine?fiscalEngine.suggest(product,ncm):null;
@@ -732,7 +795,7 @@ const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile===
 ['IBS / CBS','Pendente: classificação específica, vigência e cClassTrib'],
 ['Base e alíquota do ICMS','Pendente: UF, origem, benefícios, ST, pauta ou MVA, quando aplicável'],
 ['Regime federal','Não confirmado por fonte oficial']];
-$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis);goto(4);
+$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis);goto(4);checkNcmCestForOperation(ncm,cest,$('operationDate').value);
 $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '+cfopAnalysis.code+'. '+cfopAnalysis.explanation+' Pressupostos: '+(cfopAnalysis.assumptions||[]).join('; ')+'. Uso fiscal somente após conferência documental e legal.':'Classificação fiscal pendente. '+cfopAnalysis.explanation+' Consulte NCM/CEST oficiais e legislação específica da origem/destino antes de emitir ou escriturar.';
  for(const [who,label] of [['own','Consulta do cadastro próprio'],['other','Consulta da outra parte']]){const result=currentResult(who);if(result){const row=table.insertRow();row.insertCell().textContent=label;row.insertCell().textContent=statusSummary(result)+'\nIE digitada/escolhida deve corresponder ao retorno; CFOP e ICMS-ST permanecem pendentes.';}}
  const cleanProduct=product.slice(0,90);
@@ -747,6 +810,7 @@ $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '
   .then(async res=>{if(!res.ok)throw Error('HTTP '+res.status);note.textContent='Consulta agregada registrada para inteligência comercial.'})
   .catch(()=>{note.textContent='Estatísticas temporariamente indisponíveis; o resumo permanece válido como demonstração.'});
 };
+$('printDossier').onclick=()=>window.print();
 $('legacy').onclick=()=>location.assign('/');
 ['ownCnpj','ownCpf','ownUf','ownIncludeIe','ownRuralConsent'].forEach(id=>$(id).addEventListener('change',()=>invalidate('own')));
 ['otherDoc','otherIeUf','otherIncludeIe','otherRuralConsent'].forEach(id=>$(id).addEventListener('change',()=>invalidate('other')));
