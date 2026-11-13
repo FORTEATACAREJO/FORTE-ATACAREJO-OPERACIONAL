@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs><radialGradient id="b" cx="60%" cy="10%" r="100%"><stop stop-color="#0a62b0"/><stop offset=".55" stop-color="#092447"/><stop offset="1" stop-color="#040b17"/></radialGradient>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffebaf"/><stop offset=".27" stop-color="#f5bd39"/><stop offset=".5" stop-color="#af6009"/><stop offset=".82" stop-color="#ffde6a"/><stop offset="1" stop-color="#ad6017"/></linearGradient>
+<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".45" stop-color="#b3c4d7"/><stop offset=".8" stop-color="#f7fcff"/><stop offset="1" stop-color="#8297ad"/></linearGradient></defs>
+<rect width="512" height="512" rx="112" fill="url(#b)"/><rect x="18" y="18" width="476" height="476" rx="102" stroke="url(#g)" fill="none" stroke-width="14"/>
+<path d="M126 300 C190 218 349 228 413 162 C375 215 334 276 228 300 C181 311 151 314 126 300" fill="url(#g)" stroke="#ffe490" stroke-width="4"/>
+<path d="M221 113 H372 L349 164 H257 L239 212 H325 L302 260 H224 L190 359 H132 L198 153 Q208 116 221 113Z" fill="url(#s)" stroke="#fdf8df" stroke-width="2"/>
+<path d="M183 339 C272 350 369 287 409 174 C407 270 348 345 271 372 C209 394 159 377 145 368Z" fill="url(#g)"/>
+<path d="M300 365 V319 H334 V365 Z M350 365 V287 H382 V365Z M399 365 V248 H430 V365Z" fill="url(#g)" stroke="#fbd36b" stroke-width="2"/>
+</svg>
