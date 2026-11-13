@@ -91,7 +91,7 @@ function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?'
 async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
 async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;memberToken='';visitorId='';sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
 async function connect(){if(es)es.close();
- try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';}catch{}
+ try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('honesto-display-name');if(lastName)$('joinName').value=lastName;}catch{}
  $('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?mode=cliente&token='+token;await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
 viewMode(new URLSearchParams(location.search).get('mode')==='pdv'&&staff?'pdv':'cliente');}
@@ -145,7 +145,7 @@ function chooseMenu(id){
 }
 async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.trim();
  try{const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
- try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}))}catch{}
+ try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('honesto-display-name',name)}catch{}
  await refresh();note('Bem-vindo(a), '+name+'! O cardápio já está disponível.');}
  catch(ex){note(ex.message,true)}
 }
