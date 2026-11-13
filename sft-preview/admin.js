@@ -171,19 +171,49 @@ async function details(company){
 }
 const connectionKinds={
  BANK_API:"API bancária",OPEN_FINANCE:"Open Finance",BANK_FILE:"Arquivo bancário (OFX/CSV)",
+ CARD_ACQUIRER:"Credenciadora de cartões",CARD_POS:"Maquininha / POS",CARD_GATEWAY:"Gateway de cartões",CARD_FILE:"Arquivo de conciliação de cartões",
  AI_PROVIDER:"Inteligência artificial"
 };
 async function loadIntegrationSettings(company,role){
  const box=$("integrations-card");
  if(!["ADMIN","CONTADOR"].includes(role)){box.hidden=true;return;}
  box.hidden=false;
- const [connections,agents,requests,accounts]=await Promise.all([
+ const [connections,agents,requests,accounts,merchants,sales,receivables,adjustments,settlements,establishments]=await Promise.all([
   table("integration_connections?select=id,kind,provider_name,display_name,status,environment,credential_status&company_id=eq."+company.id+"&order=created_at.desc"),
   table("ai_agent_profiles?select=id,label,purpose,status,connection_id&company_id=eq."+company.id+"&order=created_at.desc"),
   table("ai_assistance_requests?select=id,task_type,state,created_at&company_id=eq."+company.id+"&order=created_at.desc&limit=30"),
-  table("bank_account_profiles?select=id,bank_name,account_label,status&company_id=eq."+company.id+"&limit=40")
+  table("bank_account_profiles?select=id,bank_name,account_label,status&company_id=eq."+company.id+"&limit=40"),
+  table("card_merchant_profiles?select=id,merchant_label,terminal_label,status&company_id=eq."+company.id+"&limit=100"),
+  table("card_sales?select=id,sale_on,modality,gross_brl&company_id=eq."+company.id+"&order=sale_on.desc&limit=50"),
+  table("card_receivable_installments?select=id,due_on,net_brl,reconciliation_state&company_id=eq."+company.id+"&order=due_on.asc&limit=50"),
+  table("card_adjustment_events?select=id,event_type,amount_brl&company_id=eq."+company.id+"&limit=50"),
+  table("card_settlement_batches?select=id,net_brl,state&company_id=eq."+company.id+"&limit=50"),
+  table("establishments?select=id,cnpj,legal_name,state&company_id=eq."+company.id+"&order=cnpj.asc")
  ]);
  $("integration-create-card").hidden=role!=="ADMIN";
+ const cardConnections=connections.filter(c=>["CARD_ACQUIRER","CARD_POS","CARD_GATEWAY","CARD_FILE"].includes(c.kind));
+ $("card-merchant-create-card").hidden=role!=="ADMIN"||!cardConnections.length||!establishments.length;
+ const cardConnEl=$("card-merchant-connection");
+ cardConnEl.replaceChildren();
+ for(const c of cardConnections){const opt=document.createElement("option");opt.value=c.id;opt.textContent=c.display_name+" · "+c.provider_name;cardConnEl.append(opt);}
+ const cardEstEl=$("card-merchant-establishment");
+ cardEstEl.replaceChildren();
+ for(const e of establishments){const opt=document.createElement("option");opt.value=e.id;opt.textContent=e.legal_name+" · "+e.state+" · "+e.cnpj;cardEstEl.append(opt);}
+ const cs=$("card-receivables-summary");
+ cs.replaceChildren();
+ const cp=document.createElement("p");
+ cp.textContent="Vínculos com operadoras: "+merchants.length+" · Vendas importadas (até 50): "+sales.length+
+ " · Parcelas previstas (até 50): "+receivables.length+
+ " · Ajustes/estornos (até 50): "+adjustments.length+" · Repasses bancários (até 50): "+settlements.length;
+ cs.append(cp);
+ const expl=document.createElement("p");expl.className="muted";
+ expl.textContent="Nenhuma cobrança é realizada por esta tela. Valores, taxas, agenda e conciliações devem vir da adquirente homologada; todas as baixas exigem conferência.";
+ cs.append(expl);
+ for(const item of receivables.slice(0,5)){
+  const el=document.createElement("p");el.className="check";
+  el.textContent="Recebível previsto "+item.due_on+" · líquido R$ "+item.net_brl+" · "+item.reconciliation_state;
+  cs.append(el);
+ }
  $("ai-agent-create-card").hidden=role!=="ADMIN";
  $("ai-request-create-card").hidden=agents.length===0;
  const providerSelect=$("ai-agent-provider");
@@ -202,6 +232,7 @@ async function loadIntegrationSettings(company,role){
  text.textContent="Conexões previstas: "+connections.length+
  " · Agentes de IA inativos: "+agents.length+
  " · Contas bancárias ligadas: "+accounts.length+
+ " · Vínculos de cartão: "+merchants.length+
  " · Solicitações de IA aguardando configuração: "+requests.length;
  summary.append(text);
  const list=$("integration-list");list.replaceChildren();
@@ -320,9 +351,12 @@ function fillGroupSelect(el,selected){
 onForm("integration-connection-form",async form=>{
  const company=requireCompany();
  const kind=$("integration-kind").value;
- if(!["BANK_API","OPEN_FINANCE","BANK_FILE","AI_PROVIDER"].includes(kind))throw new Error("Modalidade inválida");
+ if(!["BANK_API","OPEN_FINANCE","BANK_FILE","CARD_ACQUIRER","CARD_POS","CARD_GATEWAY","CARD_FILE","AI_PROVIDER"].includes(kind))throw new Error("Modalidade inválida");
  const scopes=kind==="BANK_FILE"?["ARQUIVOS_OFX_CSV"]:
   kind==="AI_PROVIDER"?["ASSISTENTE_CADASTROS"]:
+  kind==="CARD_FILE"?["ARQUIVOS_CONCILIACAO_CARTAO"]:
+  ["CARD_ACQUIRER","CARD_POS","CARD_GATEWAY"].includes(kind)?
+  ["CONSULTA_VENDAS_CARTAO","CONSULTA_RECEBIVEIS_CARTAO","CONSULTA_TAXAS_CARTAO","CONSULTA_ESTORNOS_CONTESTACOES"]:
   ["CONSULTA_SALDO","CONSULTA_EXTRATO"];
  await insertRow("integration_connections",{
   company_id:company.id,kind,
@@ -334,6 +368,21 @@ onForm("integration-connection-form",async form=>{
  });
  form.reset();await details(company);
  say("Conexão preparada em sandbox. Não foram vinculadas credenciais nem dados bancários.");
+});
+onForm("card-merchant-form",async form=>{
+ const company=requireCompany();
+ const connectionId=$("card-merchant-connection").value;
+ const establishmentId=$("card-merchant-establishment").value;
+ if(!connectionId||!establishmentId)throw new Error("Cadastre antes uma conexão de cartão e selecione o estabelecimento.");
+ await insertRow("card_merchant_profiles",{
+  company_id:company.id,connection_id:connectionId,establishment_id:establishmentId,
+  merchant_label:$("card-merchant-label").value.trim(),
+  terminal_label:$("card-terminal-label").value.trim()||null,
+  provider_merchant_reference:null,settlement_bank_account_id:null,
+  status:"AGUARDANDO_VINCULO"
+ });
+ form.reset();await details(company);
+ say("Vínculo da operadora/maquininha registrado sem credenciais. Nenhum pagamento foi realizado.");
 });
 onForm("ai-agent-form",async form=>{
  const company=requireCompany();
