@@ -9,10 +9,16 @@
   "theme_color": "#102640",
   "icons": [
     {
-      "src": "/icon.svg?v=fortecompanny1",
+      "src": "/icon.svg?v=fortecompanny2",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg?v=fortecompanny2",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "description": "Consulta inteligente de NCM, CEST, CFOP e informações fiscais."
