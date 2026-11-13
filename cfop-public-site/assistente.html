@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTE TECH CFOP</title>
-<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script>
+<meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTECOMPANNY</title><meta name="application-name" content="FORTECOMPANNY"><meta name="apple-mobile-web-app-title" content="FORTECOMPANNY">
+<link rel="icon" href="/icon.svg?v=fortecompanny1" type="image/svg+xml"><link rel="manifest" href="/manifest.json?v=fortecompanny1"><script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script>
 <style>
 :root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#152b42;background:#f3f5f9}
 *{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 870px)/2));display:flex;gap:12px;align-items:center}
@@ -30,7 +30,7 @@ summary{cursor:pointer;font-weight:700}.fiscal-dossier{display:grid;gap:14px;mar
 footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.card{padding:16px}.actions{flex-direction:column}}
 </style></head>
-<body><header><img src="/icon.svg" alt=""><div><strong>FORTE TECH</strong><small>Assistente de consulta fiscal • versão experimental</small></div></header>
+<body><header><img src="/icon.svg" alt=""><div><strong>FORTECOMPANNY</strong><small>Assistente de consulta fiscal • versão experimental</small></div></header>
 <main><div class="two"><div><h1>Consulta fiscal em quatro passos</h1><p>Responda apenas o que você sabe. O sistema identifica o que falta confirmar em fontes oficiais, sem adivinhar impostos.</p></div><a href="/">Consulta tradicional</a></div>
 <div class="card" id="step0">
 <h2 style="font-size:clamp(22px,5vw,29px);line-height:1.3">Você deseja comprar mercadorias ou vender mercadorias?</h2>
@@ -84,7 +84,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <button id="lookupOther" class="primary" type="button">Buscar cadastro da outra parte</button>
 <label id="otherIncludeIeWrap" class="check" style="margin:0"><input id="otherIncludeIe" type="checkbox"><span>Consultar também IE (usa cota gratuita)</span></label>
 </div>
-<label class="check hidden" id="otherRuralConsentWrap"><input id="otherRuralConsent" type="checkbox"><span>Declaro ter uma finalidade legítima para consultar este CPF rural e concordo com seu envio à SintegrAPI para pesquisa cadastral. O CPF não será incluído nas estatísticas da Forte Tech.</span></label>
+<label class="check hidden" id="otherRuralConsentWrap"><input id="otherRuralConsent" type="checkbox"><span>Declaro ter uma finalidade legítima para consultar este CPF rural e concordo com seu envio à SintegrAPI para pesquisa cadastral. O CPF não será incluído nas estatísticas da FORTECOMPANNY.</span></label>
 <div class="warning" id="otherLookupStatus" role="status" style="margin-top:14px"><strong>Conferência cadastral.</strong> A consulta automática depende das credenciais dos fornecedores. Sem retorno verificado, estados, IE e situação tributária continuam informados e sujeitos a conferência. Não presumiremos CFOP ou ICMS-ST.</div>
 <div class="field hidden" id="otherRegistrationsWrap"><label for="otherRegistrations">Escolha a inscrição estadual consultada</label><select id="otherRegistrations"></select></div>
 <div class="actions"><button id="back2">Voltar</button><button class="gold" id="next2">Continuar</button></div></div>
@@ -101,7 +101,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field"><label for="ncm">NCM (sugestão automática ou informado na NF-e)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
 <div class="field"><label for="cest">CEST (quando aplicável)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
 <div class="field"><label id="useLabel" for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
-<div class="field full"><div id="catalogHint" class="warning">Digite o produto para obter sugestões de NCM e CEST, quando existirem na tabela fundamentada da FORTE TECH.</div></div>
+<div class="field full"><div id="catalogHint" class="warning">Digite o produto para obter sugestões de NCM e CEST, quando existirem na tabela fundamentada da FORTECOMPANNY.</div></div>
 <div class="field full" style="padding:14px;border:1px solid #dae3ec;border-radius:12px;background:#f9fbfd">
 <label for="ncmOfficialSearch">Pesquisar na tabela completa de NCM da Receita Federal</label>
 <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -149,7 +149,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="divider"></div>
 <p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
 <div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="legacy">Abrir simulador experimental</button></div></div>
-<div id="msg" role="alert"></div></main><footer>Sistemas Forte Tech • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
+<div id="msg" role="alert"></div></main><footer>FORTECOMPANNY • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
 <script>
 (function(){
 'use strict'; const REGISTRY='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-cadastros';
@@ -379,7 +379,7 @@ function selectXmlItem(index){
  'ICMS-ST destacado na operação: '+(item.icms.valueST||'não destacado'),
  'ICMS-ST retido anteriormente: '+(item.icms.valueSTRet||'não indicado'),
  'Não usar CFOP/CST ou valores desta NF-e automaticamente na nova operação.',
- 'Nenhum dado do arquivo será enviado à estatística da FORTE TECH.'
+ 'Nenhum dado do arquivo será enviado à estatística da FORTECOMPANNY.'
  ];
  xmlStatus(reasons.join('\n'),true);
  $('xmlNfeStatus').style.whiteSpace='pre-line';
@@ -742,7 +742,7 @@ $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '
  if(ncm)payload.ncm=ncm;
  if(profile==='company'&&$('insights').checked)payload.company={cnpj:alpha($('ownCnpj').value),name:$('ownName').value.trim()||null};
  const note=document.createElement('p');note.className='muted';note.textContent='Registrando estatísticas de consulta (sem documentos de terceiros)...';$('summary').appendChild(note);
- if(xmlDocument){note.textContent='Arquivo XML utilizado: nenhuma informação desta consulta foi enviada às estatísticas da FORTE TECH.';return;}
+ if(xmlDocument){note.textContent='Arquivo XML utilizado: nenhuma informação desta consulta foi enviada às estatísticas da FORTECOMPANNY.';return;}
  fetch(BASE+'/api/consult',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
   .then(async res=>{if(!res.ok)throw Error('HTTP '+res.status);note.textContent='Consulta agregada registrada para inteligência comercial.'})
   .catch(()=>{note.textContent='Estatísticas temporariamente indisponíveis; o resumo permanece válido como demonstração.'});
