@@ -72,6 +72,33 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <div id="groups-list" class="muted"></div>
 </div>
 <div class="card" id="details" hidden>
+<div class="card" id="license-panel">
+<h2>Licença de uso — por sistema e empresa</h2>
+<p class="muted">Cada sistema é licenciado separadamente para a empresa selecionada. Matriz e filiais do mesmo CNPJ raiz compartilham a licença da pessoa jurídica. Empresas distintas precisam de contratos próprios.</p>
+<div id="license-status" class="note" role="status" aria-live="polite">Verificando licença...</div>
+<div id="license-other-systems" class="muted"></div>
+<div id="license-master-form-card" class="card" hidden>
+<h3>Administração Master — liberar, renovar ou suspender</h3>
+<p class="muted">Somente Master autorizado pode alterar licenças. A ativação é manual, sem cobrança ou pagamento automático. Uma licença ativa não homologa operações fiscais.</p>
+<form id="license-form">
+<label for="license-product">Sistema</label>
+<select id="license-product" required></select>
+<label for="license-action">Operação</label>
+<select id="license-action"><option value="ATIVA">Conceder / renovar licença</option><option value="SUSPENSA">Suspender acesso</option><option value="CANCELADA">Cancelar licença</option></select>
+<label for="license-mode">Modalidade comercial</label>
+<select id="license-mode"><option value="ASSINATURA">Assinatura</option><option value="TESTE">Teste</option><option value="INTERNA">Uso interno</option></select>
+<label for="license-plan">Nome do plano</label>
+<input id="license-plan" required minlength="3" maxlength="80" value="PADRAO">
+<label for="license-start">Início da vigência</label><input id="license-start" type="date" required>
+<label for="license-end">Válida até (final do dia, horário de Brasília)</label><input id="license-end" type="date" required>
+<label for="license-justification">Justificativa / referência contratual</label>
+<textarea id="license-justification" rows="2" maxlength="500" required placeholder="Ex.: assinatura autorizada, contrato, período de teste"></textarea>
+<button type="submit">Salvar licença no servidor</button>
+</form>
+</div>
+</div>
+<div id="company-licensed-content">
+
 <div id="assign-group-card" hidden>
 <h3>Vincular empresa a grupo</h3>
 <form id="assign-group-form">
@@ -357,6 +384,7 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </div>
 <div id="integration-list" class="muted"></div>
 </section>
+</div>
 </div>
 </section>
 <footer>Setor Fiscal Multiempresa · separado do APP CFOP e FORTE FISCAL · nenhuma emissão fiscal real disponível.</footer>
