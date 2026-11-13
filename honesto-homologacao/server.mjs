@@ -84,16 +84,16 @@ const server=http.createServer(async(req,res)=>{
    s.count=Math.max(s.count,s.people.filter(p=>p.present).length);
    broadcast(s);return reply(res,201,{ok:true,memberToken,person:person.id});
   }
-  const verifyMember=(expectedPerson)=>{
+  const verifyMember=(expectedPerson,requirePresent=false)=>{
    const id=s.memberTokens.get(String(x.memberToken||''));
-   if(!id||!s.people.some(p=>p.id===id&&p.present))throw Object.assign(new Error('Entre com seu nome para acessar esta funcionalidade'),{http:403});
+   if(!id||!s.people.some(p=>p.id===id&&(!requirePresent||p.present)))throw Object.assign(new Error('Entre com seu nome para acessar esta funcionalidade'),{http:403});
    if(expectedPerson&&expectedPerson!==id)throw Object.assign(new Error('Não é possível agir por outra pessoa'),{http:403});
    return id;
   };
   if(u.pathname==='/api/client/order'){
    // A request is NOT an invoiceable item until the simulated POS confirms it.
    if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo HONESTO'),{http:403});
-   const memberId=verifyMember(x.person);
+   const memberId=verifyMember(x.person,true);
    const person=existingPerson(s,memberId);
    if(!person||!person.present)throw new Error('Participante não encontrado na mesa');
    const product=s.menu.find(m=>m.id===x.menuId),qty=Number(x.qty);
@@ -101,7 +101,7 @@ const server=http.createServer(async(req,res)=>{
    const requestId=String(x.requestId||'');
    if(!product||!Number.isInteger(qty)||qty<1||qty>10||!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Pedido inválido');
    const previous=s.orders.find(o=>o.requestId===requestId);
-   if(previous)return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});
+   if(previous){if(previous.person!==person.id)throw Object.assign(new Error('ID de solicitação pertence a outro cliente'),{http:409});return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});}
    if(s.orders.length>=50)throw Object.assign(new Error('Limite de pedidos da sessão de teste atingido'),{http:429});
    const requested={id:rand(),requestId,person:person.id,menuId:product.id,name:product.name,qty,unit:product.unit,note,table:s.table,status:'solicitado',itemId:null,createdAt:now(),updatedAt:now()};
    s.orders.push(requested);
@@ -140,7 +140,7 @@ const server=http.createServer(async(req,res)=>{
    s.payments.push({id:rand(),person:person?.id||null,amount,method:x.method,status:'confirmed',at:now()});
    if(person&&x.leaves){person.present=false;s.count=Math.max(1,s.count-1);}
   }else if(u.pathname==='/api/client/service'){
-   verifyMember(x.person);
+   verifyMember(x.person,true);
    const p=existingPerson(s,x.person);if(!p)throw new Error('Participante obrigatório');
    const previous=p.service;p.service=Boolean(x.enabled);if(snapshot(s).balance<0){p.service=previous;throw new Error('Serviço já coberto por pagamento confirmado');}
   }else if(u.pathname==='/api/client/contest'){
@@ -149,11 +149,11 @@ const server=http.createServer(async(req,res)=>{
    if(!item||reason.length<5||reason.length>220)throw new Error('Contestação inválida');
    s.disputes.push({id:rand(),item:item.id,reason,status:'pendente',at:now()});
   }else if(u.pathname==='/api/client/split'){
-   verifyMember();
+   verifyMember(null,true);
    if(!['restante','todos','individual'].includes(x.mode)||!Number.isInteger(x.count)||x.count<1||x.count>30)throw new Error('Divisão inválida');
    s.mode=x.mode;s.count=x.count;
   }else if(u.pathname==='/api/client/assign'){
-   verifyMember(x.person);
+   verifyMember(x.person,true);
    const item=s.items.find(i=>i.id===x.id&&i.active);if(!item)throw new Error('Produto não encontrado');
    const next=existingPerson(s,x.person)?.id||null,old=item.person;item.person=next;
    if(snapshot(s).balance<0){item.person=old;throw new Error('Pagamentos impedem esta alteração');}
