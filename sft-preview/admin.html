@@ -47,6 +47,37 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </section>
 <section id="dashboard" hidden>
 <div class="card"><div class="grid"><div><h1>Painel de empresas</h1><p id="identity" class="muted"></p><span class="pill" id="role">Conta autenticada</span></div><div><button type="button" id="activate" class="secondary" hidden>Ativar Master</button><button type="button" id="accept-invites" class="secondary">Aceitar convites do meu e-mail</button><button type="button" id="refresh" class="secondary">Atualizar dados</button><button type="button" id="logout" class="secondary">Sair</button></div></div></div>
+<section id="signup-card" class="card">
+<h2>Solicitar cadastro de empresa</h2>
+<p class="muted">O interessado envia o CNPJ, atividade e regime informados, sem receber acesso aos dados da empresa. A equipe Master confere a representação e o cadastro antes de aprovar. O regime e o CNAE declarados não são considerados verificados automaticamente.</p>
+<div class="grid">
+<form id="signup-form">
+<label for="signup-cnpj">CNPJ completo (numérico ou alfanumérico)</label>
+<input id="signup-cnpj" required maxlength="24" placeholder="Ex.: 00.000.000/0001-00">
+<label for="signup-name">Razão social informada</label><input id="signup-name" required minlength="3" maxlength="160">
+<label for="signup-uf">UF da matriz</label><select id="signup-uf" required></select>
+<label for="signup-city">Cidade</label><input id="signup-city" required minlength="2" maxlength="120">
+<label for="signup-regime">Regime tributário informado</label>
+<select id="signup-regime"><option value="A_DEFINIR">Ainda não confirmado</option><option value="SIMPLES_NACIONAL">Simples Nacional (informado)</option><option value="MEI">MEI (informado)</option><option value="LUCRO_PRESUMIDO">Lucro Presumido (informado)</option><option value="LUCRO_REAL">Lucro Real (informado)</option><option value="IMUNE_ISENTA">Imune/isenta (informado)</option><option value="OUTRO">Outro</option></select>
+<label for="signup-sector">Atividade informada</label>
+<select id="signup-sector"><option value="A_DEFINIR">A verificar</option><option value="COMERCIO">Comércio</option><option value="INDUSTRIA">Indústria</option><option value="SERVICOS">Serviços</option><option value="AGROPECUARIA">Agropecuária</option><option value="MISTO">Misto</option><option value="OUTROS">Outros</option></select>
+<label for="signup-cnae">CNAE principal (opcional, 7 números)</label>
+<input id="signup-cnae" inputmode="numeric" pattern="[0-9]{7}" maxlength="7">
+<label><input id="signup-authorized" type="checkbox" required style="width:auto"> Confirmo que tenho autorização para solicitar o cadastro desta empresa.</label>
+<button type="submit">Enviar para análise do Sistemas Forte Tech</button>
+</form>
+<div>
+<h3>Minhas solicitações</h3>
+<div id="signup-my-list" class="muted">Nenhuma solicitação registrada.</div>
+<p class="muted">A aprovação comercial não emite notas fiscais, não valida o regime tributário e não concede licença sem assinatura.</p>
+</div>
+</div>
+</section>
+<section id="signup-master-review" class="card" hidden>
+<h2>Master — solicitações de empresas pendentes</h2>
+<p class="muted">Confira CNPJ, legitimidade do solicitante e representação por documentos/fontes independentes antes de aprovar. Digitar apenas o CNPJ não comprova propriedade.</p>
+<div id="signup-review-list" class="muted"></div>
+</section>
 <div class="grid">
 <div class="card"><h2>Empresas autorizadas</h2><div id="companies"><p class="muted">Nenhuma empresa autorizada.</p></div></div>
 <div class="card" id="create-card" hidden><h2>Cadastrar nova empresa</h2><p class="muted">Pessoa jurídica independente. Registro começa com emissão e tributação não homologadas.</p>
