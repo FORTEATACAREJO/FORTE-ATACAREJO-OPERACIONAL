@@ -6,7 +6,7 @@ const MASTER="sistemasfortetech@gmail.com";
 const STORAGE_KEY="sft-secure-admin-session";
 const $=id=>document.getElementById(id);
 const knownStates="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-let session=null, user=null, isMaster=false, selectedCompany=null, groups=[];
+let session=null, user=null, isMaster=false, selectedCompany=null, groups=[],licensedSystems=[];
 const messages={
  CNPJ_E_ESTABELECIMENTOS:"CNPJ e estabelecimentos",
  REGIME_TRIBUTARIO:"Regime tributário",CNAE_E_ATIVIDADE:"CNAE e atividade",
@@ -74,8 +74,68 @@ async function activate(){
 function textLine(parent,heading,text){
  const p=document.createElement("p");const strong=document.createElement("strong");strong.textContent=heading+": ";p.append(strong,document.createTextNode(text??"—"));parent.append(p);
 }
+function toBrazilDate(date){
+ return new Date(date.getTime()-3*3600*1000).toISOString().slice(0,10);
+}
+async function showCompanyLicense(company){
+ const el=$("license-status"),systemsEl=$("license-other-systems");
+ el.textContent="Verificando a licença no servidor...";
+ systemsEl.replaceChildren();
+ $("license-master-form-card").hidden=!isMaster;
+ const records=[];
+ for(const system of licensedSystems){
+  const status=await rpc("get_company_system_license_status",{
+   p_company:company.id,p_system_code:system.code
+  });
+  records.push({...status,name:system.name});
+ }
+ const current=records.find(r=>r.system_code==="SFT_SETOR_FISCAL");
+ if(!current)throw Error("Sistema atual não está cadastrado no servidor de licenças.");
+ const b=document.createElement("strong");
+ b.textContent=current.effective_active?"Licença ativa":"Acesso empresarial bloqueado";
+ el.replaceChildren(b);
+ const description=document.createElement("p");
+ let detail=current.computed_state.replaceAll("_"," ");
+ if(current.ends_at)detail+=" · vencimento: "+new Date(current.ends_at).toLocaleString("pt-BR");
+ if(current.plan)detail+=" · plano "+current.plan;
+ description.textContent=detail+". "+(current.effective_active?
+  "Empresa autorizada a utilizar os módulos de configuração. Emissão fiscal continua dependente de homologação.":
+  "Esta empresa não poderá consultar nem alterar dados operacionais sem licença válida.");
+ el.append(description);
+ el.style.background=current.effective_active?"#ebf7ee":"#fff5df";
+ const h=document.createElement("h3");h.textContent="Licenças dos demais sistemas";
+ systemsEl.append(h);
+ for(const item of records.filter(x=>x.system_code!=="SFT_SETOR_FISCAL")){
+  const p=document.createElement("p");
+  p.className="muted";
+  p.textContent=item.name+" · "+item.computed_state.replaceAll("_"," ")+
+  (item.integration_ready?"":" · aplicação independente ainda sem integração do bloqueio");
+  systemsEl.append(p);
+ }
+ if(isMaster){
+  const allowed=licensedSystems.filter(x=>x.integration_state==="IMPLEMENTADO");
+  const select=$("license-product");select.replaceChildren();
+  for(const item of allowed){const opt=document.createElement("option");opt.value=item.code;opt.textContent=item.name;select.append(opt);}
+  select.value="SFT_SETOR_FISCAL";
+  const localDate=toBrazilDate(new Date());
+  const future=new Date(Date.now()+30*24*3600*1000);
+  $("license-start").value=localDate;
+  $("license-end").value=toBrazilDate(future);
+  if(current.effective_active){
+   $("license-mode").value=current.mode||"ASSINATURA";
+   $("license-plan").value=current.plan||"PADRAO";
+   if(current.starts_at)$("license-start").value=toBrazilDate(new Date(current.starts_at));
+   if(current.ends_at)$("license-end").value=toBrazilDate(new Date(current.ends_at));
+  }
+ }
+ return current.effective_active===true;
+}
 async function details(company){
  selectedCompany=company;
+ $("details").hidden=false;
+ const licensed=await showCompanyLicense(company);
+ $("company-licensed-content").hidden=!licensed;
+ if(!licensed){$("detail-content").replaceChildren();return;}
  const container=$("detail-content");
  $("details").hidden=false;
  container.replaceChildren();
@@ -426,6 +486,7 @@ async function load(){
  $("role").textContent=isMaster?"Master Sistemas Forte Tech":"Usuário autenticado";
  $("activate").hidden=isMaster||user.email?.toLowerCase()!==MASTER;
  $("create-card").hidden=!isMaster;
+ licensedSystems=await table("sft_system_catalog?select=code,name,integration_state&order=name.asc");
  groups=isMaster?await table("business_groups?select=id,name&order=name.asc"):[];
  $("group-card").hidden=!isMaster;
  if(isMaster){fillGroupSelect($("company-group"),"");const gl=$("groups-list");gl.replaceChildren();for(const g of groups){const row=document.createElement("p");row.textContent=g.name;gl.append(row);}}
@@ -502,6 +563,30 @@ function fillGroupSelect(el,selected){
  for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
  el.value=selected||"";
 }
+onForm("license-form",async form=>{
+ if(!isMaster)throw Error("Licenças só podem ser concedidas pelo Master.");
+ const company=requireCompany();
+ const start=$("license-start").value,end=$("license-end").value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||end<start)
+  throw Error("Informe datas de início e término válidas.");
+ const reason=$("license-justification").value.trim();
+ if(reason.length<10)throw Error("A justificativa da licença precisa de pelo menos 10 caracteres.");
+ const product=$("license-product").value;
+ const status=$("license-action").value;
+ if(!licensedSystems.some(x=>x.code===product&&x.integration_state==="IMPLEMENTADO"))
+  throw Error("Não é permitido liberar sistema sem integração de licença concluída.");
+ await rpc("set_company_system_license",{
+  p_company:company.id,p_system_code:product,
+  p_status:status,p_mode:$("license-mode").value,
+  p_starts_at:start+"T00:00:00-03:00",
+  p_ends_at:end+"T23:59:59-03:00",
+  p_plan:$("license-plan").value.trim(),p_justification:reason
+ });
+ form.reset();
+ await details(company);
+ say(status==="ATIVA"?"Licença cadastrada no servidor. A validade será conferida em cada acesso.":
+   "Licença suspensa/cancelada no servidor. Os módulos empresariais ficarão bloqueados.");
+});
 onForm("accountant-assignment-form",async form=>{
  const company=requireCompany();
  const id=$("accountant-member").value;
