@@ -35,3 +35,15 @@ Implantação: branch `deploy/forte-tech-cfop-publico-20261112`; publishPath `cf
 - Aplicação: consulta fiscal orientativa (NCM, CEST, CFOP e dados tributários), sem homologação de emissão.
 - Identificadores técnicos existentes, URL pública, branch, Supabase e serviço Render são mantidos para preservar integrações e histórico.
 - A indicação da pessoa jurídica responsável nos termos de uso é independente da marca comercial do aplicativo.
+
+## Implementação do ícone aprovado e verificações fiscais (13/11/2026)
+
+- Identidade visual: `icon.svg` é a adaptação **vetorial otimizada** do conceito visual aprovado para a FORTECOMPANNY; `icon-maskable.svg` é a adaptação simplificada para a área segura dos atalhos Android.
+- `manifest.json` declara as versões `any` e `maskable` em SVG, mantendo a identificação PWA existente e o nome curto **FORTECOMPANNY**.
+- O `sw.js` incrementa o cache para `fortecompanny-v4`, preservando abordagem network-first e incluindo as duas versões de ícone.
+- A consulta em `assistente.html` agora valida assincronamente o NCM de 8 dígitos junto à versão oficial RFB (existência e datas do registro) e cruza o CEST informado com os possíveis vínculos da compilação CEST por NCM/SH. **Não** atribui validade fiscal definitiva pela existência de um código.
+- Se o vínculo NCM–CEST não estiver na compilação, a tela avisa que isso **não comprova** inexistência de CEST ou ST.
+- `classificacao.js` evita sugestão de CFOP em nome de CPF simples sem IE e impede hipóteses com perfil incompatível com o contribuinte declarado.
+- Botão **Imprimir / salvar PDF** usa o diálogo nativo do navegador, com folha de impressão sem campos de formulário e sem incluir dados da conta do usuário.
+- Publicação verificada por HTTP: `icon.svg`, `icon-maskable.svg`, `manifest.json`, `assistente.html` e `classificacao.js` retornaram 200; nome do PWA e campos revisados conferidos.
+- **Limite:** ainda não foi realizada homologação fiscal por UF e operação, nem navegação ponta a ponta autenticada com dados reais das APIs externas.
