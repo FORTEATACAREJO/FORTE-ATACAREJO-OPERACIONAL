@@ -13,7 +13,7 @@ cd honesto-homologacao
 node server.mjs
 ```
 
-Acesse `http://localhost:10000`. Ao iniciar, o servidor cria uma mesa fictícia isolada por visitante. A aba do caixa recebe uma credencial efêmera exclusiva da demonstração; links de clientes são apenas de consulta e contestação. Cada instância expira automaticamente após 3 horas.
+Acesse `http://localhost:10000`. Ao iniciar, o servidor cria uma mesa fictícia isolada por visitante. A aba do caixa recebe uma credencial efêmera exclusiva da demonstração; links de clientes são apenas de consulta e contestação. Cada instância de demonstração expira automaticamente após 3 horas. A persistência até quitação na versão comercial exigirá um banco durável e conciliação com o PDV.
 
 ## Funcionalidades
 
@@ -38,3 +38,12 @@ O preço aprovado para a licença futura é R$ 4,99/mês por estabelecimento; cl
 - Criar banco exclusivo e ambiente seguro de homologação;
 - Migrar código e configuração por infraestrutura como código, sem dependência dos bancos do FORTE FISCAL e OPERACIONAL;
 - A marca e a tecnologia serão atribuídas à futura pessoa jurídica HONESTO conforme documentação societária, com a FORTE ATACAREJO LTDA. como controladora.
+
+## Atualização — QR único e trocas de mesa (13/11/2026)
+
+- QR Code único do restaurante, contendo apenas identificador do estabelecimento, não um QR exclusivo de cada mesa.
+- Cliente informa número da mesa e primeiro nome; o aplicativo obtém a sessão de comanda referente àquela mesa no ambiente demonstrativo.
+- Botão **Trocar mesa** ao lado do número atual; troca fica pendente até confirmação pelo **PDV simulado**, que continua sendo a interface usada pelo garçom.
+- Número da mesa atual é um atributo do participante. O vínculo da comanda (itens, pagamentos e eventos) permanece igual, ainda que o participante mude de lugar.
+- A conta **não é automaticamente quitada ao zerar o saldo**; somente o PDV pode confirmar quitação, e o histórico permanece acessível ao titular da sessão até essa confirmação.
+- IMPORTANTE: o protótipo público usa dados inteiramente fictícios, memória volátil e acesso a mesas de demonstração apenas pelo número. Não é seguro para contas reais sem verificação adicional da mesa, acesso autorizado, RLS e banco persistente.
