@@ -75,7 +75,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   </div>
   <aside>
     <div class="card"><h2>Confirmar pagamento presencial</h2><form id="payForm"><label class="field">Valor (R$)<input id="payAmount" value="30,00" required></label><label class="field">Quem pagou?<select id="payPerson"></select></label><label class="field">Recebido via<select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select></label><label class="checkbox"><input type="checkbox" id="leaves"> Pessoa está saindo da mesa</label><button class="btn dark" type="submit">✓ Confirmar recebimento (demo)</button></form><p class="small">Este botão não movimenta dinheiro, apenas simula o lançamento recebido pelo garçom.</p></div>
-    <div class="card"><h2>Histórico de pagamentos</h2><div id="payments"></div></div><div class="card"><h2>Quitação da comanda</h2><p class="small">O histórico é mantido durante as trocas de mesa e até a confirmação de quitação pelo PDV.</p><button class="btn dark" id="settleButton" onclick="settleBill()">Confirmar quitação (PDV simulado)</button><p class="small" id="settlementLabel"></p></div>
+    <div class="card"><h2>Histórico de pagamentos</h2><div id="payments"></div></div><div class="card"><h2>Histórico completo da comanda</h2><p class="small">Pedidos, lançamentos, cancelamentos e confirmações com data e hora.</p><div id="cashTimeline"></div></div><div class="card"><h2>Quitação da comanda</h2><p class="small">O histórico é mantido durante as trocas de mesa e até a confirmação de quitação pelo PDV.</p><button class="btn dark" id="settleButton" onclick="settleBill()">Confirmar quitação (PDV simulado)</button><p class="small" id="settlementLabel"></p></div>
     <div class="card"><h2>Conectar sistema do restaurante</h2><div class="info">HONESTO CONNECT será ativado após homologação do protocolo seguro. Nesta versão, apenas o PDV simulado envia lançamentos.</div></div>
   </aside>
  </section>
@@ -86,6 +86,9 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 let token='',staff='',data=null,es=null,loading=false,mode='cliente',pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,qrRendered='',establishmentId='';
 const $=(x)=>document.getElementById(x);
 const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
+const dtFormat=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const stamp=(value)=>{if(!value)return 'Horário não informado';const d=new Date(value);return Number.isNaN(d.getTime())?'Horário inválido':dtFormat.format(d).replace(',',' ·')};
+const timeInfo=(at,title='Registrado')=>'<div class="small">'+escapeHtml(title)+': '+stamp(at)+'</div>';
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
 async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
@@ -113,10 +116,10 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  const awaiting=myMoves.find(t=>t.status==='pendente');
  $('movePending').textContent=awaiting?'Troca solicitada: '+awaiting.from+' → '+awaiting.to+' · Aguardando confirmação no sistema do restaurante':d.closed?'Comanda quitada e encerrada.':'';
  if(joined&&d.personalTable){try{localStorage.setItem('honesto-last-table',d.personalTable.replace(/^Mesa /,''));localStorage.setItem('honesto-current-comanda:'+establishmentId,JSON.stringify({token,memberToken,visitorId}))}catch{}}
- $('accountHistory').innerHTML='<div class="row"><strong>Comanda</strong><span class="pill '+(d.closed?'ok':'warn')+'">'+(d.closed?'Quitada':'Em aberto')+'</span></div>'+
-  myMoves.map(t=>'<div class="row"><div>Troca '+escapeHtml(t.from)+' → '+escapeHtml(t.to)+'</div><span class="pill '+(t.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(t.status)+'</span></div>').join('')+
-  d.payments.map(p=>'<div class="row"><span>Pagamento confirmado · '+escapeHtml(p.method)+'</span><strong>'+fmt(p.amount)+'</strong></div>').join('')+
-  '<div class="row"><span>Saldo atual</span><strong>'+fmt(d.balance)+'</strong></div>';
+ const auditRows=[...d.timeline].reverse().map(e=>'<div class="row"><div><strong>'+escapeHtml(e.detail)+'</strong>'+timeInfo(e.at,'Movimentação')+'</div>'+(typeof e.amount==='number'?'<span class="value">'+fmt(e.amount)+'</span>':'')+'</div>').join('')||'<p class="small">Nenhuma movimentação registrada.</p>';
+ $('accountHistory').innerHTML='<div class="row"><strong>Comanda aberta</strong><span>'+stamp(d.createdAt)+'</span></div>'+
+ auditRows+(d.settledAt?'<div class="row"><strong>Quitação confirmada</strong><span>'+stamp(d.settledAt)+'</span></div>':'<div class="row"><strong>Status</strong><span class="pill warn">Aguardando quitação pelo caixa</span></div>');
+ $('cashTimeline').innerHTML=auditRows;
  $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
  renderQR();
  $('transferRequests').innerHTML=d.transfers.map(t=>'<div class="row"><div><strong>'+escapeHtml(ids[t.person]||'Participante')+'</strong><div class="small">'+escapeHtml(t.from)+' → '+escapeHtml(t.to)+'</div><span class="pill '+(t.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(t.status)+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+(t.status==='pendente'?'<button class="btn sm" onclick="resolveTransfer(\''+t.id+'\',\'aprovada\')">Confirmar</button><button class="btn red sm" onclick="resolveTransfer(\''+t.id+'\',\'recusada\')">Recusar</button>':'')+'</div></div>').join('')||'<p class="small">Nenhuma troca solicitada.</p>';
