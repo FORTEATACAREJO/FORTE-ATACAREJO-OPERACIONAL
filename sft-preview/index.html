@@ -47,7 +47,7 @@ section[hidden]{display:none!important}
 <button type="button" data-tab="estoque">Estoque</button>
 <button type="button" data-tab="regras">Regras fiscais</button>
 <button type="button" data-tab="simulador">Simulador</button>
-<button type="button" data-tab="integracoes">Bancos e IA</button>
+<button type="button" data-tab="integracoes">Bancos, cartões e IA</button>
 <button type="button" data-tab="notas">NF-e / NFC-e</button>
 </nav>
 <section id="painel"><div class="title"><h1>Visão geral</h1><p class="muted">Estrutura de homologação do Setor Fiscal de Empresas — independente do APP CFOP e do FORTE FISCAL.</p></div>
@@ -74,13 +74,17 @@ section[hidden]{display:none!important}
 <div class="card"><h2>MG, GO e legislação federal</h2><p>Motor fiscal v0.2 implantado em API protegida; 8 regras iniciais continuam pendentes de validação. A prévia sem senha não consulta cálculos privados. A plataforma precisará avaliar UF de origem/destino, CFOP, NCM, CEST, finalidade e regime por empresa.</p><div class="alert"><b>Nenhuma regra inicial está homologada.</b> O motor não deve determinar tributo automaticamente nesta fase.</div></div></section>
 <section id="simulador" hidden><div class="title"><h1>Simulador fiscal demonstrativo</h1><p class="muted">O exercício abaixo é demonstrativo. O motor fiscal v0.2 real exige sessão autorizada para consultar regras e registrar simulações; nenhuma nota é emitida.</p></div><div class="card"><form id="simulation-form"><div class="grid"><div><label for="origin">UF de origem</label><select id="origin"><option>MG</option><option>GO</option></select></div><div><label for="destination">UF de destino</label><select id="destination"><option>MG</option><option>GO</option></select></div><div><label for="purpose">Finalidade</label><select id="purpose"><option>Revenda</option><option>Consumidor final</option><option>Uso e consumo</option><option>Industrialização</option></select></div><div><label for="category">Produto</label><select id="category"><option>Cimento</option><option>Argamassa</option><option>Cal</option><option>Impermeabilizante</option><option>Rejunte</option></select></div></div><button type="submit" class="action">Testar cenário</button></form><div id="simulation-output" aria-live="polite"></div></div></section>
 <section id="integracoes" hidden>
-<div class="title"><h1>Integrações bancárias e inteligência artificial</h1>
+<div class="title"><h1>Bancos, cartões e inteligência artificial</h1>
 <p class="muted">Preparação para atender muitas empresas com CNPJs distintos, cada uma com seus fornecedores e autorizações próprias.</p></div>
 <div class="grid">
 <div class="card"><h2>Integrações bancárias</h2>
 <p>Estrutura pronta para cadastrar API de banco, parceiro Open Finance ou importação futura de arquivos OFX/CSV.</p>
 <p>Extratos, conciliações sugeridas e eventos serão individualizados por empresa e conta.</p>
 <p class="badge">Aguardando provedor, contrato, consentimento e homologação</p></div>
+<div class="card"><h2>Cartões e adquirentes</h2>
+<p>Configuração para cartões de crédito, débito e modalidades aceitas pelo provedor: maquininhas, POS/TEF, gateways e conciliação por API ou arquivos.</p>
+<p>Agenda de recebíveis, taxas MDR, parcelamento, antecipações, cancelamentos, chargebacks, valores brutos/líquidos e confronto com depósitos bancários.</p>
+<p class="muted">Sem cobranças reais e sem armazenar dados completos de cartão ou CVV. Cadastro de conexões disponível no painel protegido.</p></div>
 <div class="card"><h2>Agentes de IA</h2>
 <p>Perfis específicos para apoiar cadastros, classificações, explicações fiscais e sugestões de conciliação.</p>
 <p>Compartilhamento de dados desativado. A IA não pode homologar impostos, emitir notas ou iniciar pagamentos.</p>
