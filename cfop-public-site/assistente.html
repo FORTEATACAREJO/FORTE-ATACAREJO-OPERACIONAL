@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTE TECH CFOP</title>
-<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js"></script>
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script>
 <style>
 :root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#152b42;background:#f3f5f9}
 *{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 870px)/2));display:flex;gap:12px;align-items:center}
@@ -89,6 +89,13 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field hidden" id="otherRegistrationsWrap"><label for="otherRegistrations">Escolha a inscrição estadual consultada</label><select id="otherRegistrations"></select></div>
 <div class="actions"><button id="back2">Voltar</button><button class="gold" id="next2">Continuar</button></div></div>
 <div class="card hidden" id="step3"><h2>3. Qual é o produto e o destino dele?</h2>
+<div class="field full" style="border:1px solid #d8e2eb;background:#f7f9fc;border-radius:12px;padding:14px;margin:12px 0">
+<label for="xmlNfeFile" style="font-size:14px;font-weight:700">Já tem uma nota do fornecedor? Importar XML da NF-e (opcional)</label>
+<p style="margin:6px 0 10px">Carregue a nota para preencher NCM, CEST e descrição e consultar os impostos declarados no documento. <strong>O arquivo é lido somente neste aparelho</strong>, sem envio ao servidor.</p>
+<input type="file" id="xmlNfeFile" accept=".xml,text/xml,application/xml" style="padding:8px;border:1px solid #bdcad8;border-radius:9px;width:100%;max-width:100%">
+<div id="xmlNfeItemsWrap" class="field hidden" style="margin-top:10px"><label for="xmlNfeItems">Selecione o produto da nota fiscal</label><select id="xmlNfeItems"></select></div>
+<div id="xmlNfeStatus" class="warning" role="status" style="margin-top:10px">Opcional. Aceita XML de NF-e de até 6 MB. O CFOP e os impostos da nota de origem não são copiados como tributação da nova operação.</div>
+</div>
 <div class="grid">
 <div class="field"><label for="product">Produto</label><input id="product" placeholder="Ex.: cimento, cerveja, tijolo" maxlength="90"></div>
 <div class="field"><label for="ncm">NCM (sugestão automática ou informado na NF-e)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
@@ -331,6 +338,66 @@ $('next2').onclick=()=>{
  goto(3)
 };
 
+
+let xmlDocument=null,xmlSelected=null;
+function currentXmlEvidence(){
+ if(!xmlSelected)return null;
+ if($('product').value.trim()!==xmlSelected.description || $('ncm').value.replace(/\D/g,'')!==xmlSelected.ncm)return null;
+ return xmlSelected;
+}
+function xmlStatus(message,valid){
+ $('xmlNfeStatus').className='warning'+(valid?' good':'');
+ $('xmlNfeStatus').textContent=message;
+}
+function selectXmlItem(index){
+ const item=xmlDocument?.items?.[index];
+ if(!item){xmlSelected=null;return}
+ xmlSelected=item;
+ $('product').value=item.description;
+ $('ncm').value=item.ncm;
+ $('cest').value=item.cest;
+ suggestedNcm='';suggestedCest='';
+ officialNcm=null;
+ renderProductSuggestion();
+ const reasons=[
+ 'Produto '+item.item+': '+item.description,
+ 'NCM no XML: '+(item.ncm||'ausente'),
+ 'CEST no XML: '+(item.cest||'ausente'),
+ 'CFOP da NF-e de origem: '+(item.cfop||'ausente'),
+ 'CST/CSOSN ICMS da origem: '+(item.icms.code||'ausente'),
+ 'ICMS-ST no XML: '+(item.icms.valueST||'não destacado'),
+ 'Não usar CFOP/CST ou valores desta NF-e automaticamente na nova operação.',
+ 'Nenhum dado do arquivo será enviado à estatística da FORTE TECH.'
+ ];
+ xmlStatus(reasons.join('\n'),true);
+ $('xmlNfeStatus').style.whiteSpace='pre-line';
+}
+$('xmlNfeFile').addEventListener('change',async function(){
+ xmlDocument=null;xmlSelected=null;
+ $('xmlNfeItemsWrap').classList.add('hidden');
+ const file=this.files?.[0];
+ if(!file){xmlStatus('Nenhum arquivo selecionado.',false);return}
+ xmlStatus('Lendo XML localmente no aparelho...',false);
+ try{
+  const parser=window.FORTE_XML_NFE;
+  if(!parser)throw Error('Leitor local não disponível.');
+  const data=await parser.parseFile(file);
+  xmlDocument=data;
+  const sel=$('xmlNfeItems');sel.replaceChildren();
+  data.items.forEach((i,index)=>{
+   const opt=document.createElement('option');opt.value=String(index);
+   opt.textContent='Item '+i.item+' — '+i.description.slice(0,80);
+   sel.appendChild(opt);
+  });
+  $('xmlNfeItemsWrap').classList.toggle('hidden',data.items.length<=1);
+  selectXmlItem(0);
+  xmlStatus('NF-e lida localmente: '+data.items.length+' item(ns). '+(data.nfNumber?'Nº '+data.nfNumber+'. ':'')+'Escolha o item para preencher os dados. A autorização/assinatura da NF-e não foi verificada. CFOP e tributos desta nota não são automaticamente os da nova operação.',true);
+ }catch(error){
+  xmlDocument=null;xmlSelected=null;
+  xmlStatus('Não foi possível ler a nota: '+String(error?.message||error),false);
+ }
+});
+$('xmlNfeItems').addEventListener('change',function(){selectXmlItem(Number(this.value))});
 const NCM_DATABASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-ncm';
 let officialNcm=null;
 function ncmDescr(s){return String(s||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim()}
@@ -501,7 +568,27 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
   {label:'Origem fiscal da mercadoria',value:'Não confirmada',tag:'Pendente',note:'Nacional/importada e conteúdo de importação podem alterar ICMS/CST'},
   {label:'Referência temporal',value:$('operationDate').value||'Sem data',tag:'Informado',note:'A tabela de NCM carregada é a versão vigente; consultar histórico para operações de outras vigências'}
  ]);
- sec('2. Tributos e natureza da operação',[
+ 
+ const imported=currentXmlEvidence();
+ if(imported){
+  const m=imported.icms,p=imported.pis,c=imported.cofins,ipi=imported.ipi,bc=imported.ibscbs;
+  const xmlRow=(label,value,note)=>({label,value:value||'Não destacado no XML',tag:'Extraído do XML local',state:'hypothesis',note:note||'Declaração do XML de origem; não foi validada assinatura ou autenticidade'});
+  sec('2. Histórico fiscal encontrado na NF-e de origem',[
+   xmlRow('CFOP da NF-e do fornecedor',imported.cfop,'É o código da operação original. A entrada no comprador e uma nova venda exigem CFOP próprios.'),
+   xmlRow('CST / CSOSN ICMS original',m.code,m.name||'Não identificado'),
+   xmlRow('Origem ICMS',m.origin,'Conferir a origem da mercadoria'),
+   xmlRow('ICMS — base da origem',m.base),xmlRow('ICMS — alíquota da origem',m.rate),xmlRow('ICMS — valor da origem',m.amount),
+   xmlRow('ICMS-ST — base',m.baseST),xmlRow('ICMS-ST — alíquota',m.rateST),xmlRow('ICMS-ST — valor',m.valueST),
+   xmlRow('IPI — código CST',ipi.code),xmlRow('IPI — alíquota',ipi.rate),xmlRow('IPI — valor',ipi.amount),
+   xmlRow('PIS — código CST',p.code),xmlRow('PIS — valor',p.amount),
+   xmlRow('COFINS — código CST',c.code),xmlRow('COFINS — valor',c.amount),
+   xmlRow('IBS/CBS — CST no XML',bc.code),xmlRow('IBS/CBS — cClassTrib no XML',bc.cClassTrib),
+   xmlRow('Código do benefício fiscal original',imported.cbenef),
+   xmlRow('GTIN / EAN original',imported.gtin),xmlRow('Ex TIPI original',imported.exTipi)
+  ]);
+ }
+
+sec('2. Tributos e natureza da operação',[
   {label:'Tipo de operação',value:roleName+' • '+$('originUf').value+' → '+$('destUf').value,tag:'Informado'},
   {label:'Finalidade',value:$('use').selectedOptions[0].textContent,tag:'Informado'},
   {label:'CFOP',value:cfopAnalysis?.code?cfopAnalysis.code+' — hipótese, não homologada':'Não determinado',tag:cfopAnalysis?.code?'Hipótese condicional':'Pendente',state:cfopAnalysis?.code?'hypothesis':'',note:cfopAnalysis?.explanation||'Regime, natureza, ST e legislação exigem conferência'},
@@ -555,6 +642,7 @@ $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '
  if(ncm)payload.ncm=ncm;
  if(profile==='company'&&$('insights').checked)payload.company={cnpj:alpha($('ownCnpj').value),name:$('ownName').value.trim()||null};
  const note=document.createElement('p');note.className='muted';note.textContent='Registrando estatísticas de consulta (sem documentos de terceiros)...';$('summary').appendChild(note);
+ if(currentXmlEvidence()){note.textContent='Leitura do XML local: consulta não enviada às estatísticas da FORTE TECH.';return;}
  fetch(BASE+'/api/consult',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
   .then(async res=>{if(!res.ok)throw Error('HTTP '+res.status);note.textContent='Consulta agregada registrada para inteligência comercial.'})
   .catch(()=>{note.textContent='Estatísticas temporariamente indisponíveis; o resumo permanece válido como demonstração.'});
