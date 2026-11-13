@@ -144,6 +144,110 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </div>
 </div>
 <div class="card"><h3>Resumo dos cadastros e convites</h3><div id="company-summary" class="muted"></div></div>
+<section id="accountant-portal" class="card" hidden>
+<h2>Portal do Contador — contabilidade por CNPJ</h2>
+<p class="muted">Ambiente multiempresa para registrar serviços contábeis, acompanhar obrigações, organizar competências e preparar lançamentos. Não substitui validação profissional, procurações, livros oficiais ou transmissão ao governo.</p>
+<div id="accountant-access-status" class="note"></div>
+<div class="grid">
+<div class="card" id="accountant-authorize-card" hidden>
+<h3>Vincular contador ao CNPJ</h3>
+<p class="muted">Primeiro convide o profissional como CONTADOR no módulo de usuários. Após aceitar e confirmar o e-mail, cadastre CRC e UF e autorize seu acesso contábil.</p>
+<form id="accountant-assignment-form">
+<label for="accountant-member">Usuário convidado com perfil CONTADOR</label><select id="accountant-member" required></select>
+<label for="accountant-name">Nome profissional</label><input id="accountant-name" required minlength="3" maxlength="160">
+<label for="accountant-crc">Número de registro CRC informado</label><input id="accountant-crc" required minlength="4" maxlength="30" placeholder="Número conforme registro profissional">
+<label for="accountant-crc-uf">UF do CRC</label><select id="accountant-crc-uf" required></select>
+<label for="accountant-scope">Área de atuação</label><select id="accountant-scope"><option value="CONTABILIDADE_COMPLETA">Contabilidade completa (operacional)</option><option value="FISCAL">Fiscal</option><option value="DEPARTAMENTO_PESSOAL">Departamento pessoal</option><option value="FINANCEIRO">Financeiro</option><option value="CONSULTORIA">Consultoria</option></select>
+<button type="submit">Registrar vínculo do contador</button>
+</form><div id="accountant-assignments" class="muted"></div>
+</div>
+<div class="card" id="accounting-service-card" hidden>
+<h3>Solicitações ao contador</h3>
+<form id="accounting-service-form">
+<label for="accounting-service-type">Serviço</label>
+<select id="accounting-service-type">
+<option value="CONTABILIDADE">Contabilidade geral</option>
+<option value="ESCRITURACAO">Escrituração contábil</option>
+<option value="FISCAL">Fiscal e apuração</option>
+<option value="OBRIGACOES_ACESSORIAS">Obrigações acessórias</option>
+<option value="DEPARTAMENTO_PESSOAL">Departamento pessoal</option>
+<option value="FOLHA_PAGAMENTO">Folha de pagamento</option>
+<option value="FINANCEIRO">Financeiro e conciliações</option>
+<option value="SOCIETARIO">Societário e alterações</option>
+<option value="CERTIDOES">Certidões</option>
+<option value="CONSULTORIA">Consultoria</option>
+<option value="OUTROS">Outros serviços</option>
+</select>
+<label for="accounting-service-subject">Assunto</label><input id="accounting-service-subject" required minlength="5" maxlength="180">
+<label for="accounting-service-due">Prazo informado (opcional)</label><input id="accounting-service-due" type="date">
+<button type="submit">Abrir solicitação</button>
+</form><div id="accounting-service-list" class="muted"></div>
+</div>
+<div class="card" id="accounting-period-card" hidden>
+<h3>Competência e fechamento</h3>
+<form id="accounting-period-form">
+<label for="accounting-period-month">Mês de referência</label><input id="accounting-period-month" type="month" required>
+<button type="submit">Abrir competência</button>
+</form><div id="accounting-period-list" class="muted"></div>
+<p class="muted">Fechamento contábil oficial ainda não habilitado; competências novas começam abertas.</p>
+</div>
+<div class="card" id="accounting-obligation-card" hidden>
+<h3>Obrigações e calendário fiscal</h3>
+<p class="muted">Registrar somente obrigações aplicáveis à empresa após análise do regime/UF. Nenhuma data de vencimento será presumida.</p>
+<form id="accounting-obligation-form">
+<label for="accounting-obligation-type">Obrigação</label><select id="accounting-obligation-type">
+<option>ECD</option><option>ECF</option><option>EFD_ICMS_IPI</option><option>EFD_CONTRIBUICOES</option>
+<option>EFD_REINF</option><option>DCTFWEB</option><option>ESOCIAL</option><option>FGTS_DIGITAL</option>
+<option>DEFIS</option><option>PGDAS_D</option><option>DAS</option><option>ISS</option><option>NFS_E</option><option>OUTRA</option>
+</select>
+<label for="accounting-obligation-month">Competência</label><input id="accounting-obligation-month" type="month" required>
+<label for="accounting-obligation-due">Vencimento após conferência (opcional)</label><input id="accounting-obligation-due" type="date">
+<button type="submit">Registrar obrigação em planejamento</button>
+</form><div id="accounting-obligation-list" class="muted"></div>
+</div>
+<div class="card" id="accounting-documents-card" hidden>
+<h3>Controle de documentos contábeis</h3>
+<p class="muted">Registro de pendência. Não envia arquivos; upload seguro em área privada ainda depende de configuração.</p>
+<form id="accounting-document-form">
+<label for="accounting-document-type">Categoria</label>
+<select id="accounting-document-type"><option value="XML_NFE">XML de NF-e</option><option value="XML_NFCE">XML de NFC-e</option><option value="NFS_E">NFS-e</option><option value="EXTRATO_BANCARIO">Extrato bancário</option><option value="FATURA_CARTAO">Fatura de cartão</option><option value="RECIBO">Recibo</option><option value="COMPROVANTE">Comprovante</option><option value="CONTRATO">Contrato</option><option value="FOLHA_RESUMO">Resumo da folha</option><option value="LIVRO_CONTABIL">Livro contábil</option><option value="SPED_REFERENCIA">SPED (referência)</option><option value="OUTROS">Outro</option></select>
+<label for="accounting-document-label">Documento a solicitar</label><input id="accounting-document-label" minlength="4" maxlength="200" required>
+<button type="submit">Registrar pendência documental</button>
+</form><div id="accounting-document-list" class="muted"></div>
+</div>
+<div class="card" id="accounting-chart-card" hidden>
+<h3>Plano de contas contábeis</h3>
+<form id="accounting-chart-form">
+<label for="accounting-chart-code">Código contábil</label><input id="accounting-chart-code" required maxlength="35" pattern="[A-Za-z0-9./-]+">
+<label for="accounting-chart-name">Nome da conta</label><input id="accounting-chart-name" required minlength="3" maxlength="150">
+<label for="accounting-chart-kind">Grupo contábil</label>
+<select id="accounting-chart-kind"><option value="ATIVO">Ativo</option><option value="PASSIVO">Passivo</option><option value="PATRIMONIO_LIQUIDO">Patrimônio líquido</option><option value="RECEITA">Receita</option><option value="DESPESA">Despesa</option><option value="COMPENSACAO">Compensação</option></select>
+<label for="accounting-chart-side">Natureza do saldo</label><select id="accounting-chart-side"><option value="D">Devedora</option><option value="C">Credora</option></select>
+<button type="submit">Incluir conta pendente de conferência</button>
+</form>
+<div id="accounting-chart-list" class="muted"></div>
+</div>
+<div class="card" id="accounting-draft-card" hidden>
+<h3>Escrituração — lançamento equilibrado</h3>
+<p class="muted">Débito e crédito em rascunho, sem contabilização oficial.</p>
+<form id="accounting-draft-form">
+<label for="accounting-draft-period">Competência aberta</label><select id="accounting-draft-period" required></select>
+<label for="accounting-draft-date">Data do lançamento</label><input id="accounting-draft-date" type="date" required>
+<label for="accounting-draft-title">Histórico</label><input id="accounting-draft-title" required minlength="4" maxlength="300">
+<label for="accounting-draft-debit">Conta debitada</label><select id="accounting-draft-debit" required></select>
+<label for="accounting-draft-credit">Conta creditada</label><select id="accounting-draft-credit" required></select>
+<label for="accounting-draft-amount">Valor em R$</label><input id="accounting-draft-amount" type="number" min="0.01" step="0.01" required>
+<button type="submit">Gravar lançamento como rascunho</button>
+</form><div id="accounting-draft-list" class="muted"></div>
+</div>
+</div>
+<div class="card">
+<h3>Informações disponíveis para conferência</h3>
+<p>O contador autorizado poderá consultar registros fiscais e financeiros da empresa, conforme seu perfil. Conciliações bancárias, cartões, extratos e documentos oficiais só aparecerão quando existirem dados vinculados e autorizados.</p>
+<p class="muted">Portal preparado para empresas distintas e suas filiais. Procurações eletrônicas, CRC, certificado digital, transmissão de declarações e geração oficial de livros permanecem dependentes de validação.</p>
+</div>
+</section>
+
 <section id="integrations-card" class="card" hidden>
 <h2>Integrações financeiras, cartões e inteligência artificial</h2>
 <p class="muted">Conexões específicas para a empresa selecionada. Todas começam em SANDBOX, sem credenciais, sem envio de dados e sem autorização de pagamentos.</p>
