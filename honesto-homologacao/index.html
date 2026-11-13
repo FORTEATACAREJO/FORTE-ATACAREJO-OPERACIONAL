@@ -36,14 +36,15 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 </style></head><body>
 <header><div class="head"><div class="brand"><span class="mark"><svg width="34" height="36" viewBox="0 0 40 43" fill="none" aria-hidden="true"><rect x="7" y="3" width="26" height="37" rx="6" stroke="#0B0B0B" stroke-width="3"/><path d="M13 17h14M13 22h10" stroke="#121212" stroke-width="2.6" stroke-linecap="round"/><path d="m14 30 4 4 10-11" stroke="#12B449" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round"/><path d="m23 12 4-3 3 1" stroke="#12B449" stroke-width="2.5" stroke-linecap="round"/></svg></span><span>HONESTO<div class="mini">Sua conta, sob seu controle</div></span></div><span class="badge">HOMOLOGAÇÃO · DEMO</span></div></header>
 <main>
- <section class="hero"><div><h1>Transparência na conta.<br><span class="accent">Controle no celular.</span></h1><p>Acompanhe cada produto lançado pelo garçom, divida o saldo com a mesa e confira os pagamentos recebidos pelo caixa. Tudo em uma experiência digital simples.</p><button class="btn" id="newDemo">Experimentar demonstração</button></div></section>
- <div class="warnbox"><strong>Ambiente exclusivamente de testes:</strong> restaurante e pagamentos fictícios; dados apagados ao reiniciar o servidor. Não há cobrança pelo celular, integrações reais de PDV ou assinatura ativa. O HONESTO pertence ao projeto da Forte Atacarejo Ltda.</div>
+ <section class="hero"><div><h1>Transparência na conta.<br><span class="accent">Controle no celular.</span></h1><p>Acompanhe cada produto lançado no sistema do restaurante, divida a conta e, se o restaurante permitir, solicite itens diretamente pelo celular. O garçom continua usando somente o sistema de caixa.</p><button class="btn" id="newDemo">Experimentar demonstração</button></div></section>
+ <div class="warnbox"><strong>Ambiente exclusivamente de testes:</strong> restaurante e pagamentos fictícios; dados apagados ao reiniciar o servidor. Os pedidos aparecem em um PDV simulado e não são enviados a restaurantes reais. Não há cobrança pelo celular, integrações reais de PDV ou assinatura ativa. O HONESTO pertence ao projeto da Forte Atacarejo Ltda.</div>
  <div id="message"></div>
  <div id="workspace" class="hidden">
- <div class="tabs"><button id="clientTab" class="on" onclick="viewMode('cliente')">📱 Conta do cliente</button><button id="staffTab" class="hidden" onclick="viewMode('pdv')">🧾 Caixa / garçom (demo)</button></div>
+ <div class="tabs"><button id="clientTab" class="on" onclick="viewMode('cliente')">📱 Conta do cliente</button><button id="staffTab" class="hidden" onclick="viewMode('pdv')">🖥️ PDV do restaurante (simulado)</button></div>
  <section id="clientSection" class="cols">
   <div>
    <div class="card"><div class="row"><div><div class="label">CONTA AO VIVO</div><h2 id="restaurant" style="margin:3px 0">Restaurante Exemplo</h2><span class="muted" id="table">Mesa 12</span></div><span class="pill ok" id="connection">Conectado</span></div><div class="divider"></div><h2>Produtos da comanda</h2><div id="items"></div></div>
+   <div class="card" id="orderCard"><div class="row" style="padding-top:0"><h2 style="margin:0">Pedir ao garçom</h2><span class="pill ok" id="orderingState">Disponível</span></div><p class="small">Seu pedido será encaminhado ao sistema do restaurante; o garçom verá a mesa, seu nome e a observação. É necessário o restaurante aceitar o pedido.</p><form id="orderForm"><label class="field">Quem está pedindo?<select id="orderPerson" required></select></label><label class="field">Produto do cardápio<select id="orderProduct" required></select></label><div class="two"><label class="field">Quantidade<input type="number" id="orderQty" min="1" max="10" value="1" required></label><div class="field"><span>Valor estimado</span><strong id="orderPrice" class="value" style="font-size:19px;margin-top:9px">R$ 0,00</strong></div></div><label class="field">Observação ao garçom<textarea id="orderNote" maxlength="180" rows="2" placeholder="Ex.: chope bem gelado; copo com gelo; sem limão"></textarea></label><button type="submit" class="btn" id="orderButton">Enviar solicitação</button></form><div id="orderingOff" class="info hidden">O restaurante optou por não receber pedidos pelo HONESTO. A conferência da conta continua disponível.</div><div class="divider"></div><h2>Meus pedidos solicitados</h2><div id="clientOrders"></div><p class="small">Pedidos solicitados não entram na conta antes de serem confirmados no PDV.</p></div>
    <div class="card"><h2>Pessoas na mesa e serviço opcional</h2><div id="people"></div><div class="info">Cada pessoa pode marcar ou desmarcar 10% de serviço. Na demonstração não há cobrança fiscal nem pagamento direto pelo aplicativo.</div></div>
    <div class="card"><h2>Dividir a conta</h2><div class="two"><label class="field">Como dividir<select id="splitMode"><option value="restante">Saldo entre quem ficou</option><option value="todos">Igualmente entre todos</option><option value="individual">Por consumo individual</option></select></label><label class="field">Quantidade de pessoas<input id="splitCount" type="number" min="1" max="30" value="4"></label></div><button class="btn light" style="margin-top:12px" onclick="changeSplit()">Calcular divisão</button><div class="divider"></div><div id="splitResult"></div></div>
   </div>
@@ -55,7 +56,8 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
  </section>
  <section id="staffSection" class="cols hidden">
   <div>
-    <div class="card"><h2>Garçom — lançar produto</h2><form id="itemForm"><label class="field">Produto<input id="product" value="Água mineral" required></label><div class="two"><label class="field">Quantidade<input id="qty" type="number" min="1" max="50" value="1" required></label><label class="field">Preço unitário (R$)<input id="price" value="6,00" required></label></div><label class="field">Consumo atribuído a<select id="assignPerson"></select></label><button class="btn" type="submit">+ Lançar na comanda</button></form></div>
+    <div class="card"><h2>Pedidos do HONESTO recebidos no PDV (simulação)</h2><div class="row" style="padding-top:0"><div class="small">O garçom real não usa o HONESTO: os pedidos aparecem no PDV integrado do restaurante.</div><label class="checkbox"><input type="checkbox" id="enableOrders" onchange="setOrderEnabled(this.checked)">Aceitar pedidos via HONESTO</label></div><div id="cashOrders"></div></div>
+    <div class="card"><h2>PDV simulado — lançar produto</h2><form id="itemForm"><label class="field">Produto<input id="product" value="Água mineral" required></label><div class="two"><label class="field">Quantidade<input id="qty" type="number" min="1" max="50" value="1" required></label><label class="field">Preço unitário (R$)<input id="price" value="6,00" required></label></div><label class="field">Consumo atribuído a<select id="assignPerson"></select></label><button class="btn" type="submit">+ Lançar na comanda</button></form></div>
     <div class="card"><h2>Produtos e cancelamentos</h2><div id="cashItems"></div></div>
     <div class="card"><h2>Contestações recebidas</h2><div id="cashDisputes"></div></div>
   </div>
@@ -68,7 +70,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
  </div>
 </main><footer>HONESTO · Projeto da FORTE ATACAREJO LTDA. · Identidade visual branca, preta e verde · Versão demonstrativa, não comercial</footer>
 <script>
-let token='',staff='',data=null,es=null,loading=false,mode='cliente';
+let token='',staff='',data=null,es=null,loading=false,mode='cliente',pendingRequestId=null;
 const $=(x)=>document.getElementById(x);
 const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,16 +94,41 @@ const rate=d.mode==='individual'?d.people.map(p=>[p.name,d.individually[p.id]]):
 $('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+escapeHtml(name)+'</span><strong class="value">'+fmt(amount)+'</strong></div>').join('');
 const disputes=d.disputes.map(x=>'<div class="row"><div><strong>'+escapeHtml(d.items.find(i=>i.id===x.item)?.name||'Produto')+'</strong><div class="small">'+escapeHtml(x.reason)+'</div></div><span class="pill warn">'+escapeHtml(x.status)+'</span></div>').join('')||'<p class="small">Nenhuma contestação</p>';
 $('disputes').innerHTML=$('cashDisputes').innerHTML=disputes;
+const currentPerson=$('orderPerson').value,currentProduct=$('orderProduct').value;
+$('orderPerson').innerHTML='<option value="">Escolha o nome de quem está pedindo</option>'+d.people.filter(p=>p.present).map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+'</option>').join('');
+if(d.people.some(p=>p.id===currentPerson&&p.present))$('orderPerson').value=currentPerson;
+$('orderProduct').innerHTML=d.menu.map(m=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+' · '+fmt(m.unit)+'</option>').join('');
+if(d.menu.some(m=>m.id===currentProduct))$('orderProduct').value=currentProduct;
+$('orderingState').textContent=d.orderingEnabled?'Disponível':'Desativado pelo restaurante';
+$('orderingState').className='pill '+(d.orderingEnabled?'ok':'warn');
+$('orderForm').classList.toggle('hidden',!d.orderingEnabled);
+$('orderingOff').classList.toggle('hidden',d.orderingEnabled);
+$('enableOrders').checked=d.orderingEnabled;
+displayOrderPrice();
+const orderStatus={solicitado:'Aguardando aceitação',aceito:'Aceito no PDV',entregue:'Entregue',recusado:'Não aceito'};
+$('clientOrders').innerHTML=d.orders.map(o=>'<div class="row"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">'+escapeHtml(ids[o.person]||'Cliente')+' · '+escapeHtml(o.note||'Sem observação')+'</div></div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div>').join('')||'<p class="small">Nenhum pedido solicitado ainda.</p>';
+$('cashOrders').innerHTML=d.orders.map(o=>'<div class="row" style="align-items:start"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">Mesa: '+escapeHtml(d.table)+' · Cliente: '+escapeHtml(ids[o.person]||'Não identificado')+'</div><div class="small">Observação: '+escapeHtml(o.note||'Nenhuma')+'</div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:end">'+(o.status==='solicitado'?'<button class="btn sm" onclick="orderStatusChange(\''+o.id+'\',\'aceito\')">Aceitar no PDV</button><button class="btn sm red" onclick="orderStatusChange(\''+o.id+'\',\'recusado\')">Recusar</button>':o.status==='aceito'?'<button class="btn sm light" onclick="orderStatusChange(\''+o.id+'\',\'entregue\')">Marcar entregue</button>':'')+'</div></div>').join('')||'<p class="small">Nenhum pedido aguardando.</p>';
 for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerHTML=options(id==='payPerson'?'Pagamento da mesa':'Compartilhado');e.value=old;}
 $('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div></div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
 $('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div></div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
 }
+function displayOrderPrice(){if(!data)return;const m=data.menu.find(x=>x.id===$('orderProduct').value);const q=Number($('orderQty').value)||1;$('orderPrice').textContent=fmt(m?m.unit*q:0)}
+async function setOrderEnabled(enabled){await action('/api/pdv/order-settings',{enabled},true,enabled?'Pedidos habilitados nesta demonstração':'Pedidos desabilitados para esta mesa')}
+async function orderStatusChange(id,status){await action('/api/pdv/order-status',{id,status},true,'Situação do pedido atualizada pelo PDV simulado')}
 async function serviceChoice(person,enabled){await action('/api/client/service',{person,enabled},false,'Escolha de serviço registrada')}
 async function contest(id){const reason=prompt('Qual o motivo da contestação?');if(reason)await action('/api/client/contest',{id,reason},false,'Contestação enviada ao caixa')}
 async function cancelItem(id){if(confirm('Cancelar este produto na demonstração?'))await action('/api/pdv/cancel',{id},true,'Produto cancelado')}
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
 async function copyInvite(){const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);try{await navigator.clipboard.writeText(link);note('Link copiado para convidar participantes')}catch{prompt('Copie o link',link)}}
 $('newDemo').addEventListener('click',startNew);
+$('orderProduct').addEventListener('change',displayOrderPrice);
+$('orderQty').addEventListener('input',displayOrderPrice);
+$('orderForm').addEventListener('submit',async e=>{e.preventDefault();
+ if(!pendingRequestId)pendingRequestId=crypto.randomUUID();
+ const payload={person:$('orderPerson').value,menuId:$('orderProduct').value,qty:Number($('orderQty').value),note:$('orderNote').value,requestId:pendingRequestId};
+ try{const result=await api('/api/client/order',payload);pendingRequestId=null;$('orderNote').value='';await refresh();note('Solicitação enviada ao sistema do restaurante (simulação). Aguarde a aceitação.')}
+ catch(ex){note(ex.message+' — você pode tentar novamente sem criar pedido duplicado.',true)}
+});
 $('itemForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('product').value,qty:Number($('qty').value),price:$('price').value,person:$('assignPerson').value||null},true,'Produto enviado à conta do cliente')});
 $('payForm').addEventListener('submit',e=>{e.preventDefault();if(!confirm('Confirmar recebimento somente na demonstração?'))return;action('/api/pdv/payment',{amount:$('payAmount').value,person:$('payPerson').value||null,method:$('method').value,leaves:$('leaves').checked},true,'Pagamento simulado confirmado')});
 (async()=>{const qs=new URLSearchParams(location.search);if(qs.get('token')){token=qs.get('token');staff=sessionStorage.getItem('honesto-demo-staff:'+token)||'';try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}else{await startNew()}})();
