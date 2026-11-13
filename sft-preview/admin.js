@@ -130,10 +130,59 @@ async function showCompanyLicense(company){
  }
  return current.effective_active===true;
 }
+const BILLING_URL="https://tusmlfhzwlzwnoxfhomt.supabase.co/functions/v1/sft-billing-asaas-sandbox";
+function amountToCents(input){
+ const txt=String(input).trim().replace(",",".");
+ if(!/^(?:0|[1-9]\d{0,6})(?:\.\d{1,2})?$/.test(txt))throw new Error("Informe o valor em reais com até duas casas decimais.");
+ const [int,frac=""]=txt.split(".");
+ const n=Number(int)*100+Number((frac+"00").slice(0,2));
+ if(!Number.isSafeInteger(n)||n<100)throw new Error("Mensalidade mínima: R$ 1,00.");
+ return n;
+}
+function formatCents(num){
+ return (num/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+async function loadCompanyBilling(company){
+ const container=$("billing-card");
+ const memberships=isMaster?[]:await table("company_memberships?select=role&company_id=eq."+company.id+"&user_id=eq."+user.id);
+ const hasPermission=isMaster||memberships.some(m=>m.role==="ADMIN");
+ container.hidden=!hasPermission;
+ if(!hasPermission)return;
+ const [plans,contracts]=await Promise.all([
+  table("sft_recurring_plans?select=id,plan_code,plan_name,amount_cents,availability,hosting,billing_interval&order=plan_name.asc"),
+  rpc("sft_billing_get_company_status",{p_company:company.id})
+ ]);
+ const info=$("billing-status");
+ const arr=Array.isArray(contracts)?contracts:[];
+ info.textContent=arr.length?arr.map(c=>c.plan+" · "+c.state.replaceAll("_"," ")+
+   " · "+(c.price_cents?formatCents(c.price_cents):"sem preço")+
+   " · "+(c.expires?"vigência até "+new Date(c.expires).toLocaleDateString("pt-BR"):"aguardando pagamento"))
+   .join(" | "):"Nenhuma assinatura mensal registrada para esta empresa.";
+ const list=$("billing-plans");list.replaceChildren();
+ for(const p of plans){
+  const el=document.createElement("p");el.className="check";
+  el.textContent=p.plan_name+" · "+(p.amount_cents?formatCents(p.amount_cents)+"/mês":"preço ainda não definido")+
+    " · "+(p.availability==="SANDBOX_PRONTO"?"somente testes":"indisponível para contratação")+
+    " · nuvem compartilhada";
+  list.append(el);
+ }
+ $("billing-master-card").hidden=!isMaster;
+ if(isMaster){
+  const select=$("billing-price-plan");
+  select.replaceChildren();
+  for(const p of plans){const option=document.createElement("option");option.value=p.plan_code;option.textContent=p.plan_name;select.append(option);}
+ }
+ const eligible=plans.filter(p=>p.availability==="SANDBOX_PRONTO"&&p.amount_cents>0);
+ $("billing-checkout-card").hidden=!eligible.length;
+ const choose=$("billing-checkout-plan");choose.replaceChildren();
+ for(const p of eligible){const option=document.createElement("option");
+  option.value=p.plan_code;option.textContent=p.plan_name+" — "+formatCents(p.amount_cents)+"/mês";choose.append(option);}
+}
 async function details(company){
  selectedCompany=company;
  $("details").hidden=false;
  const licensed=await showCompanyLicense(company);
+ await loadCompanyBilling(company);
  $("company-licensed-content").hidden=!licensed;
  if(!licensed){$("detail-content").replaceChildren();return;}
  const container=$("detail-content");
@@ -563,6 +612,45 @@ function fillGroupSelect(el,selected){
  for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
  el.value=selected||"";
 }
+onForm("billing-price-form",async form=>{
+ if(!isMaster)throw new Error("Somente Master pode definir os preços de contratação.");
+ const value=amountToCents($("billing-price-value").value);
+ const rationale=$("billing-price-why").value.trim();
+ if(rationale.length<10)throw new Error("Justificativa com pelo menos 10 caracteres.");
+ await rpc("sft_publish_sandbox_plan",{
+  p_plan_code:$("billing-price-plan").value,
+  p_amount_cents:value,
+  p_justification:rationale
+ });
+ form.reset();
+ await loadCompanyBilling(requireCompany());
+ say("Preço registrado no banco para homologação. Nenhuma cobrança real foi autorizada.");
+});
+onForm("billing-checkout-form",async form=>{
+ const company=requireCompany();
+ if(!session)throw new Error("Acesse o sistema antes de solicitar um checkout.");
+ const button=form.querySelector("button");
+ button.disabled=true;
+ const result=$("billing-checkout-result");result.replaceChildren();
+ try{
+  const res=await fetch(BILLING_URL+"/checkout",{
+   method:"POST",headers:{"Content-Type":"application/json",
+    "Authorization":"Bearer "+session.access_token},
+   body:JSON.stringify({company_id:company.id,plan_code:$("billing-checkout-plan").value}),
+   cache:"no-store"
+  });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.message||data.error||"Provedor de pagamentos não disponível.");
+  if(data.sandbox!==true||!data.checkout_url||!/^https:\/\/asaas\.com\/checkoutSession\/show\?id=/.test(data.checkout_url))
+   throw new Error("Link de teste do processador não pôde ser validado.");
+  const p=document.createElement("p");p.textContent="Checkout de homologação preparado. Não é uma cobrança de produção.";
+  const a=document.createElement("a");a.href=data.checkout_url;a.target="_blank";a.rel="noopener noreferrer";
+  a.textContent="Abrir página segura do Asaas Sandbox";
+  result.append(p,a);
+  await loadCompanyBilling(company);
+  say("Checkout de testes criado. A assinatura só é ativada após confirmação bancária verificada.");
+ }finally{button.disabled=false;}
+});
 onForm("license-form",async form=>{
  if(!isMaster)throw Error("Licenças só podem ser concedidas pelo Master.");
  const company=requireCompany();
