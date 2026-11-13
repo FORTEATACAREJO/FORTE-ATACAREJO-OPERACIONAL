@@ -83,14 +83,16 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 </main><footer>HONESTO · Projeto da FORTE ATACAREJO LTDA. · Identidade visual branca, preta e verde · Versão demonstrativa, não comercial</footer>
 <script src="/vendor/qrcode.js"></script>
 <script>
-let token='',staff='',data=null,es=null,loading=false,mode='cliente',pendingRequestId=null;
+let token='',staff='',data=null,es=null,loading=false,mode='cliente',pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,qrRendered='';
 const $=(x)=>document.getElementById(x);
 const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
-async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
-async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
-async function connect(){if(es)es.close();$('workspace').classList.remove('hidden');$('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?mode=cliente&token='+token;await refresh();
+async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
+async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;memberToken='';visitorId='';sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
+async function connect(){if(es)es.close();
+ try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';}catch{}
+ $('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?mode=cliente&token='+token;await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
 viewMode(new URLSearchParams(location.search).get('mode')==='pdv'&&staff?'pdv':'cliente');}
 function viewMode(next){mode=next;$('clientSection').classList.toggle('hidden',mode!=='cliente');$('staffSection').classList.toggle('hidden',mode!=='pdv');$('clientTab').classList.toggle('on',mode==='cliente');$('staffTab').classList.toggle('on',mode==='pdv');history.replaceState({},'',location.pathname+'?mode='+mode+'&token='+encodeURIComponent(token));}
@@ -99,6 +101,13 @@ async function action(endpoint,payload,needStaff=false,message='Atualizado'){try
 const names=()=>Object.fromEntries(data.people.map(p=>[p.id,p.name]));
 const options=(empty)=>'<option value="">'+empty+'</option>'+data.people.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+(p.present?'':' (saiu)')+'</option>').join('');
 function render(){const d=data,ids=names();$('restaurant').textContent=d.restaurant;$('table').textContent=d.table;
+ const joined=!!memberToken&&!!visitorId&&d.people.some(p=>p.id===visitorId);
+ $('joinPanel').classList.toggle('hidden',joined);
+ $('workspace').classList.toggle('hidden',!joined);
+ $('installStrip').classList.remove('hidden');
+ $('joinRestaurant').textContent=d.restaurant+' · '+d.table;
+ $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
+ renderQR();
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
 $('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+(i.active?'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+i.id+'\')">Não reconheço</button>':'<span class="pill warn">Cancelado</span>')+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
 $('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
@@ -108,8 +117,8 @@ $('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+e
 const disputes=d.disputes.map(x=>'<div class="row"><div><strong>'+escapeHtml(d.items.find(i=>i.id===x.item)?.name||'Produto')+'</strong><div class="small">'+escapeHtml(x.reason)+'</div></div><span class="pill warn">'+escapeHtml(x.status)+'</span></div>').join('')||'<p class="small">Nenhuma contestação</p>';
 $('disputes').innerHTML=$('cashDisputes').innerHTML=disputes;
 const currentPerson=$('orderPerson').value,currentProduct=$('orderProduct').value;
-$('orderPerson').innerHTML='<option value="">Escolha o nome de quem está pedindo</option>'+d.people.filter(p=>p.present).map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+'</option>').join('');
-if(d.people.some(p=>p.id===currentPerson&&p.present))$('orderPerson').value=currentPerson;
+$('orderPerson').innerHTML=visitorId&&d.people.some(p=>p.id===visitorId)?'<option value="'+escapeHtml(visitorId)+'">'+escapeHtml(ids[visitorId])+' (você)</option>':'<option value="">Entre com seu nome</option>';
+$('orderPerson').value=visitorId||'';
 $('orderProduct').innerHTML=d.menu.map(m=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+' · '+fmt(m.unit)+'</option>').join('');
 if(d.menu.some(m=>m.id===currentProduct))$('orderProduct').value=currentProduct;
 $('orderingState').textContent=d.orderingEnabled?'Disponível':'Desativado pelo restaurante';
