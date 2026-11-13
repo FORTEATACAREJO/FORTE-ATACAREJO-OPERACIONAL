@@ -17,3 +17,12 @@ Implantação: branch `deploy/forte-tech-cfop-publico-20261112`; publishPath `cf
 - Bloqueio de sugestão de CFOP escritural para pessoa física sem inscrição estadual comprando normalmente.
 - Fontes, limites e plano para completar catálogo: [CLASSIFICACAO_FISCAL_REFERENCIAS_E_LIMITES.md](./CLASSIFICACAO_FISCAL_REFERENCIAS_E_LIMITES.md).
 - **O catálogo não cobre todos os produtos/estados; ST não se conclui só por NCM ou CEST.** A emissão de NF-e continua fora do escopo.
+
+## Importação local de XML da NF-e e consulta legal (13/11/2026)
+
+- O `assistente.html` agora aceita **XML de NF-e do próprio usuário até 6 MB** na etapa 3, com itens selecionáveis. Leitor do navegador: `xml-nfe-local.js`.
+- O arquivo **não é transmitido à FORTE TECH**. É inspecionado localmente para recuperar descrição, NCM, CEST, CFOP e campos de ICMS, ICMS-ST (inclusive retido anteriormente), IPI, PIS, COFINS, IBS/CBS, GTIN e benefício fiscal, quando disponíveis. Não se extrai CNPJ/CPF, valores totais ou outros dados pessoais para as estatísticas.
+- Se XML foi selecionado, a consulta não é registrada no endpoint de métricas, mesmo após edição. Apenas o NCM de 8 dígitos pode ser conferido no serviço público `cfop-ncm`.
+- XML local **não tem autenticidade nem assinatura digital validada**. Dados fiscais de uma nota anterior são evidências do documento e não cálculo da nova compra/venda.
+- A ficha fiscal oferece links oficiais de MG e GO para consulta da legislação de ST, mas **não determina automaticamente** MVA/PMPF/pauta/alíquotas e não declara o projeto homologado.
+- LGPD e restrições de uso documentadas em `privacidade.html`.
