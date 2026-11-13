@@ -4,6 +4,7 @@ const PORT=17831;const origin='http://127.0.0.1:'+PORT;
 const child=spawn(process.execPath,['server.mjs'],{cwd:new URL('../',import.meta.url),env:{...process.env,PORT:String(PORT)},stdio:'pipe'});
 let output='';child.stderr.on('data',x=>output+=x);child.stdout.on('data',x=>output+=x);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const assertISO=(value,label)=>{assert.equal(typeof value,'string',label+' deve conter data ISO');assert(!Number.isNaN(Date.parse(value)),label+' deve conter horário válido');assert(/Z$/.test(value),label+' deve ser UTC com Z');};
 async function req(path,obj,staff){const r=await fetch(origin+path,{method:obj?'POST':'GET',headers:{'Content-Type':'application/json',...(staff?{'X-Honesto-Staff':staff}:{})},body:obj?JSON.stringify(obj):undefined});return {status:r.status,body:await r.json()};}
 try{
  let ready=false;for(let i=0;i<40;i++){try{if((await req('/health')).status===200){ready=true;break}}catch{}await sleep(150)}
@@ -51,6 +52,11 @@ try{
  assert.equal(cannotChangeOther.status,403);
  const snap=async()=>{const r=await req('/api/session/'+token);assert.equal(r.status,200);return r.body};
  let d=await snap();assert.equal(d.subtotal,11300);assert.equal(d.people.length,5);assert.equal(d.service,0);assert.equal(d.balance,11300);
+ assertISO(d.createdAt,'abertura da comanda');
+ assert(d.timeline.length>=5,'cada lançamento inicial e entrada de participante deve ter horário');
+ for(const item of d.items)assertISO(item.at,'item inicial '+item.name);
+ for(const event of d.timeline)assertISO(event.at,'registro do histórico');
+ assert(d.timeline.some(e=>e.type==='entrada'),'entrada do cliente precisa ficar no histórico');
  assert(!JSON.stringify(d).includes(staff),'a chave do operador vazou ao cliente');
  const unauthorized=await req('/api/pdv/item',{token,name:'Água',qty:1,price:'6,00'});assert.equal(unauthorized.status,403);
  // Pedidos são iniciados pelo cliente; o PDV simulado recebe mesa, nome, produto e observação.
@@ -61,6 +67,9 @@ try{
  let ordered=await snap();
  assert.equal(ordered.balance,before.balance,'solicitação ainda não deve cobrar');
  assert.equal(ordered.orders.length,1);
+ assertISO(ordered.orders[0].createdAt,'solicitação de produto');
+ assert.equal(ordered.orders[0].statusHistory[0].status,'solicitado');
+ assertISO(ordered.orders[0].statusHistory[0].at,'horário da solicitação');
  assert.equal(ordered.orders[0].table,'Mesa 12');
  assert.equal(ordered.orders[0].note,'Copo bem gelado');
  assert.equal(ordered.orders[0].unit,1400,'preço deve vir do cardápio do PDV');
@@ -74,6 +83,9 @@ try{
  ordered=await snap();
  assert.equal(ordered.balance,before.balance+2800,'PDV aceitou e lançou exatamente 2 chopes na comanda');
  assert.equal(ordered.orders[0].status,'aceito');
+ assert(ordered.orders[0].statusHistory.some(h=>h.status==='aceito'),'aceite com data/hora');
+ assertISO(ordered.orders[0].updatedAt,'aceite do pedido');
+ assertISO(ordered.items.find(i=>i.fromOrder===ordered.orders[0].id).at,'lançamento faturável do pedido');
  const repeated=await req('/api/pdv/order-status',{token,id:ordered.orders[0].id,status:'aceito'},staff);
  assert.equal(repeated.body.duplicate,true);
  assert.equal((await snap()).balance,before.balance+2800,'não duplicar cobrança');
@@ -83,6 +95,7 @@ try{
  assert.equal(requestedMove.status,201,'Cliente pede transferência no HONESTO');
  let moveSnapshot=await snap();assert.equal(moveSnapshot.transfers.length,1);
  assert.equal(moveSnapshot.transfers[0].status,'pendente');
+ assertISO(moveSnapshot.transfers[0].requestedAt,'solicitação da troca de mesa');
  assert.equal(moveSnapshot.items.length,prevHistory,'Pedido de troca não altera histórico');
  assert.equal((await req('/api/session/'+token+'?memberToken='+memberToken)).body.personalTable,'Mesa 12','Mesa não muda antes do PDV');
  assert.equal((await req('/api/pdv/transfer-status',{token,id:requestedMove.body.transferId,status:'aprovada'})).status,403,'Cliente não pode aprovar mudança');
@@ -93,6 +106,7 @@ try{
  assert.equal(afterMove.body.table,'Mesa 15');
  assert.equal(afterMove.body.items.length,prevHistory,'Após troca preservar todos lançamentos');
  assert.equal(afterMove.body.transfers[0].from,'Mesa 12');assert.equal(afterMove.body.transfers[0].to,'Mesa 15');
+ assertISO(afterMove.body.transfers[0].confirmedAt,'confirmação da troca de mesa');
  assert.equal((await req('/api/pdv/transfer-status',{token,id:requestedMove.body.transferId,status:'aprovada'},staff)).body.duplicate,true);
  const wrongMove=await req('/api/client/transfer-request',{token,memberToken:'wrong',newTable:'16'});
  assert.equal(wrongMove.status,403,'Outra pessoa não pode trocar a mesa');
@@ -118,11 +132,15 @@ try{
  const paid=await req('/api/pdv/payment',{token,amount:'20,00',method:'pix',person,leaves:true},staff);
  assert.equal(paid.status,200);assert.equal(paid.body.confirmed,true);
  d=await snap();assert.equal(d.paid,2000);assert.equal(d.people.find(p=>p.id===person).present,false);
+ assertISO(d.payments[0].at,'pagamento confirmado pelo caixa');
  assert.equal((await req('/api/pdv/payment',{token,amount:'999999',method:'pix'},staff)).status,400);
  assert.equal((await req('/api/client/contest',{token,id:item,reason:'Não solicitei este produto',memberToken})).status,200);
  d=await snap();assert.equal(d.disputes.length,1);
+ assertISO(d.disputes[0].at,'contestação do consumidor');
  assert.equal((await req('/api/pdv/cancel',{token,id:item},staff)).status,200);
  d=await snap();assert.equal(d.subtotal,14100);
+ assertISO(d.items.find(i=>i.id===item).cancelledAt,'horário do cancelamento');
+ assert(d.timeline.some(e=>e.type==='cancelamento'),'cancelamento deve aparecer no histórico');
  assert.equal(d.transfers[0].status,'aprovada','Histórico de mesa sobrevive após cancelamentos e pagamentos');
  assert.equal((await req('/api/pdv/settle',{token},staff)).status,409,'Não pode encerrar conta com saldo pendente');
  const finalValue=(d.balance/100).toFixed(2);
@@ -131,10 +149,15 @@ try{
  assert.equal(d.closed,false,'Saldo zerado não é quitação automática');
  assert.equal((await req('/api/pdv/settle',{token},staff)).status,200);
  d=await snap();assert.equal(d.closed,true);assert(d.settledAt);
+ assertISO(d.settledAt,'quitação da conta');
+ assert(d.timeline.some(e=>e.type==='quitacao'),'quitação deve constar no histórico');
+ assert(d.timeline.some(e=>e.type==='pagamento'),'pagamento deve constar no histórico');
+ assert(d.timeline.some(e=>e.type==='divisao'),'divisão deve constar no histórico');
+ for(const e of d.timeline)assertISO(e.at,'movimentação auditável');
  assert.equal(d.transfers[0].to,'Mesa 15');
  assert(d.items.length>=5,'Histórico continua disponível no fechamento');
  assert.equal((await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'agua',qty:1,note:'teste',requestId:'46ff5b85-4470-41f4-b5cb-01dc6ce6a234'})).status,409);
  const freshAfterSettlement=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'12'});
  assert.notEqual(freshAfterSettlement.body.token,token,'Nova comanda só após quitação anterior');
- console.log('PASS: QR único por restaurante + mesa, trocas aprovadas no PDV, comanda e histórico preservados até quitação, pedidos, pagamentos e permissões');
+ console.log('PASS: registro de data/hora UTC em todas as transações; itens, pedidos, pagamento, cancelamento, contestação, troca de mesa e quitação');
 }finally{child.kill('SIGTERM');}
