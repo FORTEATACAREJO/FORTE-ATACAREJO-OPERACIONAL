@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||10000);
@@ -225,7 +226,17 @@ const server=http.createServer(async(req,res)=>{
   broadcast(s);return reply(res,200,{ok:true,...(u.pathname==='/api/pdv/payment'?{confirmed:true}:{})});
  }catch(e){safe(res,e)}
 });
-server.listen(PORT,'0.0.0.0',()=>console.log('HONESTO DEMO escutando na porta',PORT));
+server.listen(PORT,'0.0.0.0',()=>{
+ console.log('HONESTO DEMO escutando na porta',PORT);
+ // Homologação somente: executar teste real HTTP após cada inicialização.
+ // Processo de teste isolado, sem tocar em clientes e sessões desta instância.
+ if(process.env.HONESTO_SKIP_SMOKE!=='1'){
+  const smoke=spawn(process.execPath,[path.join(__dirname,'tests','smoke.mjs')],{cwd:__dirname,stdio:['ignore','pipe','pipe']});
+  smoke.stdout.on('data',b=>console.log('[HONESTO TESTE]',String(b).trim()));
+  smoke.stderr.on('data',b=>console.error('[HONESTO TESTE]',String(b).trim()));
+  smoke.on('close',code=>console.log('[HONESTO TESTE]',code===0?'APROVADO':'FALHOU (código '+code+')'));
+ }
+});
 setInterval(()=>{
  for(const [key,s] of store)if(Date.now()>s.expires){store.delete(key);streams.delete(key);}
  for(const [id,venue] of restaurants){for(const [table,key] of venue.tables)if(!store.has(key))venue.tables.delete(table);if(venue.tables.size===0)restaurants.delete(id)}
