@@ -180,10 +180,32 @@ const server=http.createServer(async(req,res)=>{
   }else if(u.pathname==='/api/pdv/settle'){
    // No participant can mark the comanda as paid; only the simulated POS may settle it.
    if(snapshot(s).balance!==0)throw Object.assign(new Error('Saldo pendente. Não é possível quitar a comanda.'),{http:409});
-   if(s.orders.some(o=>o.status==='solicitado')||s.transfers.some(t=>t.status==='pendente'))throw Object.assign(new Error('Há pedidos ou trocas pendentes'),{http:409});
+   if(s.orders.some(o=>o.status==='solicitado')||s.transfers.some(t=>t.status==='pendente')||s.disputes.some(d=>d.status==='pendente'))throw Object.assign(new Error('Há pedidos, trocas ou devoluções pendentes'),{http:409});
    s.closed=true;s.settledAt=now();recordEvent(s,'quitacao','Conta integralmente quitada e encerrada no PDV');
    const venue=restaurants.get(s.establishmentId);
    if(venue)for(const [table,token] of venue.tables)if(token===s.viewToken)venue.tables.delete(table);
+  }else if(u.pathname==='/api/pdv/dispute-status'){
+   // Only the simulated restaurant POS can accept/reject a return.
+   const dispute=s.disputes.find(d=>d.id===String(x.id||''));
+   if(!dispute)throw Object.assign(new Error('Solicitação de devolução não encontrada'),{http:404});
+   const status=String(x.status||'');
+   if(!['aprovada','recusada'].includes(status))throw new Error('Decisão inválida');
+   if(dispute.status===status)return reply(res,200,{ok:true,duplicate:true,status});
+   if(dispute.status!=='pendente')throw Object.assign(new Error('Devolução já analisada. A decisão permanece no histórico.'),{http:409});
+   const item=s.items.find(i=>i.id===dispute.item);
+   if(!item)throw new Error('Produto original não encontrado');
+   const decisionReason=String(x.reason||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,220);
+   if(status==='recusada'&&decisionReason.length<5)throw new Error('Informe o motivo da recusa (mínimo 5 caracteres)');
+   if(status==='aprovada'){
+    if(!item.active)throw Object.assign(new Error('Produto já cancelado no PDV'),{http:409});
+    item.active=false;
+    if(snapshot(s).balance<0){item.active=true;throw Object.assign(new Error('Não é possível abater o item: necessário ajustar ou estornar pagamento no caixa'),{http:409});}
+    item.cancelledAt=now();
+    recordEvent(s,'cancelamento','Devolução aceita pelo PDV: '+item.qty+' × '+item.name,-item.qty*item.unit,item.id);
+   }
+   dispute.status=status;dispute.resolvedAt=now();
+   dispute.decisionReason=decisionReason|| (status==='aprovada'?'Devolução autorizada pelo restaurante':null);
+   recordEvent(s,'devolucao',status==='aprovada'?'Devolução aceita no PDV: '+item.name:'Devolução recusada no PDV: '+item.name+' — '+decisionReason,null,dispute.id);
   }else if(u.pathname==='/api/pdv/order-settings'){
    if(typeof x.enabled!=='boolean')throw new Error('Configuração inválida');
    s.orderingEnabled=x.enabled;recordEvent(s,'configuracao',x.enabled?'Solicitações pelo HONESTO habilitadas':'Solicitações pelo HONESTO desabilitadas');
@@ -195,7 +217,11 @@ const server=http.createServer(async(req,res)=>{
   }else if(u.pathname==='/api/pdv/cancel'){
    const item=s.items.find(i=>i.id===x.id);if(!item||!item.active)throw new Error('Item não encontrado');item.active=false;
    if(snapshot(s).balance<0){item.active=true;throw new Error('Pagamento já excede o novo saldo; estorno necessário');}
-   item.cancelledAt=now();recordEvent(s,'cancelamento','Cancelado: '+item.qty+' × '+item.name,-item.qty*item.unit,item.id);
+   item.cancelledAt=now();recordEvent(s,'cancelamento','Cancelado no PDV: '+item.qty+' × '+item.name,-item.qty*item.unit,item.id);
+   for(const dispute of s.disputes.filter(d=>d.item===item.id&&d.status==='pendente')){
+    dispute.status='aprovada';dispute.resolvedAt=now();dispute.decisionReason='Produto cancelado diretamente pelo caixa';
+    recordEvent(s,'devolucao','Devolução aprovada por cancelamento no PDV: '+item.name,null,dispute.id);
+   }
   }else if(u.pathname==='/api/pdv/payment'){
    const amount=money(x.amount),person=existingPerson(s,x.person);
    if(amount>snapshot(s).balance)throw new Error('Pagamento maior que o saldo');
@@ -210,8 +236,13 @@ const server=http.createServer(async(req,res)=>{
   }else if(u.pathname==='/api/client/contest'){
    verifyMember();
    const item=s.items.find(i=>i.id===x.id),reason=String(x.reason||'').trim();
-   if(!item||reason.length<5||reason.length>220)throw new Error('Contestação inválida');
-   const dispute={id:rand(),item:item.id,reason,status:'pendente',at:now()};s.disputes.push(dispute);recordEvent(s,'contestacao','Contestação: '+item.name+' — '+reason,null,dispute.id);
+   if(!item||!item.active||reason.length<5||reason.length>220)throw new Error('Solicitação de devolução inválida');
+   const previous=s.disputes.filter(d=>d.item===item.id);
+   if(previous.some(d=>d.status==='pendente'))throw Object.assign(new Error('Devolução já solicitada. Aguarde a análise pelo garçom.'),{http:409});
+   if(previous.length>=3)throw Object.assign(new Error('Limite de solicitações do item atingido. Fale com o garçom.'),{http:429});
+   const requestedBy=verifyMember();
+   const dispute={id:rand(),item:item.id,requestedBy,reason,status:'pendente',at:now(),resolvedAt:null,decisionReason:null};
+   s.disputes.push(dispute);recordEvent(s,'devolucao','Devolução solicitada: '+item.name+' — '+reason,null,dispute.id);
   }else if(u.pathname==='/api/client/split'){
    verifyMember(null,true);
    if(!['restante','todos','individual'].includes(x.mode)||!Number.isInteger(x.count)||x.count<1||x.count>30)throw new Error('Divisão inválida');
