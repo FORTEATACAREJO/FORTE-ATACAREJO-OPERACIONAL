@@ -111,6 +111,35 @@ async function checkout(req){
   checkout_url:"https://asaas.com/checkoutSession/show?id="+encodeURIComponent(checkoutResponse.id),
   message:"Pagamento não confirmado; acesso permanece bloqueado até comprovação financeira."},200,cors(req));
 }
+// One-off recovery when PAYMENT_CONFIRMED arrived before SUBSCRIPTION_CREATED.
+// Always re-fetch every charge; never license from an unverified list/webhook alone.
+async function reconcileSubscriptionPayments(contractId,subscriptionId){
+ const result=await asaas("GET","/subscriptions/"+encodeURIComponent(subscriptionId)+"/payments");
+ const list=Array.isArray(result?.data)?result.data.slice(0,30):[];
+ let processed=0;
+ for(const item of list){
+  if(typeof item?.id!=="string"||item.id.length<6)continue;
+  if(!["CONFIRMED","RECEIVED"].includes(item.status))continue;
+  const charge=await asaas("GET","/payments/"+encodeURIComponent(item.id));
+  if(charge.id!==item.id||charge.subscription!==subscriptionId||
+   charge.billingType!=="CREDIT_CARD"||
+   !["CONFIRMED","RECEIVED"].includes(charge.status))continue;
+  const due=charge.originalDueDate||charge.dueDate;
+  if(typeof due!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(due))continue;
+  const amount=moneyCents(charge.value);
+  const syntheticEventId="sft-recovered-"+charge.id+"-"+charge.status;
+  await rpc("sft_billing_record_verified_event",{
+   p_event_id:syntheticEventId,p_event_type:"PAYMENT_RECONCILED",
+   p_payment_id:charge.id,p_subscription_id:subscriptionId,
+   p_amount_cents:amount,p_provider_status:charge.status,p_contract_id:contractId},true);
+  await rpc("sft_billing_apply_verified_card_payment",{
+   p_contract:contractId,p_event_id:syntheticEventId,p_payment_id:charge.id,
+   p_provider_subscription_id:subscriptionId,p_amount_cents:amount,
+   p_due_on:due,p_provider_status:charge.status},true);
+  processed++;
+ }
+ return processed;
+}
 async function webhook(req){
  if(!configReady())return json({error:"Integração de pagamento desativada"},503);
  const sent=req.headers.get("asaas-access-token");
@@ -129,16 +158,27 @@ async function webhook(req){
   if(typeof subId!=="string"||subId.length<8)return json({ok:true,pending:"subscription_id"},200);
   const remote=await asaas("GET","/subscriptions/"+encodeURIComponent(subId));
   if(remote.id!==subId)return json({error:"assinatura não verificada"},409);
+  if(remote.cycle!=="MONTHLY"||remote.billingType!=="CREDIT_CARD"||
+     remote.deleted===true||remote.status!=="ACTIVE")
+   return json({ok:true,pending:"recorrencia_incompativel"});
   const ref=typeof remote.externalReference==="string"?remote.externalReference:"";
-  // If Asaas does not preserve the checkout externalReference, keep the event pending.
+  // If Asaas does not preserve the checkout externalReference, leave it unlinked.
+  // Never match a payer to a company by name, e-mail or payment value.
   const contractId=ref?await rpc("sft_billing_lookup_checkout_ref",{p_checkout_reference:ref},true):null;
-  if(contractId)await rpc("sft_billing_attach_subscription",{
-    p_contract:contractId,p_provider_subscription_id:subId},true);
+  if(contractId){
+   const c=await rpc("sft_billing_checkout_context",{p_contract:contractId},true);
+   if(!c||c.checkout_reference!==ref||moneyCents(remote.value)!==c.price_cents)
+     return json({error:"assinatura não confere com o contrato"},409);
+   await rpc("sft_billing_attach_subscription",{
+     p_contract:contractId,p_provider_subscription_id:subId},true);
+  }
   await rpc("sft_billing_record_verified_event",{
    p_event_id:eventId,p_event_type:eventType,p_payment_id:null,p_subscription_id:subId,
    p_amount_cents:null,p_provider_status:String(remote.status||"UNSPECIFIED"),
    p_contract_id:contractId||null},true);
-  return json({ok:true,linked:!!contractId});
+  // Recover paid invoices whose notifications arrived before the subscription link.
+  const recovered=contractId?await reconcileSubscriptionPayments(contractId,subId):0;
+  return json({ok:true,linked:!!contractId,recovered,sandbox:true});
  }
  if(eventType==="PAYMENT_CONFIRMED"||eventType==="PAYMENT_RECEIVED"){
   const paymentId=data?.payment?.id;
@@ -167,7 +207,20 @@ async function webhook(req){
    p_due_on:due,p_provider_status:remote.status},true);
   return json({ok:true,licensed:true,sandbox:true});
  }
- // No automatic license modification on checkout, overdue, refund or chargeback.
+ if(eventType==="CHECKOUT_PAID"){
+  const checkoutId=data.checkout?.id;
+  if(typeof checkoutId==="string"&&checkoutId.length>5){
+   const contractId=await rpc("sft_billing_lookup_checkout_id",{p_checkout_id:checkoutId},true);
+   await rpc("sft_billing_record_verified_event",{
+    p_event_id:eventId,p_event_type:eventType,p_payment_id:null,
+    p_subscription_id:null,p_amount_cents:null,p_provider_status:String(data.checkout?.status||"PAID"),
+    p_contract_id:contractId||null},true);
+   // Checkout PAID is not enough to authorize a specific recurring payment.
+   return json({ok:true,contract_linked:!!contractId,license_unchanged:true});
+  }
+ }
+ // No automatic license modification on overdue, refunds, or chargebacks until
+ // their own provider-verified reconciliation and business rules are homologated.
  return json({ok:true,ignored:eventType});
 }
 Deno.serve(async(req)=>{
