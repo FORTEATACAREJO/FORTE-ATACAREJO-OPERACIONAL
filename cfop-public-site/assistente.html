@@ -95,6 +95,17 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="field"><label for="cest">CEST (quando aplicável)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
 <div class="field"><label id="useLabel" for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
 <div class="field full"><div id="catalogHint" class="warning">Digite o produto para obter sugestões de NCM e CEST, quando existirem na tabela fundamentada da FORTE TECH.</div></div>
+<div class="field full" style="padding:14px;border:1px solid #dae3ec;border-radius:12px;background:#f9fbfd">
+<label for="ncmOfficialSearch">Pesquisar na tabela completa de NCM da Receita Federal</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input id="ncmOfficialSearch" style="flex:2;min-width:180px" placeholder="Ex.: cimento, cal, argamassa ou 2523" maxlength="65" autocomplete="off">
+<button type="button" id="findOfficialNcm" class="primary" style="flex:1">Pesquisar</button>
+</div>
+<button type="button" id="verifyEnteredNcm" style="margin-top:10px">Conferir o NCM informado (8 dígitos)</button>
+<small id="ncmVersion" style="display:block;margin:10px 0 0">Carregando versão oficial do NCM...</small>
+<div id="ncmOfficialResults" aria-live="polite" style="display:grid;gap:7px;margin-top:10px"></div>
+<div id="ncmOfficialStatus" class="warning" style="margin-top:10px">O banco oficial confirma a existência do código, não o seu enquadramento para a mercadoria. Confira composição e documentos técnicos.</div>
+</div>
 <div class="field full hidden" id="catalogOptionsWrap"><label style="font-size:13px;font-weight:700" for="catalogOptions">Há mais de uma possibilidade de NCM/CEST. Selecione apenas se a descrição corresponder ao XML ou ficha técnica:</label><select id="catalogOptions" style="display:block;width:100%;min-height:45px;margin-top:7px"></select></div>
 <div class="field"><label for="stEvidence">ICMS-ST nesta operação</label><select id="stEvidence">
 <option value="unknown">Não tenho informação</option>
@@ -318,6 +329,84 @@ $('next2').onclick=()=>{
  goto(3)
 };
 
+const NCM_DATABASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-ncm';
+let officialNcm=null;
+function ncmDescr(s){return String(s||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim()}
+function officialCodeFmt(s){const v=String(s||'').replace(/\D/g,'');return v.length===8?v.replace(/^(\d{4})(\d{2})(\d{2})$/,'$1.$2.$3'):v}
+async function ncmGet(route,params){
+ const u=new URL(NCM_DATABASE+'/'+route);
+ for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));
+ const r=await fetch(u,{headers:{Accept:'application/json'}});
+ if(!r.ok)throw Error('Serviço NCM indisponível ou código não encontrado.');
+ return r.json();
+}
+function showNcmStatus(text,isOk){
+ $('ncmOfficialStatus').textContent=text;
+ $('ncmOfficialStatus').className='warning'+(isOk?' good':'');
+}
+function showNcmRecords(items){
+ const list=$('ncmOfficialResults');list.replaceChildren();
+ if(!items.length){const p=document.createElement('p');p.textContent='Nenhum registro encontrado. Pesquise pela palavra principal ou pelos primeiros dígitos do NCM.';list.appendChild(p);return}
+ for(const entry of items){
+ const row=document.createElement('div');row.style.cssText='padding:9px 10px;border:1px solid #d5dde6;border-radius:10px;background:white;display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap';
+ const details=document.createElement('div');details.style.flex='1';
+ const strong=document.createElement('strong');strong.textContent=officialCodeFmt(entry.codigo)+' — '+ncmDescr(entry.descricao);
+ const subtitle=document.createElement('small');subtitle.style.display='block';subtitle.textContent=entry.nivel===8?'NCM de oito dígitos':'Grupo da nomenclatura — não é NCM completo';
+ details.append(strong,subtitle);
+ const b=document.createElement('button');
+ b.textContent=entry.nivel===8?'Conferir e usar código':'Explorar códigos';
+ b.onclick=()=>{
+  if(entry.nivel===8)verifyNcmCode(entry.codigo,true);
+  else loadNcmFamily(entry.codigo);
+ };
+ row.append(details,b);list.appendChild(row)
+ }
+}
+async function loadNcmFamily(prefix){
+ showNcmStatus('Carregando códigos de oito dígitos da família '+prefix+'...',false);
+ try{
+  const result=await ncmGet('family',{prefix:prefix});
+  showNcmRecords(result.items||[]);
+  showNcmStatus('Códigos oficiais do grupo '+prefix+'. Analise a composição da mercadoria antes de selecionar. '+(result.hasMore?'A lista tem mais resultados; refine a pesquisa.':''),false);
+ }catch(e){showNcmStatus(String(e.message||e),false)}
+}
+async function verifyNcmCode(value,apply){
+ const code=String(value||'').replace(/\D/g,'');
+ if(code.length!==8){showNcmStatus('Informe um NCM completo com 8 dígitos.',false);return}
+ showNcmStatus('Conferindo o código na tabela oficial da Receita...',false);
+ try{
+  const result=await ncmGet('code',{code:code});
+  const desc=(result.hierarchy||[]).map(x=>officialCodeFmt(x.codigo)+' '+ncmDescr(x.descricao)).join(' › ');
+  officialNcm={code:code,hierarchy:desc,checkedAt:new Date().toISOString()};
+  if(apply){
+   const previous=$('ncm').value;
+   $('ncm').value=code;
+   if(previous!==code){$('cest').value='';suggestedCest='';}
+   suggestedNcm='';
+   const p=window.FORTE_CLASSIFICACAO?.suggest($('product').value);
+   const candidates=p?.options||[];
+   const candidate=candidates.find(o=>o.ncm===code)||((p?.ncm===code&&p?.cest)?p:null);
+   if(candidate&&candidate.cest){$('cest').value=candidate.cest;suggestedCest=candidate.cest;}
+  }
+  showNcmStatus('Código '+officialCodeFmt(code)+' encontrado na NCM vigente. Hierarquia: '+desc+'. Importante: a existência do código NÃO comprova sua aplicação ao produto informado.',true);
+ }catch(e){officialNcm=null;showNcmStatus('Não foi possível confirmar o NCM: '+String(e.message||e),false)}
+}
+$('findOfficialNcm').onclick=async()=>{
+ const input=$('ncmOfficialSearch');let term=input.value.trim();
+ if(!term){term=$('product').value.trim().split(/\s+/).find(x=>x.length>=3)||'';input.value=term}
+ if(term.length<3){showNcmStatus('Digite ao menos três caracteres da descrição ou NCM.',false);return}
+ const b=$('findOfficialNcm');b.disabled=true;b.textContent='Pesquisando...';
+ try{
+  const result=await ncmGet('search',{q:term});
+  showNcmRecords(result.items||[]);
+  showNcmStatus('Resultados da tabela oficial. Se aparecer um grupo, toque em “Explorar códigos”; somente códigos com 8 dígitos podem preencher o NCM.',false);
+ }catch(e){showNcmStatus(String(e.message||e),false)}
+ finally{b.disabled=false;b.textContent='Pesquisar'}
+};
+$('verifyEnteredNcm').onclick=()=>verifyNcmCode($('ncm').value,false);
+$('ncm').addEventListener('input',()=>{officialNcm=null;showNcmStatus('Código alterado; consulte a tabela oficial novamente.',false)});
+$('product').addEventListener('input',()=>{officialNcm=null});
+ncmGet('version',{}).then(data=>{$('ncmVersion').textContent='Fonte: Receita Federal/Siscomex — '+(data.snapshot?.referencia||'versão não informada')+' • '+(data.snapshot?.quantidade||'?')+' registros; sem API paga.'}).catch(()=>{$('ncmVersion').textContent='Consulta à tabela oficial temporariamente indisponível.'});
 let suggestedNcm="",suggestedCest="";
 function renderProductSuggestion(){
  if(!window.FORTE_CLASSIFICACAO)return;
@@ -364,7 +453,8 @@ const productAnalysis=fiscalEngine?fiscalEngine.suggest(product,ncm):null;
 const cfopAnalysis=fiscalEngine?fiscalEngine.cfop({operation:op,originUf:$('originUf').value,destUf:$('destUf').value,purpose:$('use').value,stEvidence:$('stEvidence').value,sellerSource:$('sellerSource').value,buyerIsContributor:$('buyerContributor').value,consultantKind:profile,otherKind:otherKind}):{code:"",status:"pendente",explanation:"Motor fiscal indisponível.",assumptions:[]};
 const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',currentResult('own')?'Retorno de intermediário; fonte e data abaixo':profile==='company'?'CNPJ salvo; cadastro não confirmado':'Dados informados pelo visitante; validados apenas no formato'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],[op==='entrada'?'Tipo do fornecedor':'Tipo do comprador',otherKind==='rural'?'Produtor rural com CPF e IE':otherKind==='person'?'Pessoa física com CPF':'Empresa com CNPJ'],
 [op==='entrada'?'Documento do fornecedor':'Documento do comprador',currentResult('other')?'Retorno de intermediário; fonte e data abaixo':$('otherDoc').value?'Informado e validado apenas no formato. Cadastro ainda não verificado.':'Não informado'],
-['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm?(fiscalEngine?fiscalEngine.ncmFmt(ncm):ncm)+' — referência a confirmar':'Não identificado'],
+['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm?(fiscalEngine?fiscalEngine.ncmFmt(ncm):ncm)+(officialNcm?.code===ncm?' — código existente na tabela oficial; enquadramento do produto não confirmado':' — não conferido na tabela oficial nesta consulta'):'Não identificado'],
+['Hierarquia da NCM',officialNcm?.code===ncm?officialNcm.hierarchy:'Não conferida'],
 ['CEST',cest?(fiscalEngine?fiscalEngine.cestFmt(cest):cest)+' — não confirma incidência de ST':'Não identificado / não confirmado'],
 ['Origem da sugestão',productAnalysis?productAnalysis.name+' — '+productAnalysis.precision:'Fora do catálogo'],
 ['Finalidade',$('use').selectedOptions[0].text],
