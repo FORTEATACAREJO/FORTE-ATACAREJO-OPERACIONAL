@@ -41,7 +41,7 @@ function newDemo(tableNo='12',seed=true,venue=null){
  // In the public demonstration this represents the restaurant POS menu and its optional receive-orders feature.
  orderingEnabled:true,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
  const add=(name,qty,price,person)=>{const i={id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now(),cancelledAt:null};s.items.push(i);recordEvent(s,'item','Lançado: '+qty+' × '+name,qty*price,i.id);};
- add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);
+ if(seed){add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);}
  established.tables.set(number,s.viewToken);store.set(s.viewToken,s);return s;
 }
 const money=(x)=>{const str=String(x).trim().replace(',','.');if(!/^\d{1,6}(\.\d{1,2})?$/.test(str))throw new Error('Valor monetário inválido');const cents=Math.round(Number(str)*100);if(!(cents>0&&cents<=1_000_000))throw new Error('Valor fora do intervalo');return cents;};
