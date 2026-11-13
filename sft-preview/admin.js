@@ -351,6 +351,55 @@ async function loadAccountingSettings(company,role){
   if(!lines.length){const el=document.createElement("p");el.className="muted";el.textContent="Nenhum registro desta empresa.";div.append(el);}
   for(const line of lines.slice(0,18)){const el=document.createElement("p");el.className="check";el.textContent=line;div.append(el);}
  }
+
+ const serviceStates=["ABERTO","EM_ANALISE","AGUARDANDO_DOCUMENTOS","EM_CONFERENCIA","CONCLUIDO_INTERNO","CANCELADO"];
+ const obligationStates=["PLANEJADA","DOCUMENTOS_PENDENTES","EM_CONFERENCIA","PRONTA_PARA_REVISAO","ENCERRADA_INTERNAMENTE"];
+ const obligationApplicability=["NAO_ANALISADA","EM_ANALISE","APLICAVEL","NAO_APLICAVEL"];
+ async function patchAccounting(tableName,id,body,success){
+  await request("/rest/v1/"+tableName+"?id=eq."+id,{auth:true,method:"PATCH",body});
+  await details(company);
+  say(success);
+ }
+ const serviceBox=$("accounting-service-list");
+ serviceBox.replaceChildren();
+ if(!services.length){const p=document.createElement("p");p.className="muted";p.textContent="Nenhuma solicitação.";serviceBox.append(p);}
+ for(const svc of services.slice(0,15)){
+  const row=document.createElement("div");row.className="check";
+  const label=document.createElement("p");label.textContent=svc.service_type.replaceAll("_"," ")+" · "+svc.subject;
+  const select=document.createElement("select");select.setAttribute("aria-label","Etapa da solicitação");
+  populateSelect(select,serviceStates.map(x=>({code:x})),"code",x=>x.code.replaceAll("_"," "));
+  select.value=svc.status;
+  const btn=document.createElement("button");btn.type="button";btn.className="secondary";btn.textContent="Atualizar etapa";
+  btn.onclick=async()=>{btn.disabled=true;
+   try{await patchAccounting("accounting_service_requests",svc.id,{status:select.value},
+    "Etapa da solicitação atualizada nesta empresa.");}
+   catch(e){say("Falha na atualização: "+e.message,true);}
+   finally{btn.disabled=false;}
+  };
+  row.append(label,select,btn);serviceBox.append(row);
+ }
+ const obligationBox=$("accounting-obligation-list");
+ obligationBox.replaceChildren();
+ if(!obligations.length){const p=document.createElement("p");p.className="muted";p.textContent="Nenhuma obrigação registrada. A aplicabilidade deve ser analisada.";obligationBox.append(p);}
+ for(const ob of obligations.slice(0,15)){
+  const row=document.createElement("div");row.className="check";
+  const label=document.createElement("p");label.textContent=ob.obligation_type+" · "+ob.reference_period.slice(0,7)+" · prazo informado: "+(ob.due_on||"não definido");
+  const status=document.createElement("select");status.setAttribute("aria-label","Etapa interna da obrigação");
+  populateSelect(status,obligationStates.map(x=>({code:x})),"code",x=>x.code.replaceAll("_"," "));
+  status.value=ob.status;
+  const applicability=document.createElement("select");applicability.setAttribute("aria-label","Aplicabilidade da obrigação para este CNPJ");
+  populateSelect(applicability,obligationApplicability.map(x=>({code:x})),"code",x=>x.code.replaceAll("_"," "));
+  applicability.value=ob.applicability;
+  const btn=document.createElement("button");btn.type="button";btn.className="secondary";btn.textContent="Salvar revisão interna";
+  btn.onclick=async()=>{btn.disabled=true;
+   try{await patchAccounting("accounting_obligation_tracking",ob.id,
+     {status:status.value,applicability:applicability.value},
+     "Controle atualizado. Nenhuma declaração foi transmitida.");}
+   catch(e){say("Falha na atualização: "+e.message,true);}
+   finally{btn.disabled=false;}
+  };
+  row.append(label,status,applicability,btn);obligationBox.append(row);
+ }
  populateSelect($("accounting-draft-period"),periods.filter(x=>x.status==="ABERTO"),"id",x=>x.period_month.slice(0,7));
  for(const id of ["accounting-draft-debit","accounting-draft-credit"]){
   populateSelect($(id),accounts,"id",x=>x.account_code+" · "+x.account_name);
