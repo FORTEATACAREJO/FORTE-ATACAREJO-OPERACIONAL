@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTE TECH CFOP</title>
-<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js" defer></script>
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js"></script>
 <style>
 :root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#152b42;background:#f3f5f9}
 *{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 870px)/2));display:flex;gap:12px;align-items:center}
@@ -349,7 +349,7 @@ $('catalogOptions').addEventListener('change',function(){
  if(found){$('ncm').value=found.ncm;$('cest').value=found.cest;suggestedNcm=found.ncm;suggestedCest=found.cest;
  $('catalogHint').textContent="Opção selecionada: "+found.name+". Verifique a composição e o XML; CEST não comprova ST."; }
 });
-$('operationDate').value=new Date().toLocaleDateString('en-CA');
+const d=new Date();$('operationDate').value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 function showFiscalConditions(){
  const isSale=op==='saida';
  $('sellerSourceWrap').classList.toggle('hidden',!isSale);
@@ -361,7 +361,7 @@ showFiscalConditions();
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
 const fiscalEngine=window.FORTE_CLASSIFICACAO;
 const productAnalysis=fiscalEngine?fiscalEngine.suggest(product,ncm):null;
-const cfopAnalysis=fiscalEngine?fiscalEngine.cfop({operation:op,originUf:$('originUf').value,destUf:$('destUf').value,purpose:$('use').value,stEvidence:$('stEvidence').value,sellerSource:$('sellerSource').value,buyerIsContributor:$('buyerContributor').value}):{code:"",status:"pendente",explanation:"Motor fiscal indisponível.",assumptions:[]};
+const cfopAnalysis=fiscalEngine?fiscalEngine.cfop({operation:op,originUf:$('originUf').value,destUf:$('destUf').value,purpose:$('use').value,stEvidence:$('stEvidence').value,sellerSource:$('sellerSource').value,buyerIsContributor:$('buyerContributor').value,consultantKind:profile,otherKind:otherKind}):{code:"",status:"pendente",explanation:"Motor fiscal indisponível.",assumptions:[]};
 const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',currentResult('own')?'Retorno de intermediário; fonte e data abaixo':profile==='company'?'CNPJ salvo; cadastro não confirmado':'Dados informados pelo visitante; validados apenas no formato'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],[op==='entrada'?'Tipo do fornecedor':'Tipo do comprador',otherKind==='rural'?'Produtor rural com CPF e IE':otherKind==='person'?'Pessoa física com CPF':'Empresa com CNPJ'],
 [op==='entrada'?'Documento do fornecedor':'Documento do comprador',currentResult('other')?'Retorno de intermediário; fonte e data abaixo':$('otherDoc').value?'Informado e validado apenas no formato. Cadastro ainda não verificado.':'Não informado'],
 ['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm?(fiscalEngine?fiscalEngine.ncmFmt(ncm):ncm)+' — referência a confirmar':'Não identificado'],
