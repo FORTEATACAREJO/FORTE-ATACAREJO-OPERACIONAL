@@ -44,6 +44,13 @@ function cfopSuggest(o){
  var unknown={code:"",status:"pendente",explanation:"Dados ainda insuficientes para indicar CFOP.",assumptions:[]};
  if(!o.originUf||!o.destUf)return unknown;
  if(!["entrada","saida"].includes(op))return unknown;
+ if(o.consultantKind==="person")
+  return {code:"",status:"pendente",explanation:"CPF comum sem IE não representa automaticamente estabelecimento emissor/escriturador de NF-e. É necessário definir o sujeito tributário antes de atribuir CFOP.",assumptions:[]};
+ if(op==="saida" && o.otherKind==="person" && o.buyerIsContributor==="yes")
+  return {code:"",status:"pendente",explanation:"Destinatário selecionado como pessoa física sem IE, porém marcado como contribuinte do ICMS. Corrija o tipo do comprador ou confirme a situação estadual.",assumptions:[]};
+ if(op==="saida" && o.otherKind==="rural" && o.buyerIsContributor==="no")
+  return {code:"",status:"pendente",explanation:"Produtor rural com IE foi informado como não contribuinte. Confirme na SEFAZ antes de sugerir CFOP.",assumptions:[]};
+
  if(op==="entrada" && o.consultantKind==="person")return {code:"",status:"pendente",explanation:"Pessoa física sem inscrição estadual não deve receber CFOP de escrituração de compra como se fosse estabelecimento contribuinte. A operação exige análise específica.",assumptions:[]};
  if(op==="entrada"){
   if(purpose==="revenda"){
