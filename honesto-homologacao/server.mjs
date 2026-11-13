@@ -54,6 +54,11 @@ const server=http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://localhost');
   if(req.method==='GET'&&u.pathname==='/health')return reply(res,200,{ok:true,mode:'homologacao-demo',payments:'disabled'});
+  if(req.method==='GET'&&['/icon-192.png','/icon-512.png'].includes(u.pathname)){
+   const size=u.pathname==='/icon-192.png'?192:512;
+   const b=Buffer.from(fs.readFileSync(path.join(__dirname,'assets','icon-'+size+'.png.base64'),'utf8').trim(),'base64');
+   res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff'});return res.end(b);
+  }
   if(req.method==='GET'&&['/manifest.webmanifest','/sw.js','/icon.svg','/vendor/qrcode.js'].includes(u.pathname)){
    const map={'/manifest.webmanifest':['manifest.webmanifest','application/manifest+json'],'/sw.js':['sw.js','text/javascript; charset=utf-8'],'/icon.svg':['icon.svg','image/svg+xml'],'/vendor/qrcode.js':['vendor/qrcode.js','text/javascript; charset=utf-8']};
    const [filename,type]=map[u.pathname];const b=fs.readFileSync(path.join(__dirname,filename));
