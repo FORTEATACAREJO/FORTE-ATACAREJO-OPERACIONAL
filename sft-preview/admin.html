@@ -40,8 +40,8 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <div id="status" role="status" aria-live="polite"></div>
 <section id="login-area" class="card">
 <h1>Entrar sem senha</h1>
-<p class="muted">Para o primeiro acesso, utilize somente o e-mail administrativo já autorizado. Outros usuários precisarão ser cadastrados e autorizados antes do acesso.</p>
-<form id="otp-form"><label for="otp-email">E-mail autorizado</label><input id="otp-email" type="email" value="sistemasfortetech@gmail.com" autocomplete="email" maxlength="240" required>
+<p class="muted">Administradores usam seu e-mail autorizado. Contadores e colaboradores devem utilizar o mesmo e-mail que recebeu o convite da empresa. O primeiro acesso Master também depende de validação.</p>
+<form id="otp-form"><label for="otp-email">E-mail autorizado</label><input id="otp-email" type="email" placeholder="Seu e-mail autorizado ou convidado" autocomplete="email" maxlength="240" required>
 <button type="submit">Enviar link de acesso</button></form>
 <p class="muted">A mensagem de acesso vem por e-mail, sem senha fixa. Antes do primeiro uso, é preciso liberar o endereço <code>https://sistemas-forte-tech.onrender.com/admin.html</code> em <a href="https://supabase.com/dashboard/project/tusmlfhzwlzwnoxfhomt/auth/url-configuration" target="_blank" rel="noopener noreferrer">Supabase → Authentication → URL Configuration</a> (Redirect URLs). A entrega de e-mail também depende do provedor configurado no Supabase.</p>
 </section>
