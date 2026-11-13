@@ -21,6 +21,7 @@ function taxGroup(imposto,name){
   origin:text(variant,"orig"),base:text(variant,"vBC"),rate:text(variant,"pICMS")||text(variant,"pPIS")||text(variant,"pCOFINS")||text(variant,"pIPI"),
   amount:text(variant,"vICMS")||text(variant,"vPIS")||text(variant,"vCOFINS")||text(variant,"vIPI"),
   baseST:text(variant,"vBCST"),rateST:text(variant,"pICMSST"),valueST:text(variant,"vICMSST"),
+  baseSTRet:text(variant,"vBCSTRet"),rateSTRet:text(variant,"pST"),valueSTRet:text(variant,"vICMSSTRet"),valueSubstitute:text(variant,"vICMSSubstituto"),
   redBC:text(variant,"pRedBC"),ipiEnq:text(container,"cEnq")
  };
 }
