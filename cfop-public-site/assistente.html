@@ -359,6 +359,7 @@ function selectXmlItem(index){
  suggestedNcm='';suggestedCest='';
  officialNcm=null;
  renderProductSuggestion();
+ if(/^\d{8}$/.test(item.ncm))verifyNcmCode(item.ncm,false);
  const reasons=[
  'Produto '+item.item+': '+item.description,
  'NCM no XML: '+(item.ncm||'ausente'),
@@ -446,7 +447,7 @@ async function verifyNcmCode(value,apply){
  try{
   const result=await ncmGet('code',{code:code});
   const desc=(result.hierarchy||[]).map(x=>officialCodeFmt(x.codigo)+' '+ncmDescr(x.descricao)).join(' › ');
-  officialNcm={code:code,hierarchy:desc,checkedAt:new Date().toISOString()};
+  officialNcm={code:code,hierarchy:desc,checkedAt:new Date().toISOString(),dataInicio:result.entry?.data_inicio||null,dataFim:result.entry?.data_fim||null};
   if(apply){
    const previous=$('ncm').value;
    $('ncm').value=code;
@@ -520,7 +521,9 @@ showFiscalConditions();
 function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
  const root=$('fiscalDossier');root.replaceChildren();
  const engine=window.FORTE_CLASSIFICACAO;
- const official=officialNcm?.code===ncm;
+ const opDate=$('operationDate').value;
+ const dateWithinNcm=!!officialNcm?.code && (!opDate || ((!officialNcm.dataInicio||opDate>=officialNcm.dataInicio)&&(!officialNcm.dataFim||opDate<=officialNcm.dataFim)));
+ const official=officialNcm?.code===ncm&&dateWithinNcm;
  const ncmMatchesCurated=!!productAnalysis&&(productAnalysis.ncm===ncm || (productAnalysis.options||[]).some(x=>x.ncm===ncm));
  const cestMatchesCurated=!!productAnalysis&&!!cest&&((productAnalysis.cest===cest&&ncmMatchesCurated)||(productAnalysis.options||[]).some(x=>x.ncm===ncm&&x.cest===cest));
  const sourceOwn=currentResult('own'),sourceOther=currentResult('other');
@@ -548,7 +551,7 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
   container.append(h,t);root.appendChild(container);
  }
  const unsure=(label,detail)=>({label,value:'Aguardando validação',note:detail,tag:'Pendente'});
- const ncmReg=official?'Código existente na tabela oficial; aplicação ao produto ainda depende de comprovação':ncm?'Código informado ou sugerido, ainda não conferido na NCM oficial':'NCM de 8 dígitos ainda não identificado';
+ const ncmReg=official?'Código existente na tabela oficial vigente, com datas compatíveis no snapshot; aplicação ao produto ainda depende de comprovação':officialNcm?.code===ncm&&!dateWithinNcm?'Data da operação fora da vigência indicada na tabela NCM consultada; verifique histórico oficial':ncm?'Código informado ou sugerido, ainda não conferido na NCM oficial':'NCM de 8 dígitos ainda não identificado';
  const ncmTag=official?'Código verificado':ncmMatchesCurated?'Sugestão do catálogo':ncm?'Informado':'Pendente';
  const ncmState=official?'known':ncmMatchesCurated?'hypothesis':'';
  const cestTag=cestMatchesCurated?'Referência do catálogo':cest?'Informado':'Pendente';
@@ -642,7 +645,7 @@ $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '
  if(ncm)payload.ncm=ncm;
  if(profile==='company'&&$('insights').checked)payload.company={cnpj:alpha($('ownCnpj').value),name:$('ownName').value.trim()||null};
  const note=document.createElement('p');note.className='muted';note.textContent='Registrando estatísticas de consulta (sem documentos de terceiros)...';$('summary').appendChild(note);
- if(currentXmlEvidence()){note.textContent='Leitura do XML local: consulta não enviada às estatísticas da FORTE TECH.';return;}
+ if(xmlDocument){note.textContent='Arquivo XML utilizado: nenhuma informação desta consulta foi enviada às estatísticas da FORTE TECH.';return;}
  fetch(BASE+'/api/consult',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
   .then(async res=>{if(!res.ok)throw Error('HTTP '+res.status);note.textContent='Consulta agregada registrada para inteligência comercial.'})
   .catch(()=>{note.textContent='Estatísticas temporariamente indisponíveis; o resumo permanece válido como demonstração.'});
