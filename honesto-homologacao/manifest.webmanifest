@@ -1,0 +1,28 @@
+{
+  "name": "HONESTO — Sua conta sob seu controle",
+  "short_name": "HONESTO",
+  "description": "Confira a conta e acompanhe o cardápio do restaurante. Pedidos quando autorizados.",
+  "lang": "pt-BR",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir HONESTO",
+      "url": "/",
+      "description": "Acessar o aplicativo"
+    }
+  ]
+}
