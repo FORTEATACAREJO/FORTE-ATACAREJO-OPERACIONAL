@@ -8,6 +8,26 @@ async function req(path,obj,staff){const r=await fetch(origin+path,{method:obj?'
 try{
  let ready=false;for(let i=0;i<40;i++){try{if((await req('/health')).status===200){ready=true;break}}catch{}await sleep(150)}
  assert(ready,'servidor não iniciou '+output);
+ const manifestResponse=await fetch(origin+'/manifest.webmanifest');
+ assert.equal(manifestResponse.status,200);
+ const manifest=await manifestResponse.json();
+ assert(manifest.icons.some(x=>x.sizes==='192x192'));
+ assert(manifest.icons.some(x=>x.sizes==='512x512'));
+ for(const sz of [192,512]){
+  const icon=await fetch(origin+'/icon-'+sz+'.png');
+  assert.equal(icon.status,200);
+  assert.equal(icon.headers.get('content-type'),'image/png');
+  const bytes=new Uint8Array(await icon.arrayBuffer());
+  assert.deepEqual(Array.from(bytes.slice(0,8)),[137,80,78,71,13,10,26,10]);
+ }
+ const qrLib=await fetch(origin+'/vendor/qrcode.js');
+ assert.equal(qrLib.status,200);
+ assert((await qrLib.text()).includes('QR Code Generator'));
+ const landing=await fetch(origin+'/');
+ assert.equal(landing.status,200);
+ const landingHtml=await landing.text();
+ assert(landingHtml.includes('joinForm')&&landingHtml.includes('menuList')&&landingHtml.includes('joinPanel'));
+ 
  const demo=(await req('/api/demo')).body;assert(demo.token&&demo.staff);
  const token=demo.token,staff=demo.staff;
  const joined=await req('/api/client/join',{token,name:'João'});
