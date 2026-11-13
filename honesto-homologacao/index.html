@@ -106,8 +106,22 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  $('workspace').classList.toggle('hidden',!joined);
  $('installStrip').classList.remove('hidden');
  $('joinRestaurant').textContent=d.restaurant;if(!$('joinTable').value)$('joinTable').value=d.originalTable.replace(/^Mesa /,'');
+ const myTable=d.personalTable||d.table;
+ $('table').textContent=myTable;
+ $('moveButton').disabled=!joined||d.closed;
+ const myMoves=d.transfers.filter(t=>t.person===visitorId);
+ const awaiting=myMoves.find(t=>t.status==='pendente');
+ $('movePending').textContent=awaiting?'Troca solicitada: '+awaiting.from+' → '+awaiting.to+' · Aguardando confirmação no sistema do restaurante':d.closed?'Comanda quitada e encerrada.':'';
+ if(joined&&d.personalTable){try{localStorage.setItem('honesto-last-table',d.personalTable.replace(/^Mesa /,''));localStorage.setItem('honesto-current-comanda:'+establishmentId,JSON.stringify({token,memberToken,visitorId}))}catch{}}
+ $('accountHistory').innerHTML='<div class="row"><strong>Comanda</strong><span class="pill '+(d.closed?'ok':'warn')+'">'+(d.closed?'Quitada':'Em aberto')+'</span></div>'+
+  myMoves.map(t=>'<div class="row"><div>Troca '+escapeHtml(t.from)+' → '+escapeHtml(t.to)+'</div><span class="pill '+(t.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(t.status)+'</span></div>').join('')+
+  d.payments.map(p=>'<div class="row"><span>Pagamento confirmado · '+escapeHtml(p.method)+'</span><strong>'+fmt(p.amount)+'</strong></div>').join('')+
+  '<div class="row"><span>Saldo atual</span><strong>'+fmt(d.balance)+'</strong></div>';
  $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
  renderQR();
+ $('transferRequests').innerHTML=d.transfers.map(t=>'<div class="row"><div><strong>'+escapeHtml(ids[t.person]||'Participante')+'</strong><div class="small">'+escapeHtml(t.from)+' → '+escapeHtml(t.to)+'</div><span class="pill '+(t.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(t.status)+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+(t.status==='pendente'?'<button class="btn sm" onclick="resolveTransfer(\''+t.id+'\',\'aprovada\')">Confirmar</button><button class="btn red sm" onclick="resolveTransfer(\''+t.id+'\',\'recusada\')">Recusar</button>':'')+'</div></div>').join('')||'<p class="small">Nenhuma troca solicitada.</p>';
+ $('settleButton').disabled=d.closed||d.balance!==0||d.transfers.some(t=>t.status==='pendente')||d.orders.some(o=>o.status==='solicitado');
+ $('settlementLabel').textContent=d.closed?'Quitação confirmada no PDV simulado':d.balance!==0?'Saldo pendente: '+fmt(d.balance):'Saldo zerado. O PDV ainda precisa confirmar a quitação.';
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
 $('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+(i.active?'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+i.id+'\')">Não reconheço</button>':'<span class="pill warn">Cancelado</span>')+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
 $('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
@@ -129,7 +143,7 @@ $('enableOrders').checked=d.orderingEnabled;
 displayOrderPrice();
 const orderStatus={solicitado:'Aguardando aceitação',aceito:'Aceito no PDV',entregue:'Entregue',recusado:'Não aceito'};
 $('clientOrders').innerHTML=d.orders.map(o=>'<div class="row"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">'+escapeHtml(ids[o.person]||'Cliente')+' · '+escapeHtml(o.note||'Sem observação')+'</div></div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div>').join('')||'<p class="small">Nenhum pedido solicitado ainda.</p>';
-$('cashOrders').innerHTML=d.orders.map(o=>'<div class="row" style="align-items:start"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">Mesa: '+escapeHtml(d.table)+' · Cliente: '+escapeHtml(ids[o.person]||'Não identificado')+'</div><div class="small">Observação: '+escapeHtml(o.note||'Nenhuma')+'</div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:end">'+(o.status==='solicitado'?'<button class="btn sm" onclick="orderStatusChange(\''+o.id+'\',\'aceito\')">Aceitar no PDV</button><button class="btn sm red" onclick="orderStatusChange(\''+o.id+'\',\'recusado\')">Recusar</button>':o.status==='aceito'?'<button class="btn sm light" onclick="orderStatusChange(\''+o.id+'\',\'entregue\')">Marcar entregue</button>':'')+'</div></div>').join('')||'<p class="small">Nenhum pedido aguardando.</p>';
+$('cashOrders').innerHTML=d.orders.map(o=>'<div class="row" style="align-items:start"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">Mesa: '+escapeHtml(o.table||d.table)+' · Cliente: '+escapeHtml(ids[o.person]||'Não identificado')+'</div><div class="small">Observação: '+escapeHtml(o.note||'Nenhuma')+'</div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:end">'+(o.status==='solicitado'?'<button class="btn sm" onclick="orderStatusChange(\''+o.id+'\',\'aceito\')">Aceitar no PDV</button><button class="btn sm red" onclick="orderStatusChange(\''+o.id+'\',\'recusado\')">Recusar</button>':o.status==='aceito'?'<button class="btn sm light" onclick="orderStatusChange(\''+o.id+'\',\'entregue\')">Marcar entregue</button>':'')+'</div></div>').join('')||'<p class="small">Nenhum pedido aguardando.</p>';
 for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerHTML=options(id==='payPerson'?'Pagamento da mesa':'Compartilhado');e.value=old;}
 $('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div></div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
 $('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div></div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
@@ -161,6 +175,11 @@ async function installHonesto(){if(installPrompt){try{await installPrompt.prompt
  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);note(ios?'No Safari, toque em Compartilhar e em Adicionar à Tela de Início.':'No Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial.')}
 }
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+function toggleTableChange(){if(!memberToken||!visitorId)return;
+ const panel=$('moveFormPanel');panel.classList.toggle('hidden');
+ if(!panel.classList.contains('hidden')){$('moveTable').value='';$('moveTable').focus()}}
+async function resolveTransfer(id,status){await action('/api/pdv/transfer-status',{id,status},true,status==='aprovada'?'Troca de mesa confirmada no PDV simulado':'Troca recusada no PDV simulado')}
+async function settleBill(){if(!confirm('Simular quitação total no PDV e encerrar esta comanda?'))return;await action('/api/pdv/settle',{},true,'Quitação confirmada no PDV simulado')}
 function displayOrderPrice(){if(!data)return;const m=data.menu.find(x=>x.id===$('orderProduct').value);const q=Number($('orderQty').value)||1;$('orderPrice').textContent=fmt(m?m.unit*q:0)}
 async function setOrderEnabled(enabled){await action('/api/pdv/order-settings',{enabled},true,enabled?'Pedidos habilitados nesta demonstração':'Pedidos desabilitados para esta mesa')}
 async function orderStatusChange(id,status){await action('/api/pdv/order-status',{id,status},true,'Situação do pedido atualizada pelo PDV simulado')}
@@ -171,6 +190,12 @@ async function changeSplit(){await action('/api/client/split',{mode:$('splitMode
 async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
 $('newDemo').addEventListener('click',startNew);
 $('joinForm').addEventListener('submit',joinHonesto);
+$('moveForm').addEventListener('submit',async e=>{e.preventDefault();
+ const newTable=$('moveTable').value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{1,6}$/.test(newTable)){note('Informe a nova mesa corretamente',true);return}
+ try{await api('/api/client/transfer-request',{newTable});$('moveFormPanel').classList.add('hidden');await refresh();note('Troca solicitada. Aguarde a confirmação do sistema do restaurante.')}
+ catch(ex){note(ex.message,true)}
+});
 $('orderProduct').addEventListener('change',displayOrderPrice);
 $('orderQty').addEventListener('input',displayOrderPrice);
 $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
