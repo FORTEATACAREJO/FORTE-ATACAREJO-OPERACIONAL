@@ -161,10 +161,26 @@ async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.
  if(!/^[A-Z0-9]{1,6}$/.test(table)){note('Informe um número de mesa válido.',true);return}
  try{
   if(!establishmentId)throw Error('Abra o QR Code do estabelecimento primeiro');
+  // A returning customer may have changed tables without changing the comanda.
+  // Resume only if this device already owns a token for a comanda showing the selected current table.
+  let recent=null;try{recent=JSON.parse(localStorage.getItem('honesto-current-comanda:'+establishmentId)||'null')}catch{}
+  if(recent?.token&&recent?.memberToken&&recent?.visitorId){
+   try{
+    const resumed=await fetch('/api/session/'+encodeURIComponent(recent.token)+'?memberToken='+encodeURIComponent(recent.memberToken));
+    if(resumed.ok){const current=await resumed.json();
+     if(!current.closed&&current.personalTable==='Mesa '+table&&current.people.some(p=>p.id===recent.visitorId)){
+      token=recent.token;memberToken=recent.memberToken;visitorId=recent.visitorId;await connect();note('Sua comanda anterior foi retomada, com todo o histórico.');return;
+     }}
+   }catch{}
+  }
   const session=await api('/api/table/enter',{establishmentId,table});
   const changed=token!==session.token;
-  if(changed){token=session.token;memberToken='';visitorId='';staff=sessionStorage.getItem('honesto-demo-staff:'+token)||staff;}
-  if(!changed&&memberToken&&visitorId){await connect();note('Você já está identificado nesta comanda.');return}
+  if(changed){
+   token=session.token;staff=sessionStorage.getItem('honesto-demo-staff:'+token)||staff;
+   let saved=null;try{saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null')}catch{}
+   memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';
+  }
+  if(memberToken&&visitorId){await connect();note('Sua comanda anterior foi retomada.');return}
   const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
   try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('honesto-display-name',name);localStorage.setItem('honesto-last-table',table)}catch{}
   await connect();note('Bem-vindo(a), '+name+'! Mesa '+table+' confirmada.');}
