@@ -67,7 +67,7 @@ try{
  d=await snap();assert.equal(Object.values(d.rateio).reduce((a,b)=>a+b,0),d.balance);
  const paid=await req('/api/pdv/payment',{token,amount:'20,00',method:'pix',person,leaves:true},staff);
  assert.equal(paid.status,200);assert.equal(paid.body.confirmed,true);
- d=await snap();assert.equal(d.paid,2000);assert.equal(d.people[0].present,false);
+ d=await snap();assert.equal(d.paid,2000);assert.equal(d.people.find(p=>p.id===person).present,false);
  assert.equal((await req('/api/pdv/payment',{token,amount:'999999',method:'pix'},staff)).status,400);
  assert.equal((await req('/api/client/contest',{token,id:item,reason:'Não solicitei este produto',memberToken})).status,200);
  d=await snap();assert.equal(d.disputes.length,1);
