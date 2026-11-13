@@ -171,14 +171,14 @@ async function details(company){
 }
 const connectionKinds={
  BANK_API:"API bancária",OPEN_FINANCE:"Open Finance",BANK_FILE:"Arquivo bancário (OFX/CSV)",
- CARD_ACQUIRER:"Credenciadora de cartões",CARD_POS:"Maquininha / POS",CARD_GATEWAY:"Gateway de cartões",CARD_FILE:"Arquivo de conciliação de cartões",
+ CARD_ACQUIRER:"Credenciadora de cartões",CARD_POS:"Maquininha / POS",CARD_GATEWAY:"Gateway de cartões",CARD_FILE:"Arquivo de conciliação de cartões",CARD_ISSUER:"Emissor de cartões empresariais",
  AI_PROVIDER:"Inteligência artificial"
 };
 async function loadIntegrationSettings(company,role){
  const box=$("integrations-card");
  if(!["ADMIN","CONTADOR"].includes(role)){box.hidden=true;return;}
  box.hidden=false;
- const [connections,agents,requests,accounts,merchants,sales,receivables,adjustments,settlements,establishments]=await Promise.all([
+ const [connections,agents,requests,accounts,merchants,sales,receivables,adjustments,settlements,establishments,corpCards,corpStatements,corpExpenses]=await Promise.all([
   table("integration_connections?select=id,kind,provider_name,display_name,status,environment,credential_status&company_id=eq."+company.id+"&order=created_at.desc"),
   table("ai_agent_profiles?select=id,label,purpose,status,connection_id&company_id=eq."+company.id+"&order=created_at.desc"),
   table("ai_assistance_requests?select=id,task_type,state,created_at&company_id=eq."+company.id+"&order=created_at.desc&limit=30"),
@@ -188,7 +188,10 @@ async function loadIntegrationSettings(company,role){
   table("card_receivable_installments?select=id,due_on,net_brl,reconciliation_state&company_id=eq."+company.id+"&order=due_on.asc&limit=50"),
   table("card_adjustment_events?select=id,event_type,amount_brl&company_id=eq."+company.id+"&limit=50"),
   table("card_settlement_batches?select=id,net_brl,state&company_id=eq."+company.id+"&limit=50"),
-  table("establishments?select=id,cnpj,legal_name,state&company_id=eq."+company.id+"&order=cnpj.asc")
+  table("establishments?select=id,cnpj,legal_name,state&company_id=eq."+company.id+"&order=cnpj.asc"),
+  table("corporate_card_profiles?select=id,card_label,card_last4,status&company_id=eq."+company.id+"&limit=100"),
+  table("corporate_card_statements?select=id,due_on,invoice_total_brl,reconciliation_state&company_id=eq."+company.id+"&order=due_on.desc&limit=50"),
+  table("corporate_card_expenses?select=id,booked_on,amount_brl&company_id=eq."+company.id+"&order=booked_on.desc&limit=50")
  ]);
  $("integration-create-card").hidden=role!=="ADMIN";
  const cardConnections=connections.filter(c=>["CARD_ACQUIRER","CARD_POS","CARD_GATEWAY","CARD_FILE"].includes(c.kind));
@@ -199,6 +202,24 @@ async function loadIntegrationSettings(company,role){
  const cardEstEl=$("card-merchant-establishment");
  cardEstEl.replaceChildren();
  for(const e of establishments){const opt=document.createElement("option");opt.value=e.id;opt.textContent=e.legal_name+" · "+e.state+" · "+e.cnpj;cardEstEl.append(opt);}
+ const issuerConnections=connections.filter(c=>c.kind==="CARD_ISSUER");
+ $("corporate-card-create-card").hidden=role!=="ADMIN"||!issuerConnections.length||!establishments.length;
+ const issuerConnEl=$("corporate-card-connection");
+ issuerConnEl.replaceChildren();
+ for(const c of issuerConnections){const opt=document.createElement("option");opt.value=c.id;opt.textContent=c.display_name+" · "+c.provider_name;issuerConnEl.append(opt);}
+ const corpEstEl=$("corporate-card-establishment");
+ corpEstEl.replaceChildren();
+ for(const e of establishments){const opt=document.createElement("option");opt.value=e.id;opt.textContent=e.legal_name+" · "+e.state+" · "+e.cnpj;corpEstEl.append(opt);}
+ const corporateSummary=$("corporate-card-summary");corporateSummary.replaceChildren();
+ const cr=document.createElement("p");cr.textContent="Cartões empresariais: "+corpCards.length+
+ " · Faturas importadas (até 50): "+corpStatements.length+
+ " · Despesas importadas (até 50): "+corpExpenses.length;
+ corporateSummary.append(cr);
+ for(const st of corpStatements.slice(0,5)){
+  const line=document.createElement("p");line.className="check";
+  line.textContent="Fatura com vencimento em "+st.due_on+" · R$ "+st.invoice_total_brl+" · "+st.reconciliation_state;
+  corporateSummary.append(line);
+ }
  const cs=$("card-receivables-summary");
  cs.replaceChildren();
  const cp=document.createElement("p");
@@ -232,7 +253,8 @@ async function loadIntegrationSettings(company,role){
  text.textContent="Conexões previstas: "+connections.length+
  " · Agentes de IA inativos: "+agents.length+
  " · Contas bancárias ligadas: "+accounts.length+
- " · Vínculos de cartão: "+merchants.length+
+ " · Credenciadoras/lojas: "+merchants.length+
+ " · Cartões empresariais: "+corpCards.length+
  " · Solicitações de IA aguardando configuração: "+requests.length;
  summary.append(text);
  const list=$("integration-list");list.replaceChildren();
@@ -351,10 +373,11 @@ function fillGroupSelect(el,selected){
 onForm("integration-connection-form",async form=>{
  const company=requireCompany();
  const kind=$("integration-kind").value;
- if(!["BANK_API","OPEN_FINANCE","BANK_FILE","CARD_ACQUIRER","CARD_POS","CARD_GATEWAY","CARD_FILE","AI_PROVIDER"].includes(kind))throw new Error("Modalidade inválida");
+ if(!["BANK_API","OPEN_FINANCE","BANK_FILE","CARD_ACQUIRER","CARD_POS","CARD_GATEWAY","CARD_FILE","CARD_ISSUER","AI_PROVIDER"].includes(kind))throw new Error("Modalidade inválida");
  const scopes=kind==="BANK_FILE"?["ARQUIVOS_OFX_CSV"]:
   kind==="AI_PROVIDER"?["ASSISTENTE_CADASTROS"]:
   kind==="CARD_FILE"?["ARQUIVOS_CONCILIACAO_CARTAO"]:
+  kind==="CARD_ISSUER"?["CONSULTA_FATURAS_CORPORATIVAS","CONSULTA_DESPESAS_CORPORATIVAS","CONSULTA_PAGAMENTOS_FATURA"]:
   ["CARD_ACQUIRER","CARD_POS","CARD_GATEWAY"].includes(kind)?
   ["CONSULTA_VENDAS_CARTAO","CONSULTA_RECEBIVEIS_CARTAO","CONSULTA_TAXAS_CARTAO","CONSULTA_ESTORNOS_CONTESTACOES"]:
   ["CONSULTA_SALDO","CONSULTA_EXTRATO"];
@@ -383,6 +406,23 @@ onForm("card-merchant-form",async form=>{
  });
  form.reset();await details(company);
  say("Vínculo da operadora/maquininha registrado sem credenciais. Nenhum pagamento foi realizado.");
+});
+onForm("corporate-card-form",async form=>{
+ const company=requireCompany();
+ const connectionId=$("corporate-card-connection").value;
+ const establishmentId=$("corporate-card-establishment").value;
+ if(!connectionId||!establishmentId)throw new Error("Cadastre antes um emissor de cartão e selecione um estabelecimento.");
+ const last4=$("corporate-card-last4").value.trim();
+ if(last4&&!/^[0-9]{4}$/.test(last4))throw new Error("Informe somente quatro últimos dígitos.");
+ await insertRow("corporate_card_profiles",{
+  company_id:company.id,connection_id:connectionId,establishment_id:establishmentId,
+  card_label:$("corporate-card-label").value.trim(),
+  card_last4:last4||null,
+  holder_label:null,
+  status:"AGUARDANDO_VINCULO"
+ });
+ form.reset();await details(company);
+ say("Cartão empresarial cadastrado sem credenciais e sem consultar faturas reais.");
 });
 onForm("ai-agent-form",async form=>{
  const company=requireCompany();
