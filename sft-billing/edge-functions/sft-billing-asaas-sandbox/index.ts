@@ -7,7 +7,7 @@ const KEYS=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}");
 const SECRET_KEY=KEYS.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PUBLISHABLE=JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")||"{}").default||
   Deno.env.get("SUPABASE_ANON_KEY")||"";
-const ALLOWED_ORIGIN="https://sistemas-forte-tech.onrender.com";
+const ALLOWED_ORIGINS=new Set(["https://sistemas-forte-tech.onrender.com","https://sistemasfortetech.com.br","https://www.sistemasfortetech.com.br"]);
 const ASAAS="https://api-sandbox.asaas.com/v3";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function json(value,status=200,headers={}){
@@ -15,7 +15,7 @@ function json(value,status=200,headers={}){
 }
 function cors(req){
  const origin=req.headers.get("origin");
- return origin===ALLOWED_ORIGIN?{"access-control-allow-origin":ALLOWED_ORIGIN,
+ return origin!==null&&ALLOWED_ORIGINS.has(origin)?{"access-control-allow-origin":origin,
  "access-control-allow-headers":"authorization,apikey,content-type",
  "access-control-allow-methods":"GET,POST,OPTIONS","vary":"Origin"}:{};
 }
@@ -68,7 +68,8 @@ function localDueDate(){
 async function checkout(req){
  if(!configReady())return json({status:"BLOQUEADO",
   message:"Cobrança ainda não habilitada: credenciais Asaas Sandbox e autenticação estão pendentes."},503,cors(req));
- if(req.headers.get("origin")!==ALLOWED_ORIGIN)return json({error:"origem não permitida"},403,cors(req));
+ const checkoutOrigin=req.headers.get("origin");
+ if(!checkoutOrigin||!ALLOWED_ORIGINS.has(checkoutOrigin))return json({error:"origem não permitida"},403,cors(req));
  const bearer=req.headers.get("authorization")||"";
  if(!/^Bearer\s+[A-Za-z0-9._~-]+$/i.test(bearer))return json({error:"login obrigatório"},401,cors(req));
  const token=bearer.replace(/^Bearer\s+/i,"");
@@ -98,9 +99,9 @@ async function checkout(req){
   items:[{name:context.plan_name,description:"Sistemas Forte Tech — assinatura mensal em homologação",
     quantity:1,value:priceCents/100}],
   subscription:{cycle:"MONTHLY",nextDueDate:localDueDate()},
-  callback:{successUrl:ALLOWED_ORIGIN+"/admin.html?cobranca=verificar",
-    cancelUrl:ALLOWED_ORIGIN+"/admin.html?cobranca=cancelada",
-    expiredUrl:ALLOWED_ORIGIN+"/admin.html?cobranca=expirada"}
+  callback:{successUrl:checkoutOrigin+"/admin.html?cobranca=verificar",
+    cancelUrl:checkoutOrigin+"/admin.html?cobranca=cancelada",
+    expiredUrl:checkoutOrigin+"/admin.html?cobranca=expirada"}
  };
  const checkoutResponse=await asaas("POST","/checkouts",checkoutReq);
  if(typeof checkoutResponse?.id!=="string"||checkoutResponse.id.length<6)
