@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#102640"><title>Assistente fiscal | FORTE TECH CFOP</title>
-<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.json"><script src="/classificacao.js" defer></script>
 <style>
 :root{font-family:system-ui,-apple-system,Arial,sans-serif;color:#152b42;background:#f3f5f9}
 *{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 870px)/2));display:flex;gap:12px;align-items:center}
@@ -91,15 +91,31 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div class="card hidden" id="step3"><h2>3. Qual é o produto e o destino dele?</h2>
 <div class="grid">
 <div class="field"><label for="product">Produto</label><input id="product" placeholder="Ex.: cimento, cerveja, tijolo" maxlength="90"></div>
-<div class="field"><label for="ncm">NCM (se constar na nota ou catálogo)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
-<div class="field"><label for="cest">CEST (se constar no documento)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
+<div class="field"><label for="ncm">NCM (sugestão automática ou informado na NF-e)</label><input id="ncm" inputmode="numeric" placeholder="8 dígitos" maxlength="8"></div>
+<div class="field"><label for="cest">CEST (quando aplicável)</label><input id="cest" inputmode="numeric" placeholder="7 dígitos" maxlength="7"></div>
 <div class="field"><label id="useLabel" for="use">Para que o produto será utilizado?</label><select id="use"><option value="revenda">Para revender</option><option value="obra">Utilizar em uma obra/construção</option><option value="consumo">Uso ou consumo da atividade</option><option value="industrializacao">Fabricar outro produto</option><option value="ativo">Máquina, equipamento ou ativo imobilizado</option><option value="particular">Consumo pessoal (pessoa física)</option></select></div>
+<div class="field full"><div id="catalogHint" class="warning">Digite o produto para obter sugestões de NCM e CEST, quando existirem na tabela fundamentada da FORTE TECH.</div></div>
+<div class="field full hidden" id="catalogOptionsWrap"><label style="font-size:13px;font-weight:700" for="catalogOptions">Há mais de uma possibilidade de NCM/CEST. Selecione apenas se a descrição corresponder ao XML ou ficha técnica:</label><select id="catalogOptions" style="display:block;width:100%;min-height:45px;margin-top:7px"></select></div>
+<div class="field"><label for="stEvidence">ICMS-ST nesta operação</label><select id="stEvidence">
+<option value="unknown">Não tenho informação</option>
+<option value="no_st">Sem ST — conferido na documentação</option>
+<option value="prior_st">ST retida anteriormente — conferida</option>
+<option value="substitute">ST a recolher pelo responsável — conferida</option>
+</select></div>
+<div class="field" id="sellerSourceWrap"><label for="sellerSource">Na venda, qual a origem da mercadoria?</label><select id="sellerSource">
+<option value="unknown">Não sei ainda</option><option value="third_party">Comprei de fornecedor para revender</option><option value="own_production">Produção própria ou do produtor rural</option>
+</select></div>
+<div class="field" id="buyerContributorWrap"><label for="buyerContributor">Comprador é contribuinte do ICMS?</label><select id="buyerContributor">
+<option value="unknown">Não confirmado</option><option value="yes">Sim — condição confirmada</option><option value="no">Não contribuinte — confirmado</option>
+</select></div>
+<div class="field"><label for="operationDate">Data prevista da operação</label><input id="operationDate" type="date"></div>
 </div>
 <div class="warning" style="margin-top:14px">O produto sozinho não determina se há substituição tributária. Para verificar ICMS-ST são necessários NCM, descrição, CEST quando aplicável, UF, data da operação, regras estaduais e responsabilidade tributária. O simulador atual não confirma essas informações automaticamente.</div>
 <div class="actions"><button id="back3">Voltar</button><button class="gold" id="next3">Analisar</button></div></div>
 <div class="card hidden" id="step4"><h2>4. Análise da operação</h2>
 <div id="summary"></div>
-<div class="warning" style="margin-top:15px"><strong>Classificação fiscal: pendente de validação.</strong> Não há integração ativa com bases oficiais de regime tributário, cadastro de IE e regras de ST de todas as UFs. Por segurança, esta etapa não inventa um CFOP definitivo.</div>
+<div id="fiscalReview" class="warning" style="margin-top:15px"><strong>Classificação fiscal condicionada:</strong> sugestões não substituem a legislação vigente, o XML do produto nem a análise da operação. CST/CSOSN, PIS/COFINS, bases e alíquotas ainda requerem validação.</div>
+<div style="font-size:13px;margin-top:12px;line-height:1.8">Fontes: <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">CONFAZ — CEST e ST</a> · <a href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif" target="_blank" rel="noopener">Receita — NCM/Classif</a> · <a href="https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm" target="_blank" rel="noopener">Tabela CFOP</a></div>
 <div class="divider"></div>
 <p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
 <div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="legacy">Abrir simulador experimental</button></div></div>
@@ -301,11 +317,68 @@ $('next2').onclick=()=>{
  }
  goto(3)
 };
+
+let suggestedNcm="",suggestedCest="";
+function renderProductSuggestion(){
+ if(!window.FORTE_CLASSIFICACAO)return;
+ const product=$('product').value.trim();
+ const x=window.FORTE_CLASSIFICACAO.suggest(product,$('ncm').value);
+ if(!x){$('catalogHint').textContent="Digite uma descrição para buscar NCM e CEST na tabela fundamentada.";$('catalogOptionsWrap').classList.add('hidden');return}
+ let details=[x.name, x.detail];
+ const fmt=window.FORTE_CLASSIFICACAO;
+ if(x.ncm)details.push("NCM indicativo: "+fmt.ncmFmt(x.ncm));
+ else if(x.ncmGroup)details.push("Família NCM: "+x.ncmGroup+" (faltam os 8 dígitos)");
+ if(x.cest)details.push("CEST previsto no Convênio 142/2018: "+fmt.cestFmt(x.cest)+" — não confirma ST na operação.");
+ details.push("Situação: "+x.precision+". Confirme no XML/ficha técnica antes de emitir.");
+ $('catalogHint').textContent=details.join("\n");$('catalogHint').style.whiteSpace="pre-line";
+ const options=Array.isArray(x.options)?x.options:[];
+ $('catalogOptionsWrap').classList.toggle('hidden',options.length===0);
+ const sel=$('catalogOptions');sel.replaceChildren();
+ if(options.length){const placeholder=document.createElement('option');placeholder.value="";placeholder.textContent="Escolher após conferir a documentação";sel.appendChild(placeholder);
+  options.forEach(function(y){const op=document.createElement('option');op.value=y.ncm;op.textContent=fmt.ncmFmt(y.ncm)+" — CEST "+fmt.cestFmt(y.cest)+" — "+y.name;sel.appendChild(op)});
+ }
+ if(x.ncm && (!$('ncm').value||$('ncm').value===suggestedNcm)){$('ncm').value=x.ncm;suggestedNcm=x.ncm}
+ if(x.cest && x.ncm && (!$('cest').value||$('cest').value===suggestedCest)){$('cest').value=x.cest;suggestedCest=x.cest}
+ if(!x.ncm && $('ncm').value===suggestedNcm && suggestedNcm){$('ncm').value="";suggestedNcm=""}
+ if(!x.cest && $('cest').value===suggestedCest && suggestedCest){$('cest').value="";suggestedCest=""}
+}
+$('product').addEventListener('input',renderProductSuggestion);
+$('ncm').addEventListener('change',function(){suggestedNcm="";renderProductSuggestion()});
+$('catalogOptions').addEventListener('change',function(){
+ const x=window.FORTE_CLASSIFICACAO.suggest($('product').value);const found=(x&&x.options||[]).find(o=>o.ncm===$('catalogOptions').value);
+ if(found){$('ncm').value=found.ncm;$('cest').value=found.cest;suggestedNcm=found.ncm;suggestedCest=found.cest;
+ $('catalogHint').textContent="Opção selecionada: "+found.name+". Verifique a composição e o XML; CEST não comprova ST."; }
+});
+$('operationDate').value=new Date().toLocaleDateString('en-CA');
+function showFiscalConditions(){
+ const isSale=op==='saida';
+ $('sellerSourceWrap').classList.toggle('hidden',!isSale);
+ $('buyerContributorWrap').classList.toggle('hidden',!isSale);
+}
+document.querySelectorAll('[data-entry-operation]').forEach(function(b){b.addEventListener('click',showFiscalConditions)});
+showFiscalConditions();
+
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
+const fiscalEngine=window.FORTE_CLASSIFICACAO;
+const productAnalysis=fiscalEngine?fiscalEngine.suggest(product,ncm):null;
+const cfopAnalysis=fiscalEngine?fiscalEngine.cfop({operation:op,originUf:$('originUf').value,destUf:$('destUf').value,purpose:$('use').value,stEvidence:$('stEvidence').value,sellerSource:$('sellerSource').value,buyerIsContributor:$('buyerContributor').value}):{code:"",status:"pendente",explanation:"Motor fiscal indisponível.",assumptions:[]};
 const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile==='rural'?'Produtor rural com CPF e IE':'Pessoa física'],['Cadastro próprio',currentResult('own')?'Retorno de intermediário; fonte e data abaixo':profile==='company'?'CNPJ salvo; cadastro não confirmado':'Dados informados pelo visitante; validados apenas no formato'],['Operação',op==='entrada'?'Compra / entrada':'Venda / saída'],['Origem e destino',$('originUf').value+' → '+$('destUf').value],[op==='entrada'?'Tipo do fornecedor':'Tipo do comprador',otherKind==='rural'?'Produtor rural com CPF e IE':otherKind==='person'?'Pessoa física com CPF':'Empresa com CNPJ'],
 [op==='entrada'?'Documento do fornecedor':'Documento do comprador',currentResult('other')?'Retorno de intermediário; fonte e data abaixo':$('otherDoc').value?'Informado e validado apenas no formato. Cadastro ainda não verificado.':'Não informado'],
-['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm||'Não informado'],['CEST',cest||'Não informado'],['Finalidade',$('use').selectedOptions[0].text],['Regime federal','Não confirmado por fonte oficial'],['Situação ICMS-ST','Pendente: exige legislação atual e classificação do produto'],['CFOP','Pendente de validação']];
+['Inscrição estadual da outra parte',otherKind==='rural'?'IE declarada na UF '+$('otherIeUf').value+'; situação cadastral não verificada':otherKind==='company'&&$('otherIe').value.trim()?'IE informada; situação cadastral não verificada':'Não informada ou não aplicável'],['Produto',product],['NCM',ncm?(fiscalEngine?fiscalEngine.ncmFmt(ncm):ncm)+' — referência a confirmar':'Não identificado'],
+['CEST',cest?(fiscalEngine?fiscalEngine.cestFmt(cest):cest)+' — não confirma incidência de ST':'Não identificado / não confirmado'],
+['Origem da sugestão',productAnalysis?productAnalysis.name+' — '+productAnalysis.precision:'Fora do catálogo'],
+['Finalidade',$('use').selectedOptions[0].text],
+['Data considerada',$('operationDate').value||'Não informada'],
+['Situação ICMS-ST',$('stEvidence').selectedOptions[0].text+' — exige verificação por UF e destinatário'],
+['CFOP possível',cfopAnalysis.code?cfopAnalysis.code+' (hipótese condicionada)':'Pendente de validação'],
+['Condição para o CFOP',cfopAnalysis.explanation],
+['CST / CSOSN','Pendente: origem, regime e tratamento estadual'],
+['PIS / COFINS','Pendente: regime tributário e incidência'],
+['IBS / CBS','Pendente: classificação específica, vigência e cClassTrib'],
+['Base e alíquota do ICMS','Pendente: UF, origem, benefícios, ST, pauta ou MVA, quando aplicável'],
+['Regime federal','Não confirmado por fonte oficial']];
 $('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4);
+$('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '+cfopAnalysis.code+'. '+cfopAnalysis.explanation+' Pressupostos: '+(cfopAnalysis.assumptions||[]).join('; ')+'. Uso fiscal somente após conferência documental e legal.':'Classificação fiscal pendente. '+cfopAnalysis.explanation+' Consulte NCM/CEST oficiais e legislação específica da origem/destino antes de emitir ou escriturar.';
  for(const [who,label] of [['own','Consulta do cadastro próprio'],['other','Consulta da outra parte']]){const result=currentResult(who);if(result){const row=table.insertRow();row.insertCell().textContent=label;row.insertCell().textContent=statusSummary(result)+'\nIE digitada/escolhida deve corresponder ao retorno; CFOP e ICMS-ST permanecem pendentes.';}}
  const cleanProduct=product.slice(0,90);
  const purpose=$('use').value==='particular'?'consumo':$('use').value;
