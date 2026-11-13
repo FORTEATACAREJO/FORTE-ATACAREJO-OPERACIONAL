@@ -54,8 +54,8 @@ const server=http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://localhost');
   if(req.method==='GET'&&u.pathname==='/health')return reply(res,200,{ok:true,mode:'homologacao-demo',payments:'disabled'});
-  if(req.method==='GET'&&['/manifest.webmanifest','/sw.js','/icon.svg'].includes(u.pathname)){
-   const map={'/manifest.webmanifest':['manifest.webmanifest','application/manifest+json'],'/sw.js':['sw.js','text/javascript; charset=utf-8'],'/icon.svg':['icon.svg','image/svg+xml']};
+  if(req.method==='GET'&&['/manifest.webmanifest','/sw.js','/icon.svg','/vendor/qrcode.js'].includes(u.pathname)){
+   const map={'/manifest.webmanifest':['manifest.webmanifest','application/manifest+json'],'/sw.js':['sw.js','text/javascript; charset=utf-8'],'/icon.svg':['icon.svg','image/svg+xml'],'/vendor/qrcode.js':['vendor/qrcode.js','text/javascript; charset=utf-8']};
    const [filename,type]=map[u.pathname];const b=fs.readFileSync(path.join(__dirname,filename));
    res.writeHead(200,{'Content-Type':type,'Cache-Control':filename==='sw.js'?'no-cache':'public, max-age=3600'});return res.end(b);
   }
