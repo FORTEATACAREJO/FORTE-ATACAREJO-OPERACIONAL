@@ -89,14 +89,14 @@ const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
 async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
-async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;memberToken='';visitorId='';sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
+async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;establishmentId=d.establishmentId;memberToken='';visitorId='';sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
 async function connect(){if(es)es.close();
- try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('honesto-display-name');if(lastName)$('joinName').value=lastName;}catch{}
- $('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?mode=cliente&token='+token;await refresh();
+ try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('honesto-display-name'),lastTable=localStorage.getItem('honesto-last-table');if(lastName)$('joinName').value=lastName;if(lastTable&&!$('joinTable').value)$('joinTable').value=lastTable;}catch{}
+ $('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?est='+encodeURIComponent(establishmentId);await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
 viewMode(new URLSearchParams(location.search).get('mode')==='pdv'&&staff?'pdv':'cliente');}
-function viewMode(next){mode=next;$('clientSection').classList.toggle('hidden',mode!=='cliente');$('staffSection').classList.toggle('hidden',mode!=='pdv');$('clientTab').classList.toggle('on',mode==='cliente');$('staffTab').classList.toggle('on',mode==='pdv');history.replaceState({},'',location.pathname+'?mode='+mode+'&token='+encodeURIComponent(token));}
-async function refresh(){if(!token||loading)return;loading=true;try{data=await api('/api/session/'+encodeURIComponent(token));render();$('connection').textContent='Conectado'}catch(e){$('connection').textContent='Sem conexão'}finally{loading=false;}}
+function viewMode(next){mode=next;$('clientSection').classList.toggle('hidden',mode!=='cliente');$('staffSection').classList.toggle('hidden',mode!=='pdv');$('clientTab').classList.toggle('on',mode==='cliente');$('staffTab').classList.toggle('on',mode==='pdv');history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&mode='+mode+'&token='+encodeURIComponent(token));}
+async function refresh(){if(!token||loading)return;loading=true;try{data=await api('/api/session/'+encodeURIComponent(token)+(memberToken?'?memberToken='+encodeURIComponent(memberToken):''));render();$('connection').textContent='Conectado'}catch(e){$('connection').textContent='Sem conexão'}finally{loading=false;}}
 async function action(endpoint,payload,needStaff=false,message='Atualizado'){try{await api(endpoint,payload,needStaff);await refresh();note(message)}catch(e){note(e.message,true);await refresh();}}
 const names=()=>Object.fromEntries(data.people.map(p=>[p.id,p.name]));
 const options=(empty)=>'<option value="">'+empty+'</option>'+data.people.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+(p.present?'':' (saiu)')+'</option>').join('');
@@ -105,7 +105,7 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  $('joinPanel').classList.toggle('hidden',joined);
  $('workspace').classList.toggle('hidden',!joined);
  $('installStrip').classList.remove('hidden');
- $('joinRestaurant').textContent=d.restaurant+' · '+d.table;
+ $('joinRestaurant').textContent=d.restaurant;if(!$('joinTable').value)$('joinTable').value=d.originalTable.replace(/^Mesa /,'');
  $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
  renderQR();
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
@@ -134,19 +134,26 @@ for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerH
 $('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div></div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
 $('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div></div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
 }
-function renderQR(){if(!token||typeof qrcode!=='function'||qrRendered===token)return;
- const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);
- try{const qr=qrcode(0,'M');qr.addData(link);qr.make();$('tableQRCode').innerHTML=qr.createSvgTag({cellSize:5,margin:12,scalable:true,alt:'QR Code para abrir o HONESTO'});$('tableQRLink').textContent=link;qrRendered=token}
+function renderQR(){if(!establishmentId||typeof qrcode!=='function'||qrRendered===establishmentId)return;
+ const link=location.origin+'/?est='+encodeURIComponent(establishmentId);
+ try{const qr=qrcode(0,'M');qr.addData(link);qr.make();$('tableQRCode').innerHTML=qr.createSvgTag({cellSize:5,margin:12,scalable:true,alt:'QR Code único do estabelecimento HONESTO'});$('tableQRLink').textContent=link;qrRendered=establishmentId}
  catch(e){$('tableQRLink').textContent=link}
 }
 function chooseMenu(id){
  if(!data.orderingEnabled){note('Este estabelecimento permite apenas visualizar o cardápio',true);return}
  $('orderProduct').value=id;displayOrderPrice();$('orderCard').scrollIntoView({behavior:'smooth',block:'center'})
 }
-async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.trim();
- try{const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
- try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('honesto-display-name',name)}catch{}
- await refresh();note('Bem-vindo(a), '+name+'! O cardápio já está disponível.');}
+async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.trim(),table=$('joinTable').value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{1,6}$/.test(table)){note('Informe um número de mesa válido.',true);return}
+ try{
+  if(!establishmentId)throw Error('Abra o QR Code do estabelecimento primeiro');
+  const session=await api('/api/table/enter',{establishmentId,table});
+  const changed=token!==session.token;
+  if(changed){token=session.token;memberToken='';visitorId='';staff=sessionStorage.getItem('honesto-demo-staff:'+token)||staff;}
+  if(!changed&&memberToken&&visitorId){await connect();note('Você já está identificado nesta comanda.');return}
+  const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
+  try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('honesto-display-name',name);localStorage.setItem('honesto-last-table',table)}catch{}
+  await connect();note('Bem-vindo(a), '+name+'! Mesa '+table+' confirmada.');}
  catch(ex){note(ex.message,true)}
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').textContent='Instalar grátis'});
@@ -161,7 +168,7 @@ async function serviceChoice(person,enabled){await action('/api/client/service',
 async function contest(id){const reason=prompt('Qual o motivo da contestação?');if(reason)await action('/api/client/contest',{id,reason},false,'Contestação enviada ao caixa')}
 async function cancelItem(id){if(confirm('Cancelar este produto na demonstração?'))await action('/api/pdv/cancel',{id},true,'Produto cancelado')}
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
-async function copyInvite(){const link=location.origin+'/?mode=cliente&token='+encodeURIComponent(token);try{await navigator.clipboard.writeText(link);note('Link copiado para convidar participantes')}catch{prompt('Copie o link',link)}}
+async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
 $('newDemo').addEventListener('click',startNew);
 $('joinForm').addEventListener('submit',joinHonesto);
 $('orderProduct').addEventListener('change',displayOrderPrice);
@@ -174,6 +181,11 @@ $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
 });
 $('itemForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('product').value,qty:Number($('qty').value),price:$('price').value,person:$('assignPerson').value||null},true,'Produto enviado à conta do cliente')});
 $('payForm').addEventListener('submit',e=>{e.preventDefault();if(!confirm('Confirmar recebimento somente na demonstração?'))return;action('/api/pdv/payment',{amount:$('payAmount').value,person:$('payPerson').value||null,method:$('method').value,leaves:$('leaves').checked},true,'Pagamento simulado confirmado')});
-(async()=>{const qs=new URLSearchParams(location.search);if(qs.get('token')){token=qs.get('token');staff=sessionStorage.getItem('honesto-demo-staff:'+token)||'';try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}else{await startNew()}})();
+(async()=>{const qs=new URLSearchParams(location.search);
+ if(qs.get('est'))establishmentId=qs.get('est');
+ if(qs.get('token')){token=qs.get('token');staff=sessionStorage.getItem('honesto-demo-staff:'+token)||'';try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}
+ else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('joinRestaurant').textContent='Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('honesto-last-table')||'';$('joinName').value=localStorage.getItem('honesto-display-name')||''}catch{}}
+ else{await startNew()}
+})();
 setInterval(refresh,5000);
 </script></body></html>
