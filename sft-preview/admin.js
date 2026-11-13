@@ -168,6 +168,7 @@ async function details(company){
   }
  }
  await loadIntegrationSettings(company,role);
+ await loadAccountingSettings(company,role);
 }
 const connectionKinds={
  BANK_API:"API bancária",OPEN_FINANCE:"Open Finance",BANK_FILE:"Arquivo bancário (OFX/CSV)",
@@ -273,6 +274,88 @@ async function loadIntegrationSettings(company,role){
   p.append(strong,small);list.append(p);
  }
 }
+function populateSelect(select,items,idKey,labelFn){
+ select.replaceChildren();
+ for(const item of items){
+  const option=document.createElement("option");
+  option.value=item[idKey];option.textContent=labelFn(item);
+  select.append(option);
+ }
+}
+async function loadAccountingSettings(company,role){
+ const portal=$("accountant-portal");
+ if(!["ADMIN","CONTADOR"].includes(role)){portal.hidden=true;return;}
+ portal.hidden=false;
+ const assignments=await table("accounting_professional_assignments?select=id,accountant_user_id,professional_name,crc_number,crc_uf,status,assignment_scope&company_id=eq."+company.id+"&order=appointed_at.desc");
+ const authorized=role==="ADMIN"||assignments.some(x=>x.accountant_user_id===user.id&&x.status==="AUTORIZADO");
+ const state=$("accountant-access-status");state.textContent=authorized?
+  "Acesso operacional de contabilidade autorizado nesta empresa. O registro CRC e a procuração para transmitir obrigações não são verificados automaticamente.":
+  "Seu convite CONTADOR está aceito, mas o vínculo contábil desta empresa ainda aguarda autorização do administrador. Nenhuma rotina contábil privada foi liberada.";
+ $("accountant-authorize-card").hidden=role!=="ADMIN";
+ const assignEl=$("accountant-assignments");assignEl.replaceChildren();
+ if(role==="ADMIN"){
+  const members=await table("company_memberships?select=user_id,role&company_id=eq."+company.id);
+  const accountants=members.filter(m=>m.role==="CONTADOR"&&!assignments.some(a=>a.accountant_user_id===m.user_id));
+  populateSelect($("accountant-member"),accountants,"user_id",m=>"Contador convidado · "+m.user_id.slice(0,8));
+  if(!$("accountant-crc-uf").options.length){
+   for(const uf of knownStates){const o=document.createElement("option");o.value=uf;o.textContent=uf;$("accountant-crc-uf").append(o);}
+  }
+  for(const a of assignments){
+   const line=document.createElement("div");line.className="check";
+   const text=document.createElement("p");
+   text.textContent=a.professional_name+" · CRC informado "+(a.crc_number||"não informado")+"/"+(a.crc_uf||"-")+" · "+a.status;
+   line.append(text);
+   if(a.status!=="REVOGADO"){
+    const btn=document.createElement("button");btn.type="button";btn.className="secondary";
+    const next=a.status==="AUTORIZADO"?"REVOGADO":"AUTORIZADO";
+    btn.textContent=next==="AUTORIZADO"?"Autorizar acesso contábil após conferência":"Revogar acesso contábil";
+    btn.onclick=async()=>{
+     if(!confirm(next==="AUTORIZADO"?
+       "Você conferiu a identidade, o CRC e a autorização deste contador para esta empresa? O sistema não verifica o CRC automaticamente.":
+       "Revogar o acesso contábil? Para revogar também o acesso geral ao CNPJ, utilize Gestão de usuários."))return;
+     btn.disabled=true;
+     try{
+      await request("/rest/v1/accounting_professional_assignments?id=eq."+a.id,{auth:true,method:"PATCH",body:{status:next}});
+      await details(company);
+      say(next==="AUTORIZADO"?"Acesso interno do contador autorizado, sem poderes de transmissão oficial.":"Acesso contábil revogado. Revogue também o vínculo geral na Gestão de usuários se necessário.");
+     }catch(e){say(e.message,true);}
+     finally{btn.disabled=false;}
+    };
+    line.append(btn);
+   }
+   assignEl.append(line);
+  }
+ }
+ const cardIds=["accounting-service-card","accounting-period-card","accounting-obligation-card",
+ "accounting-documents-card","accounting-chart-card","accounting-draft-card"];
+ for(const id of cardIds)$(id).hidden=!authorized;
+ if(!authorized)return;
+ const [services,periods,obligations,documents,accounts,journals]=await Promise.all([
+  table("accounting_service_requests?select=id,service_type,subject,status,due_on&company_id=eq."+company.id+"&order=created_at.desc&limit=50"),
+  table("accounting_periods?select=id,period_month,status&company_id=eq."+company.id+"&order=period_month.desc&limit=50"),
+  table("accounting_obligation_tracking?select=id,obligation_type,reference_period,due_on,status,applicability&company_id=eq."+company.id+"&order=reference_period.desc&limit=60"),
+  table("accounting_document_register?select=id,document_kind,label,status&company_id=eq."+company.id+"&order=created_at.desc&limit=50"),
+  table("accounting_chart_accounts?select=id,account_code,account_name,normal_balance&company_id=eq."+company.id+"&order=account_code.asc&limit=100"),
+  table("accounting_draft_journals?select=id,posting_date,narration,status&company_id=eq."+company.id+"&order=posting_date.desc&limit=40")
+ ]);
+ const summaries=[
+  ["accounting-service-list",services.map(x=>x.service_type.replaceAll("_"," ")+" · "+x.subject+" · "+x.status)],
+  ["accounting-period-list",periods.map(x=>x.period_month.slice(0,7)+" · "+x.status)],
+  ["accounting-obligation-list",obligations.map(x=>x.obligation_type+" · "+x.reference_period.slice(0,7)+" · "+x.status+" · "+x.applicability)],
+  ["accounting-document-list",documents.map(x=>x.document_kind+" · "+x.label+" · "+x.status)],
+  ["accounting-chart-list",accounts.map(x=>x.account_code+" · "+x.account_name+" · saldo "+x.normal_balance)],
+  ["accounting-draft-list",journals.map(x=>x.posting_date+" · "+x.narration+" · "+x.status)]
+ ];
+ for(const [id,lines] of summaries){
+  const div=$(id);div.replaceChildren();
+  if(!lines.length){const el=document.createElement("p");el.className="muted";el.textContent="Nenhum registro desta empresa.";div.append(el);}
+  for(const line of lines.slice(0,18)){const el=document.createElement("p");el.className="check";el.textContent=line;div.append(el);}
+ }
+ populateSelect($("accounting-draft-period"),periods.filter(x=>x.status==="ABERTO"),"id",x=>x.period_month.slice(0,7));
+ for(const id of ["accounting-draft-debit","accounting-draft-credit"]){
+  populateSelect($(id),accounts,"id",x=>x.account_code+" · "+x.account_name);
+ }
+}
 function renderCompanies(companies){
  const node=$("companies");node.replaceChildren();
  if(!companies.length){const p=document.createElement("p");p.className="muted";p.textContent="Nenhuma empresa cadastrada e autorizada.";node.append(p);return;}
@@ -370,6 +453,93 @@ function fillGroupSelect(el,selected){
  for(const g of groups){const opt=document.createElement("option");opt.value=g.id;opt.textContent=g.name;el.append(opt);}
  el.value=selected||"";
 }
+onForm("accountant-assignment-form",async form=>{
+ const company=requireCompany();
+ const id=$("accountant-member").value;
+ if(!id)throw Error("O contador precisa aceitar o convite como CONTADOR antes do vínculo.");
+ const crc=$("accountant-crc").value.trim().toUpperCase();
+ if(!/^[0-9A-Za-z ./-]{4,30}$/.test(crc))throw Error("Registro CRC informado fora do formato esperado.");
+ await insertRow("accounting_professional_assignments",{
+  company_id:company.id,accountant_user_id:id,
+  professional_name:$("accountant-name").value.trim(),
+  crc_number:crc,crc_uf:$("accountant-crc-uf").value,
+  assignment_scope:$("accountant-scope").value,
+  appointed_by:user.id,status:"PENDENTE_CRC"
+ });
+ form.reset();await details(company);
+ say("Contador vinculado em pendência de conferência. Revise o CRC antes de autorizar o acesso.");
+});
+onForm("accounting-service-form",async form=>{
+ const company=requireCompany();
+ await insertRow("accounting_service_requests",{
+  company_id:company.id,service_type:$("accounting-service-type").value,
+  subject:$("accounting-service-subject").value.trim(),
+  due_on:$("accounting-service-due").value||null,
+  requested_by:user.id,status:"ABERTO"
+ });
+ form.reset();await details(company);
+ say("Solicitação contábil registrada nesta empresa.");
+});
+onForm("accounting-period-form",async form=>{
+ const company=requireCompany();
+ const month=$("accounting-period-month").value;
+ if(!/^\d{4}-\d{2}$/.test(month))throw Error("Informe a competência.");
+ await insertRow("accounting_periods",{
+  company_id:company.id,period_month:month+"-01",status:"ABERTO",created_by:user.id
+ });
+ form.reset();await details(company);
+ say("Competência aberta para rascunhos, sem fechamento ou transmissão oficial.");
+});
+onForm("accounting-obligation-form",async form=>{
+ const company=requireCompany();
+ const month=$("accounting-obligation-month").value;
+ if(!/^\d{4}-\d{2}$/.test(month))throw Error("Informe a competência.");
+ await insertRow("accounting_obligation_tracking",{
+  company_id:company.id,obligation_type:$("accounting-obligation-type").value,
+  reference_period:month+"-01",due_on:$("accounting-obligation-due").value||null,
+  applicability:"NAO_ANALISADA",status:"PLANEJADA",official_transmission_enabled:false,
+  created_by:user.id
+ });
+ form.reset();await details(company);
+ say("Obrigação incluída em planejamento. Verifique aplicabilidade, legislação e vencimento antes de qualquer transmissão.");
+});
+onForm("accounting-document-form",async form=>{
+ const company=requireCompany();
+ await insertRow("accounting_document_register",{
+  company_id:company.id,document_kind:$("accounting-document-type").value,
+  label:$("accounting-document-label").value.trim(),
+  status:"AGUARDANDO_ARQUIVO",created_by:user.id
+ });
+ form.reset();await details(company);
+ say("Documento registrado como pendência. Nenhum arquivo sensível foi enviado.");
+});
+onForm("accounting-chart-form",async form=>{
+ const company=requireCompany();
+ await insertRow("accounting_chart_accounts",{
+  company_id:company.id,account_code:$("accounting-chart-code").value.trim(),
+  account_name:$("accounting-chart-name").value.trim(),
+  account_type:$("accounting-chart-kind").value,
+  normal_balance:$("accounting-chart-side").value,
+  created_by:user.id,status:"PENDENTE_CONFERENCIA"
+ });
+ form.reset();await details(company);
+ say("Conta do plano registrada como pendente de conferência.");
+});
+onForm("accounting-draft-form",async form=>{
+ const company=requireCompany();
+ const val=$("accounting-draft-amount").value.trim();
+ if(!/^\d{1,16}(?:\.\d{1,2})?$/.test(val)||Number(val)<=0)throw Error("Informe valor monetário com até duas casas decimais.");
+ await rpc("create_balanced_accounting_draft",{
+  p_company_id:company.id,p_period_id:$("accounting-draft-period").value,
+  p_posting_date:$("accounting-draft-date").value,
+  p_narration:$("accounting-draft-title").value.trim(),
+  p_debit_account_id:$("accounting-draft-debit").value,
+  p_credit_account_id:$("accounting-draft-credit").value,
+  p_amount:val,p_document_reference:null
+ });
+ form.reset();await details(company);
+ say("Débito e crédito equilibrados registrados em rascunho, sem escrituração oficial.");
+});
 onForm("integration-connection-form",async form=>{
  const company=requireCompany();
  const kind=$("integration-kind").value;
