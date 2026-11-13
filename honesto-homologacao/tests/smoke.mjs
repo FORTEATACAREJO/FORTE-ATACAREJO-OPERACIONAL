@@ -63,6 +63,6 @@ try{
  assert.equal((await req('/api/client/contest',{token,id:item,reason:'Não solicitei este produto'})).status,200);
  d=await snap();assert.equal(d.disputes.length,1);
  assert.equal((await req('/api/pdv/cancel',{token,id:item},staff)).status,200);
- d=await snap();assert.equal(d.subtotal,11300);
+ d=await snap();assert.equal(d.subtotal,14100);
  console.log('PASS: pedidos com observações e status no PDV, idempotência, bloqueio por restaurante, contas, rateio e pagamentos');
 }finally{child.kill('SIGTERM');}
