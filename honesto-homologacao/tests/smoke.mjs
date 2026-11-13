@@ -29,7 +29,17 @@ try{
  const landingHtml=await landing.text();
  assert(landingHtml.includes('joinForm')&&landingHtml.includes('menuList')&&landingHtml.includes('joinPanel'));
  
- const demo=(await req('/api/demo')).body;assert(demo.token&&demo.staff);
+ const publicDemo=await req('/api/demo');
+ assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'HONESTO do cliente não deve obter credencial de PDV');
+ const simulator=await fetch(origin+'/pdv-simulado');assert.equal(simulator.status,200);
+ const simulatorHtml=await simulator.text();
+ assert(simulatorHtml.includes('SIMULADOR EXTERNO AO APLICATIVO HONESTO'));
+ const customer=await fetch(origin+'/');const customerHtml=await customer.text();
+ assert(!customerHtml.includes('id="staffTab"'),'Cliente não deve ter aba de PDV');
+ assert(!customerHtml.includes('id="staffSection"'),'Cliente não deve operar PDV');
+ const created=await req('/api/pdv-demo/create',{});
+ assert.equal(created.status,201);
+ const demo=created.body;assert(demo.token&&demo.staff);
  const token=demo.token,staff=demo.staff;
  assert(demo.establishmentId,'O QR deve identificar estabelecimento');
  const original=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'12'});
