@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "app": "FORTECOMPANNY",
+  "domain": "fortecompanny.com.br",
+  "render": {
+    "serviceId": "srv-dbquodbrjlhs73cg02ig",
+    "url": "https://forte-tech-cfop-publico.onrender.com",
+    "dashboard": "https://dashboard.render.com/static/srv-dbquodbrjlhs73cg02ig"
+  },
+  "dns": {
+    "provider": "Registro.br",
+    "nameservers": [
+      "a.auto.dns.br",
+      "b.auto.dns.br"
+    ],
+    "required": [
+      {
+        "type": "A",
+        "host": "@",
+        "value": "216.24.57.1",
+        "description": "Domínio raiz"
+      },
+      {
+        "type": "CNAME",
+        "host": "www",
+        "value": "forte-tech-cfop-publico.onrender.com",
+        "description": "Subdomínio www"
+      }
+    ]
+  },
+  "policy": {
+    "costAdditional": 0,
+    "keepOriginalUrl": true,
+    "doNotTouch": [
+      "MX",
+      "TXT",
+      "NS",
+      "SOA",
+      "DNSSEC"
+    ],
+    "requireTlsVerification": true,
+    "domainReadiness": false
+  }
+}
