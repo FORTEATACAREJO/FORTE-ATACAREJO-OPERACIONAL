@@ -161,6 +161,7 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <option value="CARD_POS">Maquininha / POS / TEF</option>
 <option value="CARD_GATEWAY">Gateway de pagamento por cartão</option>
 <option value="CARD_FILE">Arquivo de conciliação de cartões</option>
+<option value="CARD_ISSUER">Cartão empresarial — faturas e despesas</option>
 <option value="AI_PROVIDER">Provedor de inteligência artificial</option>
 </select>
 <label for="integration-provider">Banco / fornecedor / provedor</label>
@@ -191,6 +192,22 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 <h3>Cartões — conciliação e recebíveis</h3>
 <p class="muted">Crédito, débito, taxas MDR, parcelamentos, antecipações, repasses, cancelamentos e chargebacks serão importados posteriormente pela API/arquivo da credenciadora.</p>
 <div id="card-receivables-summary" class="muted">Sem conexão cadastrada.</div>
+</div>
+<div class="card" id="corporate-card-create-card" hidden>
+<h3>Cartão empresarial — despesas</h3>
+<p class="muted">Conexão ao emissor para faturas, compras, vencimentos e conciliação do pagamento bancário. Sem número completo do cartão.</p>
+<form id="corporate-card-form">
+<label for="corporate-card-connection">Emissor do cartão</label><select id="corporate-card-connection" required></select>
+<label for="corporate-card-establishment">Estabelecimento</label><select id="corporate-card-establishment" required></select>
+<label for="corporate-card-label">Identificação interna</label>
+<input id="corporate-card-label" required minlength="2" maxlength="120" placeholder="Ex.: despesas administrativas">
+<label for="corporate-card-last4">Somente os 4 últimos dígitos (opcional)</label>
+<input id="corporate-card-last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4">
+<button type="submit">Preparar cartão empresarial sem credenciais</button>
+</form></div>
+<div class="card"><h3>Faturas e despesas corporativas</h3>
+<div id="corporate-card-summary" class="muted">Nenhum cartão empresarial vinculado.</div>
+<p class="muted">A importação de faturas e lançamentos ficará bloqueada até homologação da API do emissor.</p>
 </div>
 <div class="card" id="ai-agent-create-card" hidden>
 <h3>Preparar agente de IA</h3>
