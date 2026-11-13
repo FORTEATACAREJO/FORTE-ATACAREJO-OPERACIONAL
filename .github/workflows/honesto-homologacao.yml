@@ -1,0 +1,23 @@
+name: HONESTO homologacao - smoke test
+on:
+  push:
+    branches:
+      - homolog/honesto-demo-isolada-20261113
+    paths:
+      - "honesto-homologacao/**"
+      - ".github/workflows/honesto-homologacao.yml"
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test server flows
+        run: node honesto-homologacao/tests/smoke.mjs
