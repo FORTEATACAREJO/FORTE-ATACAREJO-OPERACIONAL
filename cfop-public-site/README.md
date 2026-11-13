@@ -1,4 +1,4 @@
-# FORTE TECH — Consulta CFOP
+# FORTECOMPANNY — Consulta Fiscal (antiga FORTECOMPANNY / Consulta CFOP)
 
 Front-end PWA público para Render, independente do código operacional da branch main.
 
@@ -21,8 +21,15 @@ Implantação: branch `deploy/forte-tech-cfop-publico-20261112`; publishPath `cf
 ## Importação local de XML da NF-e e consulta legal (13/11/2026)
 
 - O `assistente.html` agora aceita **XML de NF-e do próprio usuário até 6 MB** na etapa 3, com itens selecionáveis. Leitor do navegador: `xml-nfe-local.js`.
-- O arquivo **não é transmitido à FORTE TECH**. É inspecionado localmente para recuperar descrição, NCM, CEST, CFOP e campos de ICMS, ICMS-ST (inclusive retido anteriormente), IPI, PIS, COFINS, IBS/CBS, GTIN e benefício fiscal, quando disponíveis. Não se extrai CNPJ/CPF, valores totais ou outros dados pessoais para as estatísticas.
+- O arquivo **não é transmitido à FORTECOMPANNY**. É inspecionado localmente para recuperar descrição, NCM, CEST, CFOP e campos de ICMS, ICMS-ST (inclusive retido anteriormente), IPI, PIS, COFINS, IBS/CBS, GTIN e benefício fiscal, quando disponíveis. Não se extrai CNPJ/CPF, valores totais ou outros dados pessoais para as estatísticas.
 - Se XML foi selecionado, a consulta não é registrada no endpoint de métricas, mesmo após edição. Apenas o NCM de 8 dígitos pode ser conferido no serviço público `cfop-ncm`.
 - XML local **não tem autenticidade nem assinatura digital validada**. Dados fiscais de uma nota anterior são evidências do documento e não cálculo da nova compra/venda.
 - A ficha fiscal oferece links oficiais de MG e GO para consulta da legislação de ST, mas **não determina automaticamente** MVA/PMPF/pauta/alíquotas e não declara o projeto homologado.
 - LGPD e restrições de uso documentadas em `privacidade.html`.
+
+## Marca e apresentação do aplicativo
+
+- Nome comercial e PWA: **FORTECOMPANNY** (grafia aprovada em 13/11/2026).
+- Aplicação: consulta fiscal orientativa (NCM, CEST, CFOP e dados tributários), sem homologação de emissão.
+- Identificadores técnicos existentes, URL pública, branch, Supabase e serviço Render são mantidos para preservar integrações e histórico.
+- A indicação da pessoa jurídica responsável nos termos de uso é independente da marca comercial do aplicativo.
