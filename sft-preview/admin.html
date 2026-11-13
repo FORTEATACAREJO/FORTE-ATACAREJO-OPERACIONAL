@@ -97,6 +97,36 @@ footer{font-size:12px;color:var(--muted);padding:12px 0}
 </form>
 </div>
 </div>
+
+<section id="billing-card" class="card" hidden>
+<h2>Assinatura mensal — nuvem compartilhada</h2>
+<p class="muted">Cobrança automática em cartão de crédito via Checkout hospedado pelo Asaas. O Sistemas Forte Tech não coleta dados completos de cartão. O módulo está em <strong>homologação Sandbox</strong>; nenhum pagamento real está habilitado.</p>
+<div id="billing-status" role="status" class="muted"></div>
+<div id="billing-plans" class="muted"></div>
+<div class="grid">
+<div id="billing-master-card" class="card" hidden>
+<h3>Master — configurar preço mensal em sandbox</h3>
+<form id="billing-price-form">
+<label for="billing-price-plan">Plano</label><select id="billing-price-plan" required></select>
+<label for="billing-price-value">Mensalidade em reais</label>
+<input id="billing-price-value" inputmode="decimal" required placeholder="Ex.: 299,00" maxlength="12">
+<label for="billing-price-why">Justificativa da definição do preço</label>
+<textarea id="billing-price-why" maxlength="500" rows="2" required placeholder="Referência comercial autorizada"></textarea>
+<button type="submit">Salvar preço de teste</button>
+</form>
+</div>
+<div id="billing-checkout-card" class="card" hidden>
+<h3>Cartão de crédito recorrente</h3>
+<form id="billing-checkout-form">
+<label for="billing-checkout-plan">Escolha o sistema e plano mensal</label>
+<select id="billing-checkout-plan" required></select>
+<button type="submit">Preparar checkout em sandbox</button>
+</form>
+<div id="billing-checkout-result"></div>
+<p class="muted">A cobrança recorrente depende de conta Asaas Sandbox, autorização do pagador e webhook validado. Apenas pagamentos confirmados pelo processador poderão renovar licenças; o redirecionamento da página não libera acesso.</p>
+</div>
+</div>
+</section>
 <div id="company-licensed-content">
 
 <div id="assign-group-card" hidden>
