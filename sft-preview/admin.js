@@ -526,6 +526,69 @@ function renderCompanies(companies){
   div.append(name,txt,btn);node.append(div);
  }
 }
+const signupUf=$("signup-uf");
+for(const uf of knownStates){
+ const option=document.createElement("option");option.value=uf;option.textContent=uf;signupUf.append(option);
+}
+signupUf.value="MG";
+async function loadSignupRequests(){
+ const registrations=await table("sft_company_signup_requests?select=id,cnpj,legal_name,state,city,declared_tax_regime,declared_sector,declared_cnae,status,requested_by,created_at,approved_company_id&order=created_at.desc&limit=100");
+ const mine=$("signup-my-list");mine.replaceChildren();
+ const requests=registrations.filter(r=>r.requested_by===user.id);
+ if(requests.length===0){
+  const no=document.createElement("p");no.textContent="Nenhum CNPJ solicitado.";mine.append(no);
+ }
+ for(const row of requests){
+  const line=document.createElement("p");line.className="check";
+  line.textContent=row.legal_name+" · "+row.cnpj+" · "+row.status.replaceAll("_"," ")+
+  (row.status==="APROVADA"?" · cadastro aprovado, assinatura/licença ainda necessárias":"");
+  mine.append(line);
+ }
+ const review=$("signup-master-review");review.hidden=!isMaster;
+ if(!isMaster)return;
+ const parent=$("signup-review-list");parent.replaceChildren();
+ const waiting=registrations.filter(r=>["PENDENTE_VALIDACAO","EM_ANALISE"].includes(r.status));
+ if(waiting.length===0){
+  const no=document.createElement("p");no.textContent="Nenhuma solicitação comercial pendente.";parent.append(no);
+ }
+ for(const row of waiting){
+  const div=document.createElement("div");div.className="check";
+  const heading=document.createElement("p");
+  heading.textContent=row.legal_name+" · "+row.cnpj+" · "+row.state+"/"+row.city+
+   " · regime informado "+row.declared_tax_regime+" · CNAE informado "+(row.declared_cnae||"não informado")+
+   " · solicitante "+row.requested_by.slice(0,8)+" · "+row.status.replaceAll("_"," ");
+  const proof=document.createElement("textarea");proof.rows=2;proof.maxLength=1000;
+  proof.setAttribute("aria-label","Fonte e comprovação de representação do CNPJ");
+  proof.placeholder="Descreva documento, consulta ou comprovação independente e a decisão (mínimo 20 caracteres)";
+  div.append(heading,proof);
+  for(const item of [
+   {decision:"EM_ANALISE",label:"Marcar em análise"},
+   {decision:"REJEITADA",label:"Rejeitar"},
+   {decision:"APROVAR",label:"Aprovar após conferir representação"}
+  ]){
+   const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent=item.label;
+   button.addEventListener("click",async()=>{
+    const reason=proof.value.trim();
+    if(reason.length<20){say("Informe ao menos 20 caracteres de justificativa ou prova de representação.",true);return;}
+    if(item.decision==="APROVAR"&&!confirm(
+      "Confirma que verificou por fonte independente a titularidade/representação? A empresa será criada sem licença e sem homologação fiscal."))return;
+    button.disabled=true;
+    try{
+     await rpc("sft_review_signup_request",{
+      p_request_id:row.id,p_decision:item.decision,p_verification_basis:reason
+     });
+     await load();
+     say(item.decision==="APROVAR"?
+      "Empresa aprovada e vinculada ao solicitante, sem licença nem homologação fiscal.":
+      "Solicitação atualizada com justificativa de auditoria.");
+    }catch(e){say("Não foi possível concluir a análise: "+e.message,true);}
+    finally{button.disabled=false;}
+   });
+   div.append(button);
+  }
+  parent.append(div);
+ }
+}
 async function load(){
  const u=await request("/auth/v1/user",{auth:true});
  user=u;
@@ -541,6 +604,7 @@ async function load(){
  if(isMaster){fillGroupSelect($("company-group"),"");const gl=$("groups-list");gl.replaceChildren();for(const g of groups){const row=document.createElement("p");row.textContent=g.name;gl.append(row);}}
  const companies=await table("companies?select=id,group_id,legal_name,cnpj_root,tax_regime,industry_sector,onboarding_status&order=legal_name.asc");
  renderCompanies(companies);
+ await loadSignupRequests();
  if(selectedCompany&&!companies.some(c=>c.id===selectedCompany.id)){$("details").hidden=true;selectedCompany=null;}
  say(isMaster?"Painel Master conectado ao banco exclusivo.":"Acesso identificado. Mostrando apenas empresas autorizadas.");
 }
@@ -650,6 +714,23 @@ onForm("billing-checkout-form",async form=>{
   await loadCompanyBilling(company);
   say("Checkout de testes criado. A assinatura só é ativada após confirmação bancária verificada.");
  }finally{button.disabled=false;}
+});
+onForm("signup-form",async form=>{
+ if(!user||!session)throw new Error("Entre com e-mail confirmado para enviar a solicitação.");
+ const cnpj=validateCnpj($("signup-cnpj").value);
+ if(!cnpj)throw new Error("Informe CNPJ válido, incluindo dígitos verificadores.");
+ if(!$("signup-authorized").checked)throw new Error("Confirme que representa a empresa.");
+ const cnae=$("signup-cnae").value.trim();
+ if(cnae&&!/^\d{7}$/.test(cnae))throw new Error("CNAE precisa ter sete dígitos.");
+ await insertRow("sft_company_signup_requests",{
+  requested_by:user.id,cnpj,legal_name:$("signup-name").value.trim(),
+  state:$("signup-uf").value,city:$("signup-city").value.trim(),
+  declared_tax_regime:$("signup-regime").value,declared_sector:$("signup-sector").value,
+  declared_cnae:cnae||null,authority_declared:true,status:"PENDENTE_VALIDACAO"
+ });
+ form.reset();signupUf.value="MG";
+ await loadSignupRequests();
+ say("Solicitação enviada para análise de representação e cadastro. O sistema não liberou dados empresariais ou cobrança.");
 });
 onForm("license-form",async form=>{
  if(!isMaster)throw Error("Licenças só podem ser concedidas pelo Master.");
