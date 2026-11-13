@@ -366,7 +366,8 @@ function selectXmlItem(index){
  'CEST no XML: '+(item.cest||'ausente'),
  'CFOP da NF-e de origem: '+(item.cfop||'ausente'),
  'CST/CSOSN ICMS da origem: '+(item.icms.code||'ausente'),
- 'ICMS-ST no XML: '+(item.icms.valueST||'não destacado'),
+ 'ICMS-ST destacado na operação: '+(item.icms.valueST||'não destacado'),
+ 'ICMS-ST retido anteriormente: '+(item.icms.valueSTRet||'não indicado'),
  'Não usar CFOP/CST ou valores desta NF-e automaticamente na nova operação.',
  'Nenhum dado do arquivo será enviado à estatística da FORTE TECH.'
  ];
@@ -581,7 +582,8 @@ function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
    xmlRow('CST / CSOSN ICMS original',m.code,m.name||'Não identificado'),
    xmlRow('Origem ICMS',m.origin,'Conferir a origem da mercadoria'),
    xmlRow('ICMS — base da origem',m.base),xmlRow('ICMS — alíquota da origem',m.rate),xmlRow('ICMS — valor da origem',m.amount),
-   xmlRow('ICMS-ST — base',m.baseST),xmlRow('ICMS-ST — alíquota',m.rateST),xmlRow('ICMS-ST — valor',m.valueST),
+   xmlRow('ICMS-ST desta NF-e — base',m.baseST),xmlRow('ICMS-ST desta NF-e — alíquota',m.rateST),xmlRow('ICMS-ST desta NF-e — valor',m.valueST),
+   xmlRow('ICMS-ST retido antes — base',m.baseSTRet),xmlRow('ICMS-ST retido antes — alíquota',m.rateSTRet),xmlRow('ICMS-ST retido antes — valor',m.valueSTRet),
    xmlRow('IPI — código CST',ipi.code),xmlRow('IPI — alíquota',ipi.rate),xmlRow('IPI — valor',ipi.amount),
    xmlRow('PIS — código CST',p.code),xmlRow('PIS — valor',p.amount),
    xmlRow('COFINS — código CST',c.code),xmlRow('COFINS — valor',c.amount),
