@@ -13,7 +13,7 @@ main{max-width:1100px;margin:auto;padding:20px 20px 45px}
 .hero{display:flex;align-items:center;gap:20px;justify-content:space-between;padding:22px 0 10px}
 .hero h1{font-size:clamp(27px,4vw,46px);line-height:1.07;letter-spacing:-1.5px;margin:0 0 10px;max-width:700px}
 .hero p{margin:0 0 14px;line-height:1.6;color:#66776b;max-width:690px}
-.accent{color:#119c45}.pill{font-size:11px;font-weight:750;border-radius:100px;padding:5px 9px;background:#edf3ef;color:#4e6658;display:inline-block}.pill.ok{background:#e3f9ec;color:#0a843c}.pill.warn{background:#fff0d2;color:#80571b}
+.accent{color:#119c45}.pill{font-size:11px;font-weight:750;border-radius:100px;padding:5px 9px;background:#edf3ef;color:#4e6658;display:inline-block}.pill.ok{background:#e3f9ec;color:#0a843c}.pill.warn{background:#fff0d2;color:#80571b}.pill.denied{background:#fff0f0;color:#aa2626}.return-notice{font-size:12px;background:#fff3ef;padding:9px 11px;border-radius:10px;margin-top:7px;color:#8a2920}.return-notice.pending{background:#fff8e4;color:#85580b}.return-notice.approved{background:#eaf7ed;color:#10662d}
 .warnbox{font-size:12px;background:#fff8e7;border:1px solid #f5e9c3;border-radius:12px;padding:12px 15px;color:#6a551b;margin:10px 0 18px}
 .cols{display:grid;grid-template-columns:1.35fr .9fr;gap:17px}.card{background:#fff;border:1px solid #e4eee7;border-radius:18px;padding:19px;margin-bottom:16px;box-shadow:0 8px 25px #21402d08}
 .card h2{font-size:18px;margin:0 0 16px}.small{font-size:12px;color:#647568}.label{font-size:12px;font-weight:700;color:#44594b}
@@ -62,7 +62,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
   <aside>
    <div class="card"><h2>Resumo financeiro</h2><div class="row"><span>Consumo</span><span class="value" id="subtotal"></span></div><div class="row"><span>Serviço (opcional)</span><span class="value" id="service"></span></div><div class="row"><span>Pago ao garçom / caixa</span><span class="value" id="paid"></span></div><div class="sum"><div class="label">SALDO RESTANTE</div><strong id="balance"></strong></div><p class="small">Somente pagamentos confirmados pelo operador do caixa aparecem como pagos.</p></div>
    <div class="card"><h2>Convidar alguém</h2><p class="small">Compartilhe este acesso de conferência com outro celular. O link não concede acesso ao caixa.</p><button class="btn light" onclick="copyInvite()">Copiar link de conferência</button><div class="small" style="margin-top:8px" id="inviteUrl"></div></div>
-   <div class="card"><h2>Histórico até a quitação</h2><div class="small">A comanda permanece a mesma mesmo quando você troca de mesa.</div><div id="accountHistory"></div></div><div class="card"><h2>Contestações</h2><div id="disputes"></div></div>
+   <div class="card"><h2>Histórico até a quitação</h2><div class="small">A comanda permanece a mesma mesmo quando você troca de mesa.</div><div id="accountHistory"></div></div><div class="card"><h2>Devoluções solicitadas</h2><p class="small">O produto só deixa de ser cobrado quando o garçom autorizar a devolução pelo caixa.</p><div id="disputes"></div></div>
   </aside>
  </section>
  <section id="staffSection" class="cols hidden">
@@ -71,7 +71,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <div class="card"><h2>Trocas de mesa solicitadas</h2><div id="transferRequests"></div></div><div class="card"><h2>Pedidos do HONESTO recebidos no PDV (simulação)</h2><div class="row" style="padding-top:0"><div class="small">O garçom real não usa o HONESTO: os pedidos aparecem no PDV integrado do restaurante.</div><label class="checkbox"><input type="checkbox" id="enableOrders" onchange="setOrderEnabled(this.checked)">Aceitar pedidos via HONESTO</label></div><div id="cashOrders"></div></div>
     <div class="card"><h2>PDV simulado — lançar produto</h2><form id="itemForm"><label class="field">Produto<input id="product" value="Água mineral" required></label><div class="two"><label class="field">Quantidade<input id="qty" type="number" min="1" max="50" value="1" required></label><label class="field">Preço unitário (R$)<input id="price" value="6,00" required></label></div><label class="field">Consumo atribuído a<select id="assignPerson"></select></label><button class="btn" type="submit">+ Lançar na comanda</button></form></div>
     <div class="card"><h2>Produtos e cancelamentos</h2><div id="cashItems"></div></div>
-    <div class="card"><h2>Contestações recebidas</h2><div id="cashDisputes"></div></div>
+    <div class="card"><h2>Devoluções aguardando o garçom</h2><p class="small">Na operação real, estas solicitações aparecerão no PDV existente. Nesta demonstração, a decisão é feita aqui.</p><div id="cashDisputes"></div></div>
   </div>
   <aside>
     <div class="card"><h2>Confirmar pagamento presencial</h2><form id="payForm"><label class="field">Valor (R$)<input id="payAmount" value="30,00" required></label><label class="field">Quem pagou?<select id="payPerson"></select></label><label class="field">Recebido via<select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select></label><label class="checkbox"><input type="checkbox" id="leaves"> Pessoa está saindo da mesa</label><button class="btn dark" type="submit">✓ Confirmar recebimento (demo)</button></form><p class="small">Este botão não movimenta dinheiro, apenas simula o lançamento recebido pelo garçom.</p></div>
@@ -103,6 +103,16 @@ async function refresh(){if(!token||loading)return;loading=true;try{data=await a
 async function action(endpoint,payload,needStaff=false,message='Atualizado'){try{await api(endpoint,payload,needStaff);await refresh();note(message)}catch(e){note(e.message,true);await refresh();}}
 const names=()=>Object.fromEntries(data.people.map(p=>[p.id,p.name]));
 const options=(empty)=>'<option value="">'+empty+'</option>'+data.people.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+(p.present?'':' (saiu)')+'</option>').join('');
+const latestReturn=(item)=>[...(data?.disputes||[])].reverse().find(d=>d.item===item);
+const returnStatusLabel=(status)=>({pendente:'Aguardando garçom',aprovada:'Devolução aprovada',recusada:'Devolução recusada — mantido na conta'})[status]||status;
+const returnWidget=(item)=>{
+ const req=latestReturn(item.id);
+ if(!item.active)return '<div class="return-notice approved">'+(req?.status==='aprovada'?'Devolução aprovada pelo garçom':'Cancelado no caixa')+'</div>';
+ if(!req)return '<button class="btn light sm" style="margin-top:6px" onclick="contest(\''+item.id+'\')">Solicitar devolução</button>';
+ if(req.status==='pendente')return '<div class="return-notice pending"><strong>Aguardando garçom</strong> — Produto continua na soma da conta.'+timeInfo(req.at,'Solicitado')+'</div>';
+ if(req.status==='recusada')return '<div class="return-notice"><strong>Devolução recusada — produto mantido na conta.</strong><div>Motivo: '+escapeHtml(req.decisionReason||'Não informado')+'</div>'+timeInfo(req.resolvedAt,'Decisão')+'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+item.id+'\')">Solicitar nova análise</button></div>';
+ return '<div class="return-notice approved">Devolução aprovada pelo garçom.</div>';
+};
 function render(){const d=data,ids=names();$('restaurant').textContent=d.restaurant;$('table').textContent=d.table;
  const joined=!!memberToken&&!!visitorId&&d.people.some(p=>p.id===visitorId);
  $('joinPanel').classList.toggle('hidden',joined);
@@ -126,14 +136,28 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  $('settleButton').disabled=d.closed||d.balance!==0||d.transfers.some(t=>t.status==='pendente')||d.orders.some(o=>o.status==='solicitado');
  $('settlementLabel').textContent=d.closed?'Quitação confirmada no PDV simulado':d.balance!==0?'Saldo pendente: '+fmt(d.balance):'Saldo zerado. O PDV ainda precisa confirmar a quitação.';
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
-$('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+timeInfo(i.at,'Lançado')+(i.cancelledAt?timeInfo(i.cancelledAt,'Cancelado'):'')+(i.active?'<button class="btn light sm" style="margin-top:5px" onclick="contest(\''+i.id+'\')">Não reconheço</button>':'<span class="pill warn">Cancelado</span>')+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
+$('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+timeInfo(i.at,'Lançado')+(i.cancelledAt?timeInfo(i.cancelledAt,'Cancelado'):'')+returnWidget(i)+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
 $('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
 $('splitMode').value=d.mode;$('splitCount').value=d.count;
 const rate=d.mode==='individual'?d.people.map(p=>[p.name,d.individually[p.id]]):Object.entries(d.rateio).map(([p,amount])=>[ids[p]||p,amount]);
 $('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+escapeHtml(name)+'</span><strong class="value">'+fmt(amount)+'</strong></div>').join('');
-const disputes=d.disputes.map(x=>'<div class="row"><div><strong>'+escapeHtml(d.items.find(i=>i.id===x.item)?.name||'Produto')+'</strong><div class="small">'+escapeHtml(x.reason)+'</div>'+timeInfo(x.at,'Contestação')+'</div><span class="pill warn">'+escapeHtml(x.status)+'</span></div>').join('')||'<p class="small">Nenhuma contestação</p>';
-$('disputes').innerHTML=$('cashDisputes').innerHTML=disputes;
-const currentPerson=$('orderPerson').value,currentProduct=$('orderProduct').value;
+const disputes=[...d.disputes].reverse().map(x=>{
+  const item=d.items.find(i=>i.id===x.item),label=returnStatusLabel(x.status);
+  return '<div class="row"><div><strong>'+escapeHtml(item?.name||'Produto')+'</strong><div class="small">Motivo solicitado: '+escapeHtml(x.reason)+'</div>'+timeInfo(x.at,'Solicitado')+
+   (x.resolvedAt?timeInfo(x.resolvedAt,'Decidido pelo garçom'):'')+
+   (x.decisionReason?'<div class="small">Resposta: '+escapeHtml(x.decisionReason)+'</div>':'')+
+   '<span class="pill '+(x.status==='recusada'?'denied':x.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(label)+'</span></div></div>';
+ }).join('')||'<p class="small">Nenhuma devolução solicitada.</p>';
+ $('disputes').innerHTML=disputes;
+ $('cashDisputes').innerHTML=[...d.disputes].reverse().map(x=>{
+  const item=d.items.find(i=>i.id===x.item);
+  return '<div class="row"><div><strong>'+escapeHtml(item?.name||'Produto')+'</strong><div class="small">Solicitação: '+escapeHtml(x.reason)+'</div>'+
+  timeInfo(x.at,'Solicitado')+(x.resolvedAt?timeInfo(x.resolvedAt,'Analisado'):'')+
+  (x.decisionReason?'<div class="small">Resposta: '+escapeHtml(x.decisionReason)+'</div>':'')+
+  '<span class="pill '+(x.status==='recusada'?'denied':x.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(returnStatusLabel(x.status))+'</span></div>'+
+  (x.status==='pendente'?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="decideReturn(\''+x.id+'\',\'aprovada\')">Aceitar devolução</button><button class="btn red sm" onclick="decideReturn(\''+x.id+'\',\'recusada\')">Recusar devolução</button></div>':'')+'</div>';
+ }).join('')||'<p class="small">Nenhuma devolução aguardando.</p>';
+ const currentPerson=$('orderPerson').value,currentProduct=$('orderProduct').value;
 $('orderPerson').innerHTML=visitorId&&d.people.some(p=>p.id===visitorId)?'<option value="'+escapeHtml(visitorId)+'">'+escapeHtml(ids[visitorId])+' (você)</option>':'<option value="">Entre com seu nome</option>';
 $('orderPerson').value=visitorId||'';
 $('orderProduct').innerHTML=d.menu.map(m=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+' · '+fmt(m.unit)+'</option>').join('');
@@ -203,7 +227,22 @@ function displayOrderPrice(){if(!data)return;const m=data.menu.find(x=>x.id===$(
 async function setOrderEnabled(enabled){await action('/api/pdv/order-settings',{enabled},true,enabled?'Pedidos habilitados nesta demonstração':'Pedidos desabilitados para esta mesa')}
 async function orderStatusChange(id,status){await action('/api/pdv/order-status',{id,status},true,'Situação do pedido atualizada pelo PDV simulado')}
 async function serviceChoice(person,enabled){await action('/api/client/service',{person,enabled},false,'Escolha de serviço registrada')}
-async function contest(id){const reason=prompt('Qual o motivo da contestação?');if(reason)await action('/api/client/contest',{id,reason},false,'Contestação enviada ao caixa')}
+async function contest(id){const reason=prompt('Por que deseja devolver ou contestar este produto?');
+ if(reason&&reason.trim().length>=5)await action('/api/client/contest',{id,reason:reason.trim()},false,'Devolução solicitada. O produto continua na conta até o garçom aceitar.');
+ else if(reason!==null)note('Descreva o motivo em pelo menos 5 caracteres.',true);
+}
+async function decideReturn(id,status){
+ let reason='';
+ if(status==='aprovada'){
+  if(!confirm('Autorizar esta devolução no PDV simulado? Somente agora o valor será abatido da conta.'))return;
+ }else{
+  const response=prompt('Informe ao cliente o motivo da devolução recusada (obrigatório):');
+  if(response===null)return;
+  reason=response.trim();
+  if(reason.length<5){note('Informe um motivo de pelo menos 5 caracteres.',true);return}
+ }
+ await action('/api/pdv/dispute-status',{id,status,reason},true,status==='aprovada'?'Devolução aceita pelo PDV. Conta recalculada.':'Devolução recusada pelo PDV. Produto permanece cobrado.');
+}
 async function cancelItem(id){if(confirm('Cancelar este produto na demonstração?'))await action('/api/pdv/cancel',{id},true,'Produto cancelado')}
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
 async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
