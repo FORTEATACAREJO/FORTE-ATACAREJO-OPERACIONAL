@@ -50,7 +50,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 </section>
 <div id="installStrip" class="install-strip hidden"><div><strong style="font-size:13px">HONESTO no seu celular</strong><div class="small">Opcional e gratuito · também funciona neste navegador</div></div><button id="installBtn" class="btn light sm" onclick="installHonesto()">Instalar aplicativo</button></div>
 <div id="workspace" class="hidden">
- <div class="tabs"><button id="clientTab" class="on" onclick="viewMode('cliente')">📱 Conta do cliente</button><button id="staffTab" class="hidden" onclick="viewMode('pdv')">🖥️ PDV do restaurante (simulado)</button></div>
+ <div class="info" style="margin-bottom:14px"><strong>HONESTO — somente o cliente.</strong> Todas as decisões sobre devoluções são feitas exclusivamente no PDV do restaurante.</div>
  <section id="clientSection" class="cols">
   <div>
    <div class="card"><div class="row" style="padding-top:0"><h2 style="margin:0">Cardápio digital</h2><span class="pill">Mesmo QR Code</span></div><p class="small">Consulte produtos e preços. O envio de pedidos depende da autorização do estabelecimento.</p><div id="menuList" class="menu-grid"></div></div>
@@ -65,25 +65,12 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
    <div class="card"><h2>Histórico até a quitação</h2><div class="small">A comanda permanece a mesma mesmo quando você troca de mesa.</div><div id="accountHistory"></div></div><div class="card"><h2>Devoluções solicitadas</h2><p class="small">O produto só deixa de ser cobrado quando o garçom autorizar a devolução pelo caixa.</p><div id="disputes"></div></div>
   </aside>
  </section>
- <section id="staffSection" class="cols hidden">
-  <div>
-    <div class="card"><h2>QR Code único do estabelecimento</h2><p class="small">O mesmo QR Code pode ser utilizado em qualquer mesa. O cliente informa o número da mesa e seu nome.</p><div id="tableQRCode" class="qr-box"></div><div id="tableQRLink" class="small" style="overflow-wrap:anywhere"></div><button class="btn light sm" onclick="copyInvite()">Copiar endereço do QR</button></div>
-    <div class="card"><h2>Trocas de mesa solicitadas</h2><div id="transferRequests"></div></div><div class="card"><h2>Pedidos do HONESTO recebidos no PDV (simulação)</h2><div class="row" style="padding-top:0"><div class="small">O garçom real não usa o HONESTO: os pedidos aparecem no PDV integrado do restaurante.</div><label class="checkbox"><input type="checkbox" id="enableOrders" onchange="setOrderEnabled(this.checked)">Aceitar pedidos via HONESTO</label></div><div id="cashOrders"></div></div>
-    <div class="card"><h2>PDV simulado — lançar produto</h2><form id="itemForm"><label class="field">Produto<input id="product" value="Água mineral" required></label><div class="two"><label class="field">Quantidade<input id="qty" type="number" min="1" max="50" value="1" required></label><label class="field">Preço unitário (R$)<input id="price" value="6,00" required></label></div><label class="field">Consumo atribuído a<select id="assignPerson"></select></label><button class="btn" type="submit">+ Lançar na comanda</button></form></div>
-    <div class="card"><h2>Produtos e cancelamentos</h2><div id="cashItems"></div></div>
-    <div class="card"><h2>Devoluções aguardando o garçom</h2><p class="small">Na operação real, estas solicitações aparecerão no PDV existente. Nesta demonstração, a decisão é feita aqui.</p><div id="cashDisputes"></div></div>
-  </div>
-  <aside>
-    <div class="card"><h2>Confirmar pagamento presencial</h2><form id="payForm"><label class="field">Valor (R$)<input id="payAmount" value="30,00" required></label><label class="field">Quem pagou?<select id="payPerson"></select></label><label class="field">Recebido via<select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select></label><label class="checkbox"><input type="checkbox" id="leaves"> Pessoa está saindo da mesa</label><button class="btn dark" type="submit">✓ Confirmar recebimento (demo)</button></form><p class="small">Este botão não movimenta dinheiro, apenas simula o lançamento recebido pelo garçom.</p></div>
-    <div class="card"><h2>Histórico de pagamentos</h2><div id="payments"></div></div><div class="card"><h2>Histórico completo da comanda</h2><p class="small">Pedidos, lançamentos, cancelamentos e confirmações com data e hora.</p><div id="cashTimeline"></div></div><div class="card"><h2>Quitação da comanda</h2><p class="small">O histórico é mantido durante as trocas de mesa e até a confirmação de quitação pelo PDV.</p><button class="btn dark" id="settleButton" onclick="settleBill()">Confirmar quitação (PDV simulado)</button><p class="small" id="settlementLabel"></p></div>
-    <div class="card"><h2>Conectar sistema do restaurante</h2><div class="info">HONESTO CONNECT será ativado após homologação do protocolo seguro. Nesta versão, apenas o PDV simulado envia lançamentos.</div></div>
-  </aside>
- </section>
+
  </div>
 </main><footer>HONESTO · Projeto da FORTE ATACAREJO LTDA. · Identidade visual branca, preta e verde · Versão demonstrativa, não comercial</footer>
 <script src="/vendor/qrcode.js"></script>
 <script>
-let token='',staff='',data=null,es=null,loading=false,mode='cliente',pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,qrRendered='',establishmentId='';
+let token='',data=null,es=null,loading=false,pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,establishmentId='';
 const $=(x)=>document.getElementById(x);
 const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const dtFormat=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -91,14 +78,13 @@ const stamp=(value)=>{if(!value)return 'Horário não informado';const d=new Dat
 const timeInfo=(at,title='Registrado')=>'<div class="small">'+escapeHtml(title)+': '+stamp(at)+'</div>';
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
-async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'X-Honesto-Staff':staff}:{})},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
-async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;staff=d.staff;establishmentId=d.establishmentId;memberToken='';visitorId='';sessionStorage.setItem('honesto-demo-staff:'+token,staff);history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
+async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
+async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;establishmentId=d.establishmentId;memberToken='';visitorId='';history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
 async function connect(){if(es)es.close();
  try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('honesto-display-name'),lastTable=localStorage.getItem('honesto-last-table');if(lastName)$('joinName').value=lastName;if(lastTable&&!$('joinTable').value)$('joinTable').value=lastTable;}catch{}
- $('staffTab').classList.toggle('hidden',!staff);$('inviteUrl').textContent=location.origin+'/?est='+encodeURIComponent(establishmentId);await refresh();
+ $('inviteUrl').textContent=location.origin+'/?est='+encodeURIComponent(establishmentId);await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
-viewMode(new URLSearchParams(location.search).get('mode')==='pdv'&&staff?'pdv':'cliente');}
-function viewMode(next){mode=next;$('clientSection').classList.toggle('hidden',mode!=='cliente');$('staffSection').classList.toggle('hidden',mode!=='pdv');$('clientTab').classList.toggle('on',mode==='cliente');$('staffTab').classList.toggle('on',mode==='pdv');history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&mode='+mode+'&token='+encodeURIComponent(token));}
+history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));}
 async function refresh(){if(!token||loading)return;loading=true;try{data=await api('/api/session/'+encodeURIComponent(token)+(memberToken?'?memberToken='+encodeURIComponent(memberToken):''));render();$('connection').textContent='Conectado'}catch(e){$('connection').textContent='Sem conexão'}finally{loading=false;}}
 async function action(endpoint,payload,needStaff=false,message='Atualizado'){try{await api(endpoint,payload,needStaff);await refresh();note(message)}catch(e){note(e.message,true);await refresh();}}
 const names=()=>Object.fromEntries(data.people.map(p=>[p.id,p.name]));
@@ -129,12 +115,7 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  const auditRows=[...d.timeline].reverse().map(e=>'<div class="row"><div><strong>'+escapeHtml(e.detail)+'</strong>'+timeInfo(e.at,'Movimentação')+'</div>'+(typeof e.amount==='number'?'<span class="value">'+fmt(e.amount)+'</span>':'')+'</div>').join('')||'<p class="small">Nenhuma movimentação registrada.</p>';
  $('accountHistory').innerHTML='<div class="row"><strong>Comanda aberta</strong><span>'+stamp(d.createdAt)+'</span></div>'+
  auditRows+(d.settledAt?'<div class="row"><strong>Quitação confirmada</strong><span>'+stamp(d.settledAt)+'</span></div>':'<div class="row"><strong>Status</strong><span class="pill warn">Aguardando quitação pelo caixa</span></div>');
- $('cashTimeline').innerHTML=auditRows;
  $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
- renderQR();
- $('transferRequests').innerHTML=d.transfers.map(t=>'<div class="row"><div><strong>'+escapeHtml(ids[t.person]||'Participante')+'</strong><div class="small">'+escapeHtml(t.from)+' → '+escapeHtml(t.to)+'</div>'+timeInfo(t.requestedAt,'Solicitada')+(t.confirmedAt?timeInfo(t.confirmedAt,'Confirmada'):'')+'<span class="pill '+(t.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(t.status)+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+(t.status==='pendente'?'<button class="btn sm" onclick="resolveTransfer(\''+t.id+'\',\'aprovada\')">Confirmar</button><button class="btn red sm" onclick="resolveTransfer(\''+t.id+'\',\'recusada\')">Recusar</button>':'')+'</div></div>').join('')||'<p class="small">Nenhuma troca solicitada.</p>';
- $('settleButton').disabled=d.closed||d.balance!==0||d.transfers.some(t=>t.status==='pendente')||d.orders.some(o=>o.status==='solicitado');
- $('settlementLabel').textContent=d.closed?'Quitação confirmada no PDV simulado':d.balance!==0?'Saldo pendente: '+fmt(d.balance):'Saldo zerado. O PDV ainda precisa confirmar a quitação.';
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
 $('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+timeInfo(i.at,'Lançado')+(i.cancelledAt?timeInfo(i.cancelledAt,'Cancelado'):'')+returnWidget(i)+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
 $('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
@@ -149,15 +130,7 @@ const disputes=[...d.disputes].reverse().map(x=>{
    '<span class="pill '+(x.status==='recusada'?'denied':x.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(label)+'</span></div></div>';
  }).join('')||'<p class="small">Nenhuma devolução solicitada.</p>';
  $('disputes').innerHTML=disputes;
- $('cashDisputes').innerHTML=[...d.disputes].reverse().map(x=>{
-  const item=d.items.find(i=>i.id===x.item);
-  return '<div class="row"><div><strong>'+escapeHtml(item?.name||'Produto')+'</strong><div class="small">Solicitação: '+escapeHtml(x.reason)+'</div>'+
-  timeInfo(x.at,'Solicitado')+(x.resolvedAt?timeInfo(x.resolvedAt,'Analisado'):'')+
-  (x.decisionReason?'<div class="small">Resposta: '+escapeHtml(x.decisionReason)+'</div>':'')+
-  '<span class="pill '+(x.status==='recusada'?'denied':x.status==='aprovada'?'ok':'warn')+'">'+escapeHtml(returnStatusLabel(x.status))+'</span></div>'+
-  (x.status==='pendente'?'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="decideReturn(\''+x.id+'\',\'aprovada\')">Aceitar devolução</button><button class="btn red sm" onclick="decideReturn(\''+x.id+'\',\'recusada\')">Recusar devolução</button></div>':'')+'</div>';
- }).join('')||'<p class="small">Nenhuma devolução aguardando.</p>';
- const currentPerson=$('orderPerson').value,currentProduct=$('orderProduct').value;
+ const currentProduct=$('orderProduct').value;
 $('orderPerson').innerHTML=visitorId&&d.people.some(p=>p.id===visitorId)?'<option value="'+escapeHtml(visitorId)+'">'+escapeHtml(ids[visitorId])+' (você)</option>':'<option value="">Entre com seu nome</option>';
 $('orderPerson').value=visitorId||'';
 $('orderProduct').innerHTML=d.menu.map(m=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+' · '+fmt(m.unit)+'</option>').join('');
@@ -166,19 +139,9 @@ $('orderingState').textContent=d.orderingEnabled?'Disponível':'Desativado pelo 
 $('orderingState').className='pill '+(d.orderingEnabled?'ok':'warn');
 $('orderForm').classList.toggle('hidden',!d.orderingEnabled);
 $('orderingOff').classList.toggle('hidden',d.orderingEnabled);
-$('enableOrders').checked=d.orderingEnabled;
 displayOrderPrice();
 const orderStatus={solicitado:'Aguardando aceitação',aceito:'Aceito no PDV',entregue:'Entregue',recusado:'Não aceito'};
 $('clientOrders').innerHTML=d.orders.map(o=>'<div class="row"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">'+escapeHtml(ids[o.person]||'Cliente')+' · '+escapeHtml(o.note||'Sem observação')+'</div>'+timeInfo(o.createdAt,'Solicitado')+(o.statusHistory?.length>1?timeInfo(o.updatedAt,'Último status'):'')+'</div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div>').join('')||'<p class="small">Nenhum pedido solicitado ainda.</p>';
-$('cashOrders').innerHTML=d.orders.map(o=>'<div class="row" style="align-items:start"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">Mesa: '+escapeHtml(o.table||d.table)+' · Cliente: '+escapeHtml(ids[o.person]||'Não identificado')+'</div><div class="small">Observação: '+escapeHtml(o.note||'Nenhuma')+'</div>'+timeInfo(o.createdAt,'Solicitado')+(o.statusHistory?.length>1?o.statusHistory.slice(1).map(h=>timeInfo(h.at,'Status '+(orderStatus[h.status]||h.status))).join(''):'')+'<span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:end">'+(o.status==='solicitado'?'<button class="btn sm" onclick="orderStatusChange(\''+o.id+'\',\'aceito\')">Aceitar no PDV</button><button class="btn sm red" onclick="orderStatusChange(\''+o.id+'\',\'recusado\')">Recusar</button>':o.status==='aceito'?'<button class="btn sm light" onclick="orderStatusChange(\''+o.id+'\',\'entregue\')">Marcar entregue</button>':'')+'</div></div>').join('')||'<p class="small">Nenhum pedido aguardando.</p>';
-for(const id of ['assignPerson','payPerson']){const e=$(id),old=e.value;e.innerHTML=options(id==='payPerson'?'Pagamento da mesa':'Compartilhado');e.value=old;}
-$('cashItems').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(i.active?'':'cut')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+'</div>'+timeInfo(i.at,'Lançado')+(i.cancelledAt?timeInfo(i.cancelledAt,'Cancelado'):'')+'</div>'+(i.active?'<button class="btn red sm" onclick="cancelItem(\''+i.id+'\')">Cancelar</button>':'<span class="pill warn">Cancelado</span>')+'</div>').join('');
-$('payments').innerHTML=d.payments.map(p=>'<div class="row"><div><strong>'+fmt(p.amount)+'</strong><div class="small">'+escapeHtml(ids[p.person]||'Mesa')+' · '+escapeHtml(p.method)+'</div>'+timeInfo(p.at,'Recebido no caixa')+'</div><span class="pill ok">Confirmado</span></div>').join('')||'<p class="small">Nenhum pagamento registrado</p>';
-}
-function renderQR(){if(!establishmentId||typeof qrcode!=='function'||qrRendered===establishmentId)return;
- const link=location.origin+'/?est='+encodeURIComponent(establishmentId);
- try{const qr=qrcode(0,'M');qr.addData(link);qr.make();$('tableQRCode').innerHTML=qr.createSvgTag({cellSize:5,margin:12,scalable:true,alt:'QR Code único do estabelecimento HONESTO'});$('tableQRLink').textContent=link;qrRendered=establishmentId}
- catch(e){$('tableQRLink').textContent=link}
 }
 function chooseMenu(id){
  if(!data.orderingEnabled){note('Este estabelecimento permite apenas visualizar o cardápio',true);return}
@@ -203,7 +166,7 @@ async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.
   const session=await api('/api/table/enter',{establishmentId,table});
   const changed=token!==session.token;
   if(changed){
-   token=session.token;staff=sessionStorage.getItem('honesto-demo-staff:'+token)||staff;
+   token=session.token;
    let saved=null;try{saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null')}catch{}
    memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';
   }
@@ -221,29 +184,12 @@ if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.ser
 function toggleTableChange(){if(!memberToken||!visitorId)return;
  const panel=$('moveFormPanel');panel.classList.toggle('hidden');
  if(!panel.classList.contains('hidden')){$('moveTable').value='';$('moveTable').focus()}}
-async function resolveTransfer(id,status){await action('/api/pdv/transfer-status',{id,status},true,status==='aprovada'?'Troca de mesa confirmada no PDV simulado':'Troca recusada no PDV simulado')}
-async function settleBill(){if(!confirm('Simular quitação total no PDV e encerrar esta comanda?'))return;await action('/api/pdv/settle',{},true,'Quitação confirmada no PDV simulado')}
 function displayOrderPrice(){if(!data)return;const m=data.menu.find(x=>x.id===$('orderProduct').value);const q=Number($('orderQty').value)||1;$('orderPrice').textContent=fmt(m?m.unit*q:0)}
-async function setOrderEnabled(enabled){await action('/api/pdv/order-settings',{enabled},true,enabled?'Pedidos habilitados nesta demonstração':'Pedidos desabilitados para esta mesa')}
-async function orderStatusChange(id,status){await action('/api/pdv/order-status',{id,status},true,'Situação do pedido atualizada pelo PDV simulado')}
 async function serviceChoice(person,enabled){await action('/api/client/service',{person,enabled},false,'Escolha de serviço registrada')}
 async function contest(id){const reason=prompt('Por que deseja devolver ou contestar este produto?');
  if(reason&&reason.trim().length>=5)await action('/api/client/contest',{id,reason:reason.trim()},false,'Devolução solicitada. O produto continua na conta até o garçom aceitar.');
  else if(reason!==null)note('Descreva o motivo em pelo menos 5 caracteres.',true);
 }
-async function decideReturn(id,status){
- let reason='';
- if(status==='aprovada'){
-  if(!confirm('Autorizar esta devolução no PDV simulado? Somente agora o valor será abatido da conta.'))return;
- }else{
-  const response=prompt('Informe ao cliente o motivo da devolução recusada (obrigatório):');
-  if(response===null)return;
-  reason=response.trim();
-  if(reason.length<5){note('Informe um motivo de pelo menos 5 caracteres.',true);return}
- }
- await action('/api/pdv/dispute-status',{id,status,reason},true,status==='aprovada'?'Devolução aceita pelo PDV. Conta recalculada.':'Devolução recusada pelo PDV. Produto permanece cobrado.');
-}
-async function cancelItem(id){if(confirm('Cancelar este produto na demonstração?'))await action('/api/pdv/cancel',{id},true,'Produto cancelado')}
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
 async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
 $('newDemo').addEventListener('click',startNew);
@@ -262,11 +208,9 @@ $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
  try{const result=await api('/api/client/order',payload);pendingRequestId=null;$('orderNote').value='';await refresh();note('Solicitação enviada ao sistema do restaurante (simulação). Aguarde a aceitação.')}
  catch(ex){note(ex.message+' — você pode tentar novamente sem criar pedido duplicado.',true)}
 });
-$('itemForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('product').value,qty:Number($('qty').value),price:$('price').value,person:$('assignPerson').value||null},true,'Produto enviado à conta do cliente')});
-$('payForm').addEventListener('submit',e=>{e.preventDefault();if(!confirm('Confirmar recebimento somente na demonstração?'))return;action('/api/pdv/payment',{amount:$('payAmount').value,person:$('payPerson').value||null,method:$('method').value,leaves:$('leaves').checked},true,'Pagamento simulado confirmado')});
 (async()=>{const qs=new URLSearchParams(location.search);
  if(qs.get('est'))establishmentId=qs.get('est');
- if(qs.get('token')){token=qs.get('token');staff=sessionStorage.getItem('honesto-demo-staff:'+token)||'';try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}
+ if(qs.get('token')){token=qs.get('token');try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}
  else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('joinRestaurant').textContent='Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('honesto-last-table')||'';$('joinName').value=localStorage.getItem('honesto-display-name')||''}catch{}}
  else{await startNew()}
 })();
