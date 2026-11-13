@@ -57,3 +57,30 @@ O `GET /health` não inclui informações sigilosas; mostra booleanos de configu
 - https://docs.asaas.com/docs/faq-de-webhooks
 - https://docs.asaas.com/docs/sandbox
 - https://docs.asaas.com/docs/link-do-checkout-e-redirecionamento-do-cliente
+
+
+## Atualização de homologação — 13/11/2026
+
+### Cadastro empresarial self-service com aprovação
+- Usuário autenticado por e-mail pode solicitar um CNPJ via formulário no painel \`/admin.html\`.
+- As solicitações são armazenadas em \`public.sft_company_signup_requests\`, com RLS permitindo ao solicitante consultar apenas os seus registros; o Master visualiza a fila.
+- Formulário aceita CNPJ numérico ou alfanumérico validado no banco. CNAE, setor e regime informados são **declarações não verificadas**.
+- E-mail não confirmado não pode solicitar; aprovação exige Master e justificativa documentando checagem externa de representação.
+- Após aprovação, o novo solicitante ganha perfil ADMIN apenas no CNPJ autorizado, mas empresa continua com \`regime = A_DEFINIR\`, sem licença, sem estoque anterior e sem autorização de emissão fiscal.
+- Testes SQL \`BEGIN/ROLLBACK\`: e-mail não confirmado bloqueado, usuário comum não aprova, Master vincula solicitante e CNPJ, regime continua pendente e licença não é liberada.
+
+### Reconciliador de cobrança v2 (Edge Function ativa)
+- Confirmado no código que o Checkout já possui \`externalReference\`; preservado no request.
+- \`CHECKOUT_PAID\` vincula somente o id do checkout à fila de eventos; não concede licença.
+- \`SUBSCRIPTION_CREATED\` verifica no Asaas a assinatura (\`ACTIVE\`, \`MONTHLY\`, cartão, valor do contrato e referência); se a referência não for preservada pelo provedor, a assinatura fica **pendente de conciliação**, sem associar CNPJ por nome ou e-mail.
+- Recuperação pontual via \`GET /v3/subscriptions/{id}/payments\`, consulta e verifica cada cobrança confirmada, permitindo recuperar eventos de pagamento recebidos antes da associação da assinatura.
+- Evento duplicado só pode ser vinculado a um CNPJ se metadados de pagamento/assinatura conferirem. 
+- Nova tabela privada \`sft_billing_settled_payments\` impede usar uma mesma cobrança como pagamento de empresas diferentes. Reprocessar o mesmo pagamento não renova a licença novamente.
+- Testes transacionais SQL aprovados para eventos órfãos, associação posterior, duplicidade e vigência, com rollback.
+- Transmissão de cobranças **em produção desabilitada**. Não há conta Asaas Sandbox, chave API ou webhook token configurados nesta etapa. Código publicado e validado por sintaxe, mas **ainda não foi exercitado contra o Asaas ao vivo**.
+
+### Prévias, validação e próximos bloqueios
+- Login Master com e-mail real e allowlist de redirecionamento do Supabase Auth ainda requer teste integrado no navegador.
+- Não configurar preços de assinatura comerciais ou tokens de pagamento em produção sem aprovação.
+- Para integração de cartão de teste, é necessária uma conta Asaas Sandbox; configurar chaves no cofre de segredos, registrar webhook e homologar os eventos, incluindo estorno, inadimplência e cancelamento. Não enviar segredos pelo chat.
+- Falta habilitar operação comercial: contratos jurídicos, NFS-e do SaaS, tratamento de inadimplência, backup/restauração, monitoramento, suporte e parametrizações fiscais homologadas.
