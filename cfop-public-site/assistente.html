@@ -26,7 +26,7 @@ button.primary{background:#102640;color:white;border:0}button.gold{background:#d
 a{color:#976b22}small{font-size:12px;color:#6b7d90}.divider{height:1px;background:#e7ecf2;margin:17px 0}
 #msg{color:#8a2a19;font-size:13px;margin-top:12px}
 .two{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.two>div:first-child{flex:1}
-summary{cursor:pointer;font-weight:700}.table{width:100%;border-collapse:collapse;font-size:14px}td{padding:10px 6px;border-bottom:1px solid #e5e9ef;vertical-align:top}td:first-child{width:37%;color:#667a90}
+summary{cursor:pointer;font-weight:700}.fiscal-dossier{display:grid;gap:14px;margin:13px 0}.fiscal-group{border:1px solid #dce4ee;border-radius:12px;overflow:hidden;background:#fff}.fiscal-group h3{background:#f4f7fb;padding:12px 14px;font-size:15px;margin:0;color:#173550}.fiscal-data{width:100%;border-collapse:collapse;font-size:13px}.fiscal-data td{padding:9px 12px;border-top:1px solid #edf0f3;vertical-align:top;line-height:1.48}.fiscal-data td:first-child{width:39%;font-weight:650;color:#385068}.fiscal-sub{display:block;color:#697e90;font-size:11px;margin-top:3px}.fiscal-status{display:inline-block;border-radius:14px;padding:3px 8px;font-size:11px;background:#e8edf4;color:#52657c;font-weight:700;margin-bottom:2px}.fiscal-status.known{background:#e9f5ee;color:#246943}.fiscal-status.hypothesis{background:#fff3d9;color:#8c601a}.fiscal-lead{padding:15px;background:#f7f9fb;border-radius:13px;margin-bottom:14px;font-size:13px;line-height:1.6}.fiscal-lead strong{font-size:16px;color:#102640}.fiscal-audit{margin-top:17px}.fiscal-audit summary{padding:11px 0}.table{width:100%;border-collapse:collapse;font-size:14px}td{padding:10px 6px;border-bottom:1px solid #e5e9ef;vertical-align:top}td:first-child{width:37%;color:#667a90}
 footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.card{padding:16px}.actions{flex-direction:column}}
 </style></head>
@@ -123,8 +123,10 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 </div>
 <div class="warning" style="margin-top:14px">O produto sozinho não determina se há substituição tributária. Para verificar ICMS-ST são necessários NCM, descrição, CEST quando aplicável, UF, data da operação, regras estaduais e responsabilidade tributária. O simulador atual não confirma essas informações automaticamente.</div>
 <div class="actions"><button id="back3">Voltar</button><button class="gold" id="next3">Analisar</button></div></div>
-<div class="card hidden" id="step4"><h2>4. Análise da operação</h2>
-<div id="summary"></div>
+<div class="card hidden" id="step4"><h2>4. Ficha fiscal completa da consulta</h2>
+<p>Dados do produto e tratamento de compras/vendas. Cada campo informa se é um código existente, sugestão ou informação ainda não confirmada.</p>
+<div id="fiscalDossier" class="fiscal-dossier" aria-live="polite"></div>
+<details class="fiscal-audit"><summary>Ver todos os dados informados na consulta</summary><div id="summary"></div></details>
 <div id="fiscalReview" class="warning" style="margin-top:15px"><strong>Classificação fiscal condicionada:</strong> sugestões não substituem a legislação vigente, o XML do produto nem a análise da operação. CST/CSOSN, PIS/COFINS, bases e alíquotas ainda requerem validação.</div>
 <div style="font-size:13px;margin-top:12px;line-height:1.8">Fontes: <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">CONFAZ — CEST e ST</a> · <a href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif" target="_blank" rel="noopener">Receita — NCM/Classif</a> · <a href="https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm" target="_blank" rel="noopener">Tabela CFOP</a></div>
 <div class="divider"></div>
@@ -447,6 +449,82 @@ function showFiscalConditions(){
 document.querySelectorAll('[data-entry-operation]').forEach(function(b){b.addEventListener('click',showFiscalConditions)});
 showFiscalConditions();
 
+
+function buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis) {
+ const root=$('fiscalDossier');root.replaceChildren();
+ const engine=window.FORTE_CLASSIFICACAO;
+ const official=officialNcm?.code===ncm;
+ const ncmMatchesCurated=!!productAnalysis&&(productAnalysis.ncm===ncm || (productAnalysis.options||[]).some(x=>x.ncm===ncm));
+ const cestMatchesCurated=!!productAnalysis&&!!cest&&((productAnalysis.cest===cest&&ncmMatchesCurated)||(productAnalysis.options||[]).some(x=>x.ncm===ncm&&x.cest===cest));
+ const sourceOwn=currentResult('own'),sourceOther=currentResult('other');
+ const currentBuyer=op==='entrada'?sourceOwn:sourceOther;
+ const currentSeller=op==='entrada'?sourceOther:sourceOwn;
+ const roleName=op==='entrada'?'ENTRADA / COMPRA':'SAÍDA / VENDA';
+ const situacao=cfopAnalysis?.code?'Hipótese de CFOP condicionada':'CFOP pendente de análise';
+ const summary=document.createElement('div');summary.className='fiscal-lead';
+ const head=document.createElement('strong');head.textContent=product||'Produto não informado';
+ const info=document.createElement('div');info.textContent=roleName+' • '+$('originUf').value+' → '+$('destUf').value+' • '+situacao;
+ summary.append(head,info);root.appendChild(summary);
+ function sec(title,rows){
+  const container=document.createElement('section');container.className='fiscal-group';
+  const h=document.createElement('h3');h.textContent=title;
+  const t=document.createElement('table');t.className='fiscal-data';
+  rows.forEach(function(row){
+   const tr=t.insertRow(),a=tr.insertCell(),b=tr.insertCell();
+   a.textContent=row.label;
+   const status=document.createElement('span');status.className='fiscal-status '+(row.state||'');
+   status.textContent=row.tag||'Pendente';
+   const value=document.createElement('div');value.textContent=row.value||'Não confirmado';
+   b.append(status,value);
+   if(row.note){const details=document.createElement('small');details.className='fiscal-sub';details.textContent=row.note;b.appendChild(details)}
+  });
+  container.append(h,t);root.appendChild(container);
+ }
+ const unsure=(label,detail)=>({label,value:'Aguardando validação',note:detail,tag:'Pendente'});
+ const ncmReg=official?'Código existente na tabela oficial; aplicação ao produto ainda depende de comprovação':ncm?'Código informado ou sugerido, ainda não conferido na NCM oficial':'NCM de 8 dígitos ainda não identificado';
+ const ncmTag=official?'Código verificado':ncmMatchesCurated?'Sugestão do catálogo':ncm?'Informado':'Pendente';
+ const ncmState=official?'known':ncmMatchesCurated?'hypothesis':'';
+ const cestTag=cestMatchesCurated?'Referência do catálogo':cest?'Informado':'Pendente';
+ const cestState=cestMatchesCurated?'hypothesis':'';
+ const ncmValue=ncm?engine.ncmFmt(ncm):productAnalysis?.ncmGroup?'Família NCM '+productAnalysis.ncmGroup:'Não identificado';
+ const cestValue=cest?engine.cestFmt(cest):'Não identificado / não aplicável ainda não confirmado';
+ const simStatus=currentBuyer?.simplesNacional===true?'Optante do Simples Nacional':currentBuyer?.simplesNacional===false?'Não optante do Simples Nacional':'Não confirmado';
+ const isChecked=!!currentBuyer && currentBuyer.simplesNacional!==null && typeof currentBuyer.simplesNacional==='boolean';
+ sec('1. Identificação e classificação do produto',[
+  {label:'Descrição comercial',value:product,tag:'Informado'},
+  {label:'NCM',value:ncmValue,tag:ncmTag,state:ncmState,note:ncmReg},
+  {label:'Descrição/posição NCM',value:official?officialNcm.hierarchy:'Sem hierarquia confirmada nesta consulta',tag:official?'Tabela oficial':'Pendente',state:official?'known':'',note:official?'Fonte: RFB / Sistema Classif (NCM vigente)':'Utilize a busca da tabela NCM oficial na etapa anterior'},
+  {label:'CEST',value:cestValue,tag:cestTag,state:cestState,note:cestMatchesCurated?'Correspondência no catálogo curado com o Convênio ICMS 142/2018; exigência documental e aplicação por UF dependem da descrição':'NCM sozinho não determina CEST: verificar descrição, anexo e vigência'},
+  {label:'Segmento do CEST',value:cest?('Segmento '+cest.slice(0,2)+' (código informado)'):'Não identificado',tag:cest?'Indicativo':'Pendente',state:cest?'hypothesis':''},
+  {label:'TIPI / IPI',value:'Não calculado',tag:'Pendente',note:'Exige enquadramento válido na TIPI, tipo de operação, contribuinte e benefícios aplicáveis'},
+  {label:'GTIN / EAN / cEAN',value:'Não informado',tag:'Pendente',note:'Pode ser recuperado do XML/GTIN do fabricante quando disponível'},
+  {label:'Origem fiscal da mercadoria',value:'Não confirmada',tag:'Pendente',note:'Nacional/importada e conteúdo de importação podem alterar ICMS/CST'},
+  {label:'Referência temporal',value:$('operationDate').value||'Sem data',tag:'Informado',note:'A tabela de NCM carregada é a versão vigente; consultar histórico para operações de outras vigências'}
+ ]);
+ sec('2. Tributos e natureza da operação',[
+  {label:'Tipo de operação',value:roleName+' • '+$('originUf').value+' → '+$('destUf').value,tag:'Informado'},
+  {label:'Finalidade',value:$('use').selectedOptions[0].textContent,tag:'Informado'},
+  {label:'CFOP',value:cfopAnalysis?.code?cfopAnalysis.code+' — hipótese, não homologada':'Não determinado',tag:cfopAnalysis?.code?'Hipótese condicional':'Pendente',state:cfopAnalysis?.code?'hypothesis':'',note:cfopAnalysis?.explanation||'Regime, natureza, ST e legislação exigem conferência'},
+  {label:'Regime do comprador',value:simStatus,tag:isChecked?'Retorno de intermediário':'Pendente',state:isChecked?'hypothesis':'',note:isChecked?'Condição Simples Nacional obtida por integrador; fonte e data exigem conferência':'Não presumir Lucro Real ou Presumido pela ausência no Simples'},
+  {label:'Regime do vendedor',value:currentSeller?.simplesNacional===true?'Optante do Simples Nacional':currentSeller?.simplesNacional===false?'Não optante pelo Simples Nacional':'Não confirmado',tag:currentSeller?'Retorno de intermediário':'Pendente',state:currentSeller?'hypothesis':''},
+  {label:'ICMS-ST',value:$('stEvidence').selectedOptions[0].textContent,tag:'Declarado; não verificado',state:'hypothesis',note:'ST efetiva requer UF, segmento, protocolo, modalidade, remetente, destinatário e responsável'},
+  unsure('ICMS — CST/CSOSN','Depende dos regimes, situação e origem do item, finalidade e CFOP'),
+  unsure('ICMS — base de cálculo','Exige valor, alíquota, reduções, benefícios e regras estaduais'),
+  unsure('ICMS — alíquota, valor e crédito','Exige apuração da operação por origem, destino, contribuinte e vigência'),
+  unsure('ICMS-ST — MVA / PMPF / pauta','Exige regras específicas de produto, período, origem/destino, segmento e responsável'),
+  unsure('DIFAL / FCP','Avaliar contribuinte, consumidor final, UF e demais requisitos'),
+  unsure('IPI — CST, base e alíquota','Depende do enquadramento, TIPI e da operação'),
+  unsure('PIS / COFINS — CST e alíquotas','Depende do regime, produto, incidência e tratamentos especiais'),
+  unsure('IBS / CBS — CST e cClassTrib','Depende da classificação tributária vigente e da operação em 2026'),
+  unsure('IBS / CBS — base, alíquota e valor','Exige condições legais da operação e vigência; não inventar valores'),
+  unsure('cBenef e desoneração','Depende de eventual benefício fiscal por UF e data'),
+  unsure('CFOP correspondente na outra parte','A escrituração de entrada do comprador não é sempre simétrica à saída do fornecedor')
+ ]);
+ const notice=document.createElement('p');notice.className='warning';
+ notice.textContent='Situação: ficha informativa, NÃO homologada para emissão de NF-e. O NCM oficial confirma apenas códigos existentes; CEST e CFOP demandam confronto com o produto e com a operação. Campos pendentes não são tributos calculados.';
+ root.appendChild(notice);
+}
+
 $('next3').onclick=()=>{let product=$('product').value.trim(),ncm=$('ncm').value.trim(),cest=$('cest').value.trim();if(!product){msg('Digite o nome do produto.');return}if(ncm&&!/^\d{8}$/.test(ncm)){msg('O NCM deve ter 8 dígitos.');return}if(cest&&!/^\d{7}$/.test(cest)){msg('O CEST deve ter 7 dígitos.');return}
 const fiscalEngine=window.FORTE_CLASSIFICACAO;
 const productAnalysis=fiscalEngine?fiscalEngine.suggest(product,ncm):null;
@@ -467,7 +545,7 @@ const data=[['Tipo de consultante',profile==='company'?'Empresa CNPJ':profile===
 ['IBS / CBS','Pendente: classificação específica, vigência e cClassTrib'],
 ['Base e alíquota do ICMS','Pendente: UF, origem, benefícios, ST, pauta ou MVA, quando aplicável'],
 ['Regime federal','Não confirmado por fonte oficial']];
-$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);goto(4);
+$('summary').replaceChildren();let table=document.createElement('table');table.className='table';data.forEach(item=>{let row=table.insertRow(),a=row.insertCell(),b=row.insertCell();a.textContent=item[0];b.textContent=item[1]});$('summary').appendChild(table);buildFiscalDossier(product,ncm,cest,productAnalysis,cfopAnalysis);goto(4);
 $('fiscalReview').textContent=cfopAnalysis.code?'CFOP sugerido sob hipóteses: '+cfopAnalysis.code+'. '+cfopAnalysis.explanation+' Pressupostos: '+(cfopAnalysis.assumptions||[]).join('; ')+'. Uso fiscal somente após conferência documental e legal.':'Classificação fiscal pendente. '+cfopAnalysis.explanation+' Consulte NCM/CEST oficiais e legislação específica da origem/destino antes de emitir ou escriturar.';
  for(const [who,label] of [['own','Consulta do cadastro próprio'],['other','Consulta da outra parte']]){const result=currentResult(who);if(result){const row=table.insertRow();row.insertCell().textContent=label;row.insertCell().textContent=statusSummary(result)+'\nIE digitada/escolhida deve corresponder ao retorno; CFOP e ICMS-ST permanecem pendentes.';}}
  const cleanProduct=product.slice(0,90);
