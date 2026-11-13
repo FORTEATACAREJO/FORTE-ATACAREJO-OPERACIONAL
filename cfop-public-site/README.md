@@ -1,4 +1,6 @@
-# FORTECOMPANNY — Consulta Fiscal (antiga FORTECOMPANNY / Consulta CFOP)
+# FORTECOMPANNY — Consulta Fiscal
+
+**Nome anterior do aplicativo:** FORTE TECH — Consulta de CFOP. A mudança é apenas de marca, preservando o funcionamento e a infraestrutura.
 
 Front-end PWA público para Render, independente do código operacional da branch main.
 
