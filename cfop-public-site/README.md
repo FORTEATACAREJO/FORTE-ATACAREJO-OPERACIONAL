@@ -74,3 +74,15 @@ Rota pública: **`/consulta-nfe.html`**, disponível na página inicial de `http
 - **Alertas:** alteração de conteúdo gera `pendente_revisao`. **O monitor NÃO altera automaticamente CFOP, NCM, CEST, CST/CSOSN, ICMS-ST, PIS/COFINS, IBS/CBS, nem publica regras legais sem validação técnica e jurídica.**
 - **Próxima fase:** integrar o monitor de notas técnicas NF-e (portal possui redirecionamentos automáticos que impediram coleta direta), arquivos oficiais estruturados de NCM/CEST/CFOP, vigências, protocolos de ICMS-ST MG/GO, legislações estaduais e reforma tributária; implementar validação/revisão/versionamento e rollback.
 - **Rastreabilidade:** GitHub issue [#68](https://github.com/FORTEATACAREJO/FORTE-ATACAREJO-OPERACIONAL/issues/68).
+
+## Auditoria das fontes CE, SP, MT — 14/11/2026
+
+- **Ceará:** consulta pública da SEFAZ via `https://sefazlegis.sefaz.ce.gov.br/` apresenta HTTPS válido e HTTP 200. É uma aplicação JavaScript (SPA); a coleta automática da **lista de atos** ainda não está implementada, portanto `modo_coleta=portal_spa`. O portal está **online**, mas as regras tributárias CE seguem **pendentes de homologação**.
+- **São Paulo:** substituída a homepage dinâmica por `https://legislacao.fazenda.sp.gov.br/Paginas/Home.aspx`; rastreado também o ato oficial ALESP Decreto **70.842/2026**, sobre vigência de benefício do RICMS. Leitura repetida da fonte: `sem_mudanca`. Esse exemplo não permite concluir a tributação de todos os produtos/benefícios.
+- **Mato Grosso:** a homepage continua em modalidade `somente_conectividade` porque varia dinamicamente; adicionado monitor de documento normativo estável SEFAZ/MT Decreto **2.305/2026**, referente ao artigo 19-A do Anexo X do RICMS (credenciamento e prazo de recolhimento de ICMS-ST). Leitura repetida: `sem_mudanca`.
+- **Alertas de hash #1 e #2:** reclassificados como `analisado_sem_impacto` **apenas do ponto de vista técnico da página monitorada**, pois consultas consecutivas à mesma homepage deram hashes diferentes sem identificar ato novo; avaliação preservada no banco. Isso **não confirma que não houve mudança na legislação**.
+- **Atos em revisão:** `cfop_atos_em_analise` contém três atos oficiais (CE Decreto 37.145/2026, SP Decreto 70.842/2026, MT Decreto 2.305/2026), todos em `revisao_pendente`. Nenhuma regra fiscal foi promovida a `homologada`.
+- **Banco:** migração `sql/corrigir-ce-sp-mt-fontes-20261114.sql`. Cron por hora inclui fontes de atos normativos pela migração `sql/cron-atos-normativos-ce-sp-mt-20261114.sql`.
+- **Painel:** `fontes-oficiais.html` diferencia portal online de monitor normativo e lista fontes e atos legais em análise; API pública `cfop-fontes` versão 3, testada HTTP 200.
+- **Verificações:** 27/27 portais com HTTP 200 e sem falhas técnicas; 0 alertas de hash sem análise; 3 atos em revisão; 0 regras estaduais homologadas. Esse resultado é uma conquista de infraestrutura **não uma homologação tributária das 27 UFs**.
+- **Lançamento:** não divulgar como cálculo definitivo; concluir origem/destino, finalidade, NCM/CEST, ICMS, ST/DIFAL, CST/CSOSN, vigência, provas e testes, respeitando a diretriz de pré-lançamento.
