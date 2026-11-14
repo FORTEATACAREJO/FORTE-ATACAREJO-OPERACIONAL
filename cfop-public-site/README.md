@@ -47,3 +47,19 @@ Implantação: branch `deploy/forte-tech-cfop-publico-20261112`; publishPath `cf
 - Botão **Imprimir / salvar PDF** usa o diálogo nativo do navegador, com folha de impressão sem campos de formulário e sem incluir dados da conta do usuário.
 - Publicação verificada por HTTP: `icon.svg`, `icon-maskable.svg`, `manifest.json`, `assistente.html` e `classificacao.js` retornaram 200; nome do PWA e campos revisados conferidos.
 - **Limite:** ainda não foi realizada homologação fiscal por UF e operação, nem navegação ponta a ponta autenticada com dados reais das APIs externas.
+
+## Tela de pré-nota para classificação (14/11/2026)
+
+Rota pública: **`/consulta-nfe.html`**, disponível na página inicial de `https://fortecompanny.com.br`.
+
+- Fluxo semelhante à NF-e: **natureza da operação**, **remetente**, **destinatário**, município/UF, CNPJ/CPF e IE, **múltiplos itens** (até 30), descrição, unidade, quantidade, preço, **NCM, CEST, finalidade item a item**.
+- Finalidades: revenda, ativo imobilizado, uso/consumo, construção/obra, industrialização, consumidor final, produção rural, prestação de serviço e outras.
+- Naturezas: compra/venda, remessa, devolução, transferência, bonificação, consignação, conserto, comodato e retorno. Operações especiais **não** recebem CFOP automático sem regra específica homologada.
+- Importação de itens de NF-e por XML no navegador; documentos e participantes **não são enviados** ao servidor por esta tela, exceto consulta de NCM/CEST exclusivamente por códigos.
+- Motor `pre-nota-engine.js`, com base no catálogo `classificacao.js`. Os campos fiscais têm situação: **declarado**, **hipótese condicionada** ou **pendente**.
+- Novas hipóteses CFOP para **compra de ativo** 1.551/2.551 (sem ST documentada) ou 1.406/2.406 (ST documental) e **compra uso/consumo** 1.556/2.556 ou 1.407/2.407; sempre condicionadas à legislação e tratamento real.
+- Apresenta valor de mercadorias **sem simular impostos** e permite **imprimir/salvar PDF** via navegador; não emite NF-e nem DANFE.
+- Testes reprodutíveis `node cfop-public-site/pre-nota-testes.cjs`. Testes de hipóteses não constituem homologação legal.
+- Fontes estruturais: Portal NF-e, manual de orientação da NF-e e convênio SINIEF s/n, Receita Federal (Classif NCM), CONFAZ 142/18, RICMS MG 2023 e legislação GO.
+- Acesso antigo por `/assistente.html` e simulador da página inicial continuam funcionando, preservando o histórico. Não alterar FORTE FISCAL nem sistemas da matriz/filial.
+- **Pendente:** integrar provedores cadastrais gratuitos se ativados, versão e vigência tributária MG/GO, ST/MVA/PMPF/pauta e homologação completa de CST/CSOSN, ICMS, PIS/COFINS, IBS/CBS/cClassTrib.
