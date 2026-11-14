@@ -65,6 +65,7 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
      <label style="display:flex;align-items:center;gap:9px"><input id="enableOrders" type="checkbox" style="width:auto">Permitir solicitações de pedidos pelo NANA PAY</label>
      <button class="btn" type="submit">Salvar configurações</button>
     </form></div>
+   <div class="card" id="adminPOS"><h2>Teste de integração com o PDV</h2><p class="hint">Use o simulador técnico ligado a este mesmo restaurante para testar lançamento, aceite de pedidos e decisões de devolução. Não faz parte das funções do garçom no NANA PAY.</p><button class="btn soft" onclick="openTechnicalPOS()">Abrir PDV técnico conectado</button></div>
    <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o NANA PAY.</p><div id="qr"></div><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
    <div class="card" id="adminWaiters"><h2>Garçons autorizados</h2><form id="waiterForm"><label for="waiterName">Cadastrar garçom</label><input id="waiterName" required placeholder="Primeiro nome" minlength="2" maxlength="45"><button class="btn" type="submit">Criar acesso individual</button></form>
     <div id="newWaiterKey" class="info closed" style="margin-top:10px"></div><div id="waiters"></div></div>
@@ -99,7 +100,7 @@ function render(){
  $('activeTables').textContent=d.tables.length;
  $('pendingOrders').textContent=d.tables.reduce((v,t)=>v+t.ordersPending,0);
  $('pendingReturns').textContent=d.tables.reduce((v,t)=>v+t.returnsPending,0);
- for(const k of ['adminSettings','adminQR','adminWaiters','adminBilling'])$(k).classList.toggle('closed',!admin);
+ for(const k of ['adminSettings','adminQR','adminWaiters','adminBilling','adminPOS'])$(k).classList.toggle('closed',!admin);
  $('tables').innerHTML=d.tables.map(t=>'<div class="table-row"><div class="row"><strong>'+esc(t.table)+'</strong><span class="pill">'+fmt(t.balance)+' em aberto</span></div><div class="mini">'+t.people+' pessoa(s) · '+stamp(t.openedAt)+'</div><div class="flex" style="margin-top:8px">'+(t.ordersPending?'<span class="pill wait">'+t.ordersPending+' pedido(s)</span>':'')+(t.returnsPending?'<span class="pill wait">'+t.returnsPending+' devolução(ões)</span>':'')+(t.tableMovesPending?'<span class="pill wait">'+t.tableMovesPending+' troca(s)</span>':'')+'</div></div>').join('')||'<p class="hint">Nenhuma mesa aberta. Quando o cliente entrar pelo QR Code, sua mesa aparecerá aqui.</p>';
  if(!admin)return;
  $('restaurantName').value=d.name;$('enableOrders').checked=d.orderingEnabled;
@@ -109,6 +110,12 @@ function render(){
  $('waiters').innerHTML=(d.waiters||[]).map(w=>'<div class="table-row row"><div><strong>'+esc(w.name)+'</strong><div class="mini">Criado em '+stamp(w.createdAt)+'</div></div><button class="btn warn sm" onclick="revoke(\''+esc(w.id)+'\')">Revogar</button></div>').join('')||'<p class="hint">Nenhum garçom cadastrado.</p>';
 }
 async function copyQR(){try{await navigator.clipboard.writeText($('qrLink').textContent);message('Endereço do QR copiado.')}catch{message('Copie o endereço exibido acima.',true)}}
+async function openTechnicalPOS(){try{
+  const d=await api('/api/restaurant/demo-pdv-access');
+  sessionStorage.setItem('honesto-pdv-demo',JSON.stringify({token:d.token,staff:d.staff,est:d.establishmentId}));
+  location.href='/pdv-simulado';
+ }catch(e){message(e.message,true)}
+}
 async function revoke(id){if(!confirm('Revogar acesso do garçom? A chave não funcionará mais.'))return;try{await api('/api/restaurant/waiters/revoke',{id});await refresh();message('Acesso revogado.')}catch(e){message(e.message,true)}}
 $('accessForm').addEventListener('submit',async e=>{e.preventDefault();try{await enter($('venue').value,$('accessKey').value,role)}catch(e){message(e.message,true)}});
 $('createDemo').addEventListener('click',async()=>{try{
