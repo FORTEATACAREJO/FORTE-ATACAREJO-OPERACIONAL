@@ -75,6 +75,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;
 <div class="field"><label for="senderIE">Inscrição estadual (se aplicável)</label><input id="senderIE" maxlength="22" autocomplete="off"></div>
 <div class="field"><label for="senderUF">UF de origem</label><select id="senderUF"></select></div>
 <div class="field"><label for="senderCity">Município</label><input id="senderCity" maxlength="85" autocomplete="off"></div>
+<div class="field"><label for="senderCEP">CEP</label><input id="senderCEP" maxlength="9" inputmode="numeric" placeholder="00000-000"></div>
+<div class="field wide"><label for="senderAddress">Endereço / logradouro</label><input id="senderAddress" maxlength="120" autocomplete="off"></div>
+<div class="field"><label for="senderNumber">Número</label><input id="senderNumber" maxlength="12" autocomplete="off"></div>
+<div class="field"><label for="senderDistrict">Bairro</label><input id="senderDistrict" maxlength="75" autocomplete="off"></div>
 <div class="field"><label for="senderRegime">Regime declarado</label><select id="senderRegime"><option value="unknown">Ainda não confirmado</option><option value="simples">Simples Nacional</option><option value="real">Lucro Real</option><option value="presumido">Lucro Presumido</option><option value="rural">Produtor rural / condição especial</option></select></div>
 </div>
 <p class="muted">Os dados do participante são declarados nesta tela e não representam consulta oficial de situação cadastral.</p>
@@ -89,6 +93,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;
 <div class="field"><label for="recipientIE">Inscrição estadual (se aplicável)</label><input id="recipientIE" maxlength="22" autocomplete="off"></div>
 <div class="field"><label for="recipientUF">UF de destino / entrega</label><select id="recipientUF"></select></div>
 <div class="field"><label for="recipientCity">Município</label><input id="recipientCity" maxlength="85" autocomplete="off"></div>
+<div class="field"><label for="recipientCEP">CEP</label><input id="recipientCEP" maxlength="9" inputmode="numeric" placeholder="00000-000"></div>
+<div class="field wide"><label for="recipientAddress">Endereço / logradouro</label><input id="recipientAddress" maxlength="120" autocomplete="off"></div>
+<div class="field"><label for="recipientNumber">Número</label><input id="recipientNumber" maxlength="12" autocomplete="off"></div>
+<div class="field"><label for="recipientDistrict">Bairro</label><input id="recipientDistrict" maxlength="75" autocomplete="off"></div>
 <div class="field"><label for="recipientRegime">Regime declarado</label><select id="recipientRegime"><option value="unknown">Ainda não confirmado</option><option value="simples">Simples Nacional</option><option value="real">Lucro Real</option><option value="presumido">Lucro Presumido</option><option value="rural">Produtor rural / condição especial</option></select></div>
 </div>
 <p class="muted">Se o destinatário for pessoa física sem IE, selecione o perfil correspondente para evitar enquadramento equivocado.</p>
@@ -214,7 +222,7 @@ $("xmlFile").onchange=async()=>{
 function party(which){
  const get=x=>$(which+x).value;
  return {kind:get("Kind"),document:get("Document").trim(),name:get("Name").trim(),ie:get("IE").trim(),
-   uf:get("UF"),city:get("City").trim(),regime:get("Regime")};
+   uf:get("UF"),city:get("City").trim(),cep:get("CEP").trim(),address:get("Address").trim(),number:get("Number").trim(),district:get("District").trim(),regime:get("Regime")};
 }
 function formData(){
  return {date:$("opDate").value,mode:$("mode").value,nature:$("nature").value,
@@ -236,8 +244,10 @@ function showSummary(res){
  summary.appendChild(heading);
  const t=mk("table"),entries=[
   ["Data",res.date],["Visão",res.mode==="saida"?"Saída (remetente)":"Entrada (destinatário)"],
-  ["Remetente", (res.sender.name||"Nome não informado")+" — "+res.sender.uf],
-  ["Destinatário", (res.recipient.name||"Nome não informado")+" — "+res.recipient.uf],
+  ["Remetente", (res.sender.name||"Nome não informado")+" — "+(res.sender.document||"Sem CPF/CNPJ")+" — IE "+(res.sender.ie||"não informada")+" — "+res.sender.uf],
+  ["Endereço remetente", [res.sender.address,res.sender.number,res.sender.district,res.sender.city,res.sender.uf,res.sender.cep].filter(Boolean).join(", ")||"Não informado"],
+  ["Destinatário", (res.recipient.name||"Nome não informado")+" — "+(res.recipient.document||"Sem CPF/CNPJ")+" — IE "+(res.recipient.ie||"não informada")+" — "+res.recipient.uf],
+  ["Endereço destinatário", [res.recipient.address,res.recipient.number,res.recipient.district,res.recipient.city,res.recipient.uf,res.recipient.cep].filter(Boolean).join(", ")||"Não informado"],
   ["Número de itens",res.items.length],["Valor de mercadorias (não é total NF-e)",res.amount.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})]
  ];
  for(const [k,v] of entries){const row=t.insertRow();row.insertCell().textContent=k;row.insertCell().textContent=v}
