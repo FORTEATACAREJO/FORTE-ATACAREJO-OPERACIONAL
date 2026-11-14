@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#102640"><meta name="application-name" content="FORTECOMPANNY">
+<title>Pré-nota de consulta fiscal | FORTECOMPANNY</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg?v=fortecompanny2">
+<link rel="manifest" href="/manifest.json?v=fortecompanny2">
+<script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script><script src="/pre-nota-engine.js"></script>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f3f6fa;color:#102640}
+*{box-sizing:border-box}body{margin:0}header{padding:14px max(16px,calc((100% - 1100px)/2));background:#102640;color:white;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}.brand img{width:52px;height:52px;border-radius:11px}.brand strong{font-size:18px;letter-spacing:.2px}.brand small{display:block;font-size:12px;color:#cddae9;margin-top:3px}
+header a{color:#fff;font-size:13px;text-decoration:none;border:1px solid #76899d;padding:8px 11px;border-radius:8px}
+main{max-width:1100px;padding:22px 15px 60px;margin:auto}.hero{display:flex;gap:15px;align-items:flex-start;justify-content:space-between;margin-bottom:15px}
+h1{font-size:clamp(25px,4.8vw,34px);line-height:1.16;margin:0 0 9px}h2{font-size:20px;margin:0 0 7px}h3{font-size:16px;margin:0 0 9px}p{line-height:1.55;margin:6px 0}
+.muted{color:#61728b;font-size:13px}.notice{font-size:13px;background:#fff6e7;border-left:4px solid #cda04a;padding:10px 13px;border-radius:4px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}
+.sheet{background:white;border:1px solid #dbe3ed;border-radius:13px;padding:18px 19px;margin-bottom:16px;box-shadow:0 2px 12px #0d233208}
+.section-heading{display:flex;align-items:center;gap:10px;border-bottom:1px solid #e6edf3;padding-bottom:10px;margin-bottom:14px}
+.number{display:grid;place-items:center;border-radius:9px;background:#102640;color:#fff;font-weight:800;height:31px;min-width:31px;font-size:14px}
+.subtitle{color:#6a7b91;font-size:12px}.field{display:flex;flex-direction:column;gap:5px}
+label{font-size:12px;color:#43556b;font-weight:700}
+input,select,textarea{border:1px solid #bdcadb;border-radius:9px;background:#fff;color:#142d45;width:100%;padding:11px 10px;font-size:14px;font-family:inherit;min-height:43px}
+textarea{min-height:70px;resize:vertical}input:focus,select:focus{outline:2px solid #cca54f;outline-offset:1px}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+button,.action{padding:10px 14px;border-radius:9px;border:1px solid #112c4c;background:#112c4c;color:#fff;cursor:pointer;font:700 14px inherit;text-decoration:none;min-height:43px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.alt{background:white;color:#153c66;border-color:#b8ccdf}.gold{background:#d6ac51;color:#16283b;border-color:#ba9444}
+.hidden{display:none!important}.items-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.item{border:1px solid #d7e2ed;border-radius:12px;padding:15px;margin:11px 0;background:#fbfcfe}
+.item-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.item-head strong{color:#213f5f}.inline-note{font-size:12px;background:#eef5ff;color:#244e75;border-radius:8px;padding:9px 11px;line-height:1.5;margin-top:8px}
+.status{font-size:12px;padding:9px;border-radius:9px;background:#edf3f8;line-height:1.5;white-space:pre-line}
+.status.err{background:#fff0ed;color:#8a342a}.status.ok{background:#e9f7ef;color:#216543}
+.results{display:grid;gap:13px}.result-card{border:1px solid #dce6ee;border-radius:11px;padding:16px;break-inside:avoid}
+.result-card h3{margin:0 0 8px}.badge{font-size:11px;font-weight:750;background:#fff1d5;color:#7b520d;border-radius:20px;padding:4px 8px;display:inline-block}
+.badge.ok{background:#e3f3ea;color:#266343}.badge.wait{background:#eef1f5;color:#56667b}
+.result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.result-field{padding:9px;border:1px solid #e7eef5;border-radius:8px}
+.result-field .key{font-size:12px;color:#65758a}.result-field .value{font-size:14px;font-weight:700;margin:4px 0;overflow-wrap:anywhere}
+.result-field small{font-size:11px;line-height:1.4;color:#65768a}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;border-bottom:1px solid #e5ebf1;font-size:13px}th{color:#607186;font-size:11px;text-transform:uppercase}
+.footer{color:#65758a;font-size:12px;text-align:center;margin:20px auto}
+@media(max-width:700px){.grid,.result-grid{grid-template-columns:1fr}.hero{flex-direction:column}.sheet{padding:14px}.controls button{flex:1}.items-head{flex-direction:column;align-items:flex-start}header{align-items:flex-start}}
+@media print{body{background:white;color:#111}header,.noprint,#formArea,footer,.footer{display:none!important}main{max-width:none;margin:0;padding:0}.sheet{border:0;box-shadow:none;margin:0;padding:0}#resultsSheet{display:block!important}.result-card{border-color:#999}.badge{color:#000}}
+</style>
+</head>
+<body>
+<header><div class="brand"><img src="/icon.svg?v=fortecompanny2" alt=""><div><strong>FORTECOMPANNY</strong><small>Pré-nota fiscal para consulta e classificação</small></div></div><a href="/">Voltar ao início</a></header>
+<main>
+<section class="hero"><div><h1>Monte a operação como uma nota fiscal</h1>
+<p>Preencha remetente, destinatário, natureza da operação e mercadorias. A FORTECOMPANNY organiza a ficha fiscal de cada item e informa o que já pode ser sugerido e o que exige conferência.</p></div></section>
+<div class="notice noprint"><strong>Não é emissão de NF-e.</strong> Esta é uma simulação de classificação, sem número, série, chave de acesso, assinatura nem transmissão à SEFAZ. Dados de CPF/CNPJ e produtos digitados nesta tela <strong>não são enviados ao backend nem armazenados</strong>; somente códigos NCM/CEST podem ser consultados em bases públicas.</div>
+<div id="formArea">
+<section class="sheet" aria-labelledby="opTitle">
+<div class="section-heading"><div class="number">1</div><div><h2 id="opTitle">Dados da operação</h2><div class="subtitle">Natureza e finalidade como no preenchimento de uma NF-e</div></div></div>
+<div class="grid">
+<div class="field"><label for="mode">Visão da consulta</label><select id="mode"><option value="saida">Saída / venda ou remessa</option><option value="entrada">Entrada / compra ou recebimento</option></select></div>
+<div class="field"><label for="nature">Natureza da operação</label><select id="nature"></select></div>
+<div class="field"><label for="opDate">Data da operação</label><input id="opDate" type="date"></div>
+<div class="field"><label for="sellerSource">Origem da mercadoria no vendedor</label><select id="sellerSource"><option value="unknown">Não confirmada</option><option value="third_party">Adquirida de terceiros para revenda</option><option value="own_production">Produção do próprio estabelecimento</option></select></div>
+<div class="field"><label for="buyerContributor">Destinatário é contribuinte do ICMS?</label><select id="buyerContributor"><option value="unknown">Ainda não confirmado</option><option value="yes">Sim — conforme cadastro/documentação</option><option value="no">Não contribuinte — conforme cadastro/documentação</option></select></div>
+<div class="field"><label for="stEvidence">ICMS-ST na operação (informação documental)</label><select id="stEvidence"><option value="unknown">Desconhecida / verificar</option><option value="no_st">Sem ST — documentação conferida</option><option value="prior_st">ST retida anteriormente — documentação conferida</option><option value="substitute">ST a recolher pelo responsável — documentação conferida</option></select></div>
+</div>
+</section>
+
+<div class="grid">
+<section class="sheet" aria-labelledby="senderTitle">
+<div class="section-heading"><div class="number">2</div><div><h2 id="senderTitle">Dados do remetente</h2><div class="subtitle">Quem envia a mercadoria</div></div></div>
+<div class="grid">
+<div class="field"><label for="senderKind">Tipo</label><select id="senderKind"><option value="company">Empresa — CNPJ</option><option value="rural">Produtor rural — CPF com IE</option><option value="person">Pessoa física — CPF</option></select></div>
+<div class="field"><label for="senderDocument">CNPJ / CPF</label><input id="senderDocument" maxlength="24" placeholder="Documento do remetente" autocomplete="off"></div>
+<div class="field wide"><label for="senderName">Nome / razão social</label><input id="senderName" maxlength="120" placeholder="Remetente" autocomplete="off"></div>
+<div class="field"><label for="senderIE">Inscrição estadual (se aplicável)</label><input id="senderIE" maxlength="22" autocomplete="off"></div>
+<div class="field"><label for="senderUF">UF de origem</label><select id="senderUF"></select></div>
+<div class="field"><label for="senderCity">Município</label><input id="senderCity" maxlength="85" autocomplete="off"></div>
+<div class="field"><label for="senderRegime">Regime declarado</label><select id="senderRegime"><option value="unknown">Ainda não confirmado</option><option value="simples">Simples Nacional</option><option value="real">Lucro Real</option><option value="presumido">Lucro Presumido</option><option value="rural">Produtor rural / condição especial</option></select></div>
+</div>
+<p class="muted">Os dados do participante são declarados nesta tela e não representam consulta oficial de situação cadastral.</p>
+</section>
+
+<section class="sheet" aria-labelledby="recipientTitle">
+<div class="section-heading"><div class="number">3</div><div><h2 id="recipientTitle">Dados do destinatário</h2><div class="subtitle">Quem recebe a mercadoria</div></div></div>
+<div class="grid">
+<div class="field"><label for="recipientKind">Tipo</label><select id="recipientKind"><option value="company">Empresa — CNPJ</option><option value="rural">Produtor rural — CPF com IE</option><option value="person">Pessoa física — CPF</option></select></div>
+<div class="field"><label for="recipientDocument">CNPJ / CPF</label><input id="recipientDocument" maxlength="24" placeholder="Documento do destinatário" autocomplete="off"></div>
+<div class="field wide"><label for="recipientName">Nome / razão social</label><input id="recipientName" maxlength="120" placeholder="Destinatário" autocomplete="off"></div>
+<div class="field"><label for="recipientIE">Inscrição estadual (se aplicável)</label><input id="recipientIE" maxlength="22" autocomplete="off"></div>
+<div class="field"><label for="recipientUF">UF de destino / entrega</label><select id="recipientUF"></select></div>
+<div class="field"><label for="recipientCity">Município</label><input id="recipientCity" maxlength="85" autocomplete="off"></div>
+<div class="field"><label for="recipientRegime">Regime declarado</label><select id="recipientRegime"><option value="unknown">Ainda não confirmado</option><option value="simples">Simples Nacional</option><option value="real">Lucro Real</option><option value="presumido">Lucro Presumido</option><option value="rural">Produtor rural / condição especial</option></select></div>
+</div>
+<p class="muted">Se o destinatário for pessoa física sem IE, selecione o perfil correspondente para evitar enquadramento equivocado.</p>
+</section>
+</div>
+
+<section class="sheet">
+<div class="section-heading"><div class="number">4</div><div><h2>Produtos / mercadorias</h2><div class="subtitle">Cada item possui descrição, NCM, CEST, finalidade, quantidade e valor</div></div></div>
+<div class="items-head"><p class="muted">Você pode incluir até 30 itens na simulação. Quantidade e valor servem para a conferência do total de mercadorias, não para cálculo automático de impostos.</p>
+<button type="button" id="addItem" class="alt">+ Adicionar produto</button></div>
+<div class="noprint">
+<label for="xmlFile">Importar itens de XML da NF-e (opcional; leitura local)</label>
+<input type="file" id="xmlFile" accept=".xml,text/xml,application/xml">
+<p class="muted">A importação preenche produtos e NCM/CEST declarados no XML, sem transferir CFOP e tributos da nota antiga para esta operação. Não verifica assinatura ou autorização.</p>
+</div>
+<div id="items"></div>
+<div class="controls"><button type="button" class="alt" id="addItemBottom">+ Outro produto</button></div>
+</section>
+<section class="sheet noprint">
+<div class="controls"><button type="button" class="gold" id="analyze">Preencher ficha fiscal da operação</button><button type="button" class="alt" id="clear">Limpar consulta</button></div>
+<div id="formStatus" class="status" role="status">Informe os dados da operação e produtos; nenhum documento será enviado ao servidor.</div>
+</section>
+</div>
+<section class="sheet hidden" id="resultsSheet">
+<div class="section-heading"><div class="number">5</div><div><h2>Ficha fiscal simulada — FORTECOMPANNY</h2><div class="subtitle">Resultado por produto, com fontes e situação das classificações</div></div></div>
+<div id="docSummary"></div><div id="results" class="results" aria-live="polite"></div>
+<div class="notice" style="margin-top:13px">Esta ficha não é NF-e, não gera XML fiscal e não autoriza sua utilização como tributação definitiva. Todo código sugerido precisa ser confrontado com a legislação de origem/destino e documentos do produto.</div>
+<div class="controls noprint"><button type="button" id="print" class="gold">Imprimir / salvar PDF</button><button type="button" id="edit" class="alt">Voltar e alterar</button></div>
+<p class="muted">Fontes: <a href="https://www.nfe.fazenda.gov.br/portal/" target="_blank" rel="noopener">Portal NF-e</a> • <a href="https://portalunico.siscomex.gov.br/classif/" target="_blank" rel="noopener">Classif RFB</a> • <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">Convênio ICMS 142/18</a>.</p>
+</section>
+<div class="footer">FORTECOMPANNY — consulta fiscal preliminar • Não substitui análise tributária e homologação</div>
+</main>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const UF="AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO".split(" ");
+const fiscal=window.FORTE_PRE_NOTA, catalog=window.FORTE_CLASSIFICACAO;
+const API="https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-ncm";
+const picks=document.createElement("template");
+picks.innerHTML=String.raw`<div class="item" data-item>
+  <div class="item-head"><strong class="item-title">Produto</strong><button type="button" class="alt remove">Remover</button></div>
+  <div class="grid">
+   <div class="field wide"><label>Descrição do produto *</label><input data-p="description" maxlength="120" placeholder="Ex.: cimento CP II E-32, saco 50 kg"></div>
+   <div class="field"><label>Código do produto (opcional)</label><input data-p="sku" maxlength="40" placeholder="Código interno"></div>
+   <div class="field"><label>Destino / finalidade *</label><select data-p="purpose"></select></div>
+   <div class="field"><label>NCM — 8 dígitos</label><input data-p="ncm" maxlength="8" inputmode="numeric" placeholder="NCM"></div>
+   <div class="field"><label>CEST — 7 dígitos</label><input data-p="cest" maxlength="7" inputmode="numeric" placeholder="CEST se aplicável"></div>
+   <div class="field"><label>Quantidade *</label><input data-p="quantity" type="number" min=".0001" step=".0001" value="1"></div>
+   <div class="field"><label>Unidade</label><select data-p="unit"><option>UN</option><option>SC</option><option>KG</option><option>TN</option><option>PC</option><option>M</option><option>M2</option><option>M3</option></select></div>
+   <div class="field"><label>Valor unitário (R$)</label><input data-p="unitPrice" type="number" min="0" step=".01" placeholder="0,00"></div>
+  </div>
+  <div class="inline-note" data-p="hint">Digite a descrição ou NCM. O sistema poderá apresentar uma referência fiscal a confirmar.</div>
+  <div class="controls"><button type="button" class="alt suggest">Aplicar sugestão do catálogo</button></div>
+ </div>`;
+let nextId=1;
+function mk(tag,textContent,cls){
+ const el=document.createElement(tag);if(textContent!==undefined)el.textContent=String(textContent);if(cls)el.className=cls;return el
+}
+function setStatus(message,err){
+ $("formStatus").textContent=message;$("formStatus").className="status"+(err?" err":"");
+}
+function selectOptions(select,dict){
+ Object.entries(dict).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;select.appendChild(o)})
+}
+["senderUF","recipientUF"].forEach(id=>{selectOptions($(id),Object.fromEntries(UF.map(x=>[x,x])));$(id).value="MG"});
+selectOptions($("nature"),fiscal.NATURES);
+$("nature").value="venda";
+const now=new Date();$("opDate").value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");
+$("mode").addEventListener("change",()=>{if(["venda","compra"].includes($("nature").value))$("nature").value=$("mode").value==="entrada"?"compra":"venda"});
+$("recipientKind").addEventListener("change",()=>{if($("recipientKind").value==="person")$("buyerContributor").value="no";else if($("buyerContributor").value==="no")$("buyerContributor").value="unknown"});
+function getRow(card){
+ const x=name=>card.querySelector('[data-p="'+name+'"]')?.value||"";
+ return {id:card.dataset.id,description:x("description").trim(),sku:x("sku").trim(),purpose:x("purpose"),
+   ncm:x("ncm").replace(/\D/g,""),cest:x("cest").replace(/\D/g,""),
+   quantity:x("quantity"),unit:x("unit"),unitPrice:x("unitPrice"),source:card.dataset.source||"manual"};
+}
+function updateHint(card){
+ const x=getRow(card);
+ const candidate=x.description?catalog?.suggest(x.description,x.ncm):null;
+ card._curated=candidate;
+ const hint=card.querySelector('[data-p="hint"]');
+ if(!x.description){hint.textContent="Informe a descrição do produto; sugestões dependem das características da mercadoria.";return}
+ if(candidate?.ncm){
+  hint.textContent="Sugestão não verificada: NCM "+catalog.ncmFmt(candidate.ncm)+(candidate.cest?" • CEST "+catalog.cestFmt(candidate.cest):"")+" — "+candidate.name+". Confira no XML/ficha técnica.";
+ }else if(candidate?.options?.length){
+  hint.textContent="Existem várias classificações possíveis para "+candidate.name+". Não preencher automaticamente. Confira a composição e a classificação do fabricante.";
+ }else{hint.textContent="Sem correspondência específica no catálogo curado. Digite NCM/CEST do documento e confira na Receita/CONFAZ."}
+}
+function addItem(row){
+ if($("items").children.length>=30){setStatus("Limite da consulta: 30 produtos.",true);return null}
+ const card=picks.content.firstElementChild.cloneNode(true);card.dataset.id=String(nextId++);
+ const select=card.querySelector('[data-p="purpose"]');selectOptions(select,fiscal.DESTINATIONS);select.value="revenda";
+ for(const [key,value] of Object.entries(row||{})){
+   const field=card.querySelector('[data-p="'+key+'"]');if(field&&value!=null)field.value=String(value);
+ }
+ card.dataset.source=row?.source||"manual";
+ card.querySelector(".remove").onclick=()=>{card.remove();renumber();};
+ card.querySelector(".suggest").onclick=()=>{
+   const c=card._curated;
+   if(!c?.ncm){setStatus("Sem correspondência única. Verifique NCM e CEST na documentação da mercadoria.",true);return}
+   if(!card.querySelector('[data-p="ncm"]').value){card.querySelector('[data-p="ncm"]').value=c.ncm;card.dataset.source="curated"}
+   if(c.cest&&!card.querySelector('[data-p="cest"]').value)card.querySelector('[data-p="cest"]').value=c.cest;
+   updateHint(card);setStatus("Sugestão aplicada como referência — não constitui classificação homologada.",false)
+ };
+ card.querySelectorAll("input,select").forEach(el=>el.addEventListener("input",()=>{if(card.dataset.source==="xml"&&['description','ncm','cest'].includes(el.dataset.p))card.dataset.source="manual";updateHint(card)}));
+ $("items").appendChild(card);updateHint(card);renumber();return card;
+}
+function renumber(){[...$("items").children].forEach((card,i)=>card.querySelector(".item-title").textContent="Produto "+(i+1));}
+$("addItem").onclick=()=>addItem();
+$("addItemBottom").onclick=()=>addItem();
+addItem();
+$("xmlFile").onchange=async()=>{
+ const file=$("xmlFile").files?.[0];if(!file)return;
+ try{
+  const parsed=await window.FORTE_XML_NFE.parseFile(file);
+  const items=parsed.items.slice(0,30);
+  $("items").replaceChildren();
+  for(const p of items)addItem({description:p.description,sku:p.productCode,ncm:p.ncm,cest:p.cest,quantity:1,unit:p.unit||"UN",unitPrice:0,source:"xml",purpose:"revenda"});
+  setStatus("XML lido apenas neste aparelho: "+items.length+" item(ns). Identifique remetente/destinatário e confira finalidade, valores, CFOP e impostos da nova operação.",false);
+ }catch(e){setStatus("XML não pôde ser lido: "+String(e.message||e),true)}
+};
+function party(which){
+ const get=x=>$(which+x).value;
+ return {kind:get("Kind"),document:get("Document").trim(),name:get("Name").trim(),ie:get("IE").trim(),
+   uf:get("UF"),city:get("City").trim(),regime:get("Regime")};
+}
+function formData(){
+ return {date:$("opDate").value,mode:$("mode").value,nature:$("nature").value,
+  sellerSource:$("sellerSource").value,buyerContributor:$("buyerContributor").value,stEvidence:$("stEvidence").value,
+  sender:party("sender"),recipient:party("recipient"),
+  items:[...$("items").children].map(getRow)};
+}
+const statusLabel={pendente:"Pendente",declarado:"Declarado pelo usuário",hipotese:"Hipótese condicionada"};
+function addValue(parent,label,data){
+ const div=mk("div",undefined,"result-field"),key=mk("div",label,"key");
+ const val=mk("div",data.value,"value"),badge=mk("span",statusLabel[data.status]||data.status,"badge "+(data.status==="pendente"?"wait":""));
+ div.append(key,val,badge);
+ if(data.reason)div.appendChild(mk("small",data.reason));
+ parent.appendChild(div);
+}
+function showSummary(res){
+ const target=$("docSummary");target.replaceChildren();
+ const summary=mk("div",undefined,"result-card"),heading=mk("h3","Consulta: "+res.description);
+ summary.appendChild(heading);
+ const t=mk("table"),entries=[
+  ["Data",res.date],["Visão",res.mode==="saida"?"Saída (remetente)":"Entrada (destinatário)"],
+  ["Remetente", (res.sender.name||"Nome não informado")+" — "+res.sender.uf],
+  ["Destinatário", (res.recipient.name||"Nome não informado")+" — "+res.recipient.uf],
+  ["Número de itens",res.items.length],["Valor de mercadorias (não é total NF-e)",res.amount.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})]
+ ];
+ for(const [k,v] of entries){const row=t.insertRow();row.insertCell().textContent=k;row.insertCell().textContent=v}
+ summary.appendChild(t);
+ if(res.errors.length)summary.appendChild(mk("p","Pendências de cadastro: "+res.errors.join("; "),"notice"));
+ target.appendChild(summary);
+}
+function showResults(res,checks){
+ $("results").replaceChildren();
+ res.items.forEach((item,index)=>{
+  const card=mk("article",undefined,"result-card");
+  card.appendChild(mk("h3","Item "+(index+1)+" — "+(item.product||"Sem descrição")));
+  const line=mk("p","Finalidade: "+(fiscal.DESTINATIONS[item.purpose]||item.purpose)+" • Quantidade "+item.quantity+" "+item.unit+" • Subtotal "+item.total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),"muted");
+  card.appendChild(line);
+  if(item.errors.length)card.appendChild(mk("p","Pendências do item: "+item.errors.join("; "),"notice"));
+  const grid=mk("div",undefined,"result-grid");
+  const names={ncm:"NCM",cest:"CEST",cfop:res.mode==="saida"?"CFOP da saída (hipótese)":"CFOP de entrada/escrituração (hipótese)",
+    icmsst:"Situação ICMS-ST",cst:"CST ICMS",csosn:"CSOSN",icms:"ICMS (base, alíquota e valor)",
+    stCalc:"ICMS-ST / MVA / PMPF / pauta",difal:"DIFAL / FCP",ipi:"IPI",pisCofins:"PIS / COFINS",
+    ibsCbs:"IBS / CBS / cClassTrib",cbenef:"Benefício fiscal / cBenef"};
+  Object.entries(names).forEach(([key,label])=>addValue(grid,label,item.fields[key]));
+  card.appendChild(grid);
+  const check=checks[index],block=mk("p",check?.message||"Consulta dos códigos oficiais não realizada.","inline-note");
+  card.appendChild(block);$("results").appendChild(card);
+ });
+ $("resultsSheet").classList.remove("hidden");
+ $("resultsSheet").scrollIntoView({behavior:"smooth",block:"start"});
+}
+const verificationCache=new Map();
+async function request(route,params){
+ const u=new URL(API+"/"+route);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,String(v)));
+ const key=u.href;if(verificationCache.has(key))return verificationCache.get(key);
+ const promise=fetch(u).then(async response=>{if(!response.ok)throw Error("HTTP "+response.status);return response.json()});
+ verificationCache.set(key,promise);return promise;
+}
+async function checkCodes(item){
+ const ncm=item.fields.ncm.value.replace(/\D/g,""),cest=item.fields.cest.value.replace(/\D/g,"");
+ if(ncm.length!==8)return {message:"Sem NCM de 8 dígitos confirmado; não foi possível consultar o código oficial."};
+ let info=[];
+ try{
+  const data=await request("code",{code:ncm});
+  const d=data.entry||{};
+  info.push("NCM "+ncm+" existe na tabela da Receita — "+String(d.descricao||"").slice(0,170)+". A existência do código não confirma o enquadramento da mercadoria.");
+ }catch(e){info.push("Não foi possível verificar a existência do NCM "+ncm+".")}
+ if(cest.length===7){
+  try{
+   const data=await request("cest-by-ncm",{ncm});
+   const match=(data.items||[]).find(x=>x.cest===cest);
+   info.push(match?"CEST "+cest+" relacionado ao NCM nesta compilação: "+match.descricao+".":"CEST "+cest+" não encontrado entre os vínculos desse NCM na compilação consultada.");
+  }catch(e){info.push("Relação NCM–CEST ainda não conferida.")}
+ }
+ info.push("Validação de legislação, ST, data, UF e natureza ainda é necessária.");
+ return {message:info.join("\n")};
+}
+$("analyze").onclick=async()=>{
+ const btn=$("analyze");btn.disabled=true;
+ try{
+  const result=fiscal.analyze(formData(),catalog);
+  setStatus("Montando ficha fiscal, verificando NCM e possíveis CEST...",false);
+  const checks=await Promise.all(result.items.map(checkCodes));
+  showSummary(result);showResults(result,checks);
+  setStatus("Ficha pronta para revisão. Dados tributários não comprovados permanecem pendentes.",false);
+ }catch(err){setStatus("Falha ao montar a consulta: "+String(err.message||err),true)}
+ finally{btn.disabled=false}
+};
+$("print").onclick=()=>window.print();
+$("edit").onclick=()=>{$("formArea").scrollIntoView({behavior:"smooth",block:"start"})};
+$("clear").onclick=()=>{
+ if(!window.confirm("Limpar os dados preenchidos nesta consulta?"))return;
+ document.querySelectorAll("#formArea input:not([type=file])").forEach(x=>x.value="");
+ $("items").replaceChildren();addItem();
+ $("senderUF").value="MG";$("recipientUF").value="MG";$("mode").value="saida";$("nature").value="venda";
+ $("sellerSource").value="unknown";$("buyerContributor").value="unknown";$("stEvidence").value="unknown";
+ $("senderKind").value="company";$("recipientKind").value="company";
+ $("resultsSheet").classList.add("hidden");$("docSummary").replaceChildren();$("results").replaceChildren();
+ $("xmlFile").value="";const d=new Date();$("opDate").value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+ setStatus("Consulta reiniciada. Nada foi armazenado.",false);
+};
+})();
+</script></body></html>
