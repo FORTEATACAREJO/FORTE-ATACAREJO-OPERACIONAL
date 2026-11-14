@@ -26,6 +26,9 @@
 </section>
 <section class="panel"><h2>Portais e páginas oficiais acompanhados</h2>
 <div id="sources" class="grid"><p>Carregando fontes oficiais...</p></div></section>
+<section class="panel"><h2>São Paulo, Mato Grosso e Ceará — atos oficiais sob análise</h2>
+<p class="small">A coleta segura das fontes foi corrigida. Os atos abaixo são registros para análise jurídica e tributária. Não representam homologação de alíquotas, substituição tributária ou benefícios.</p>
+<div id="legalActs" class="grid"><p>Carregando os atos identificados...</p></div></section>
 <section class="panel"><h2>Alertas de alterações detectadas</h2><p class="small">São registros para revisão. Não alteram automaticamente os cálculos do aplicativo.</p>
 <div id="alerts" class="status">Consultando alertas...</div></section>
 <section class="panel"><h2>Integrações a ampliar</h2>
@@ -77,27 +80,47 @@ async function load(){
   for(const s of sources){
     const panel=elem('article',undefined,'source');
     const healthy=s.ultimo_http===200&&!s.ultima_falha;
-    const tag=elem('span',healthy?'Página acessível':'Exige verificação','tag'+(healthy?'':' fail'));
+    const connectionOnly=s.modo_coleta==='portal_spa'||s.modo_coleta==='somente_conectividade';
+    const tag=elem('span',!healthy?'Exige verificação':connectionOnly?'Conexão OK; normas pendentes':'Conteúdo acessível','tag'+(healthy?(connectionOnly?' warn':''):' fail'));
     panel.appendChild(tag);
     panel.appendChild(elem('h3',s.orgao));
     panel.appendChild(elem('p',s.assunto,'small'));
     const link=elem('a','Consultar fonte oficial');
-    if(/^https:\/\/(www\.)?(gov\.br|confaz\.fazenda\.gov\.br|fazenda\.mg\.gov\.br|goias\.gov\.br)/.test(s.url)){
+    if((()=>{try{const host=new URL(s.url).hostname;return s.url.startsWith('https://')&&(host==='gov.br'||host.endsWith('.gov.br'))}catch(e){return false}})()){
       link.href=s.url;link.target='_blank';link.rel='noopener noreferrer';panel.appendChild(link);
     }
     panel.appendChild(elem('p','Última verificação: '+date(s.ultima_verificacao),'small'));
-    panel.appendChild(elem('p','Mudança de página detectada: '+(s.ultima_alteracao_detectada?date(s.ultima_alteracao_detectada):'Nenhuma desde a referência inicial'),'small'));
+    panel.appendChild(elem('p',connectionOnly?'Varredura de atos normativos: ainda não concluída nesta interface.':'Mudança no conteúdo monitorado: '+(s.ultima_alteracao_detectada?date(s.ultima_alteracao_detectada):'Nenhuma desde a referência inicial'),'small'));
     if(s.ultima_falha)panel.appendChild(elem('p','Falha técnica: '+s.ultima_falha,'small'));
     $('sources').appendChild(panel);
   }
   $('overall').textContent=sources.length+' fontes nacionais/estaduais cadastradas. Última consulta: '+date(data.updatedAt)+'. Verificações distribuídas ao longo do dia; alterações exigem análise jurídica.';
+  const acts=data.legalActs||[];$('legalActs').replaceChildren();
+  if(!acts.length)$('legalActs').appendChild(elem('p','Nenhum ato normativo registrado.','small'));
+  else for(const act of acts){
+    const card=elem('article',undefined,'source');
+    card.appendChild(elem('span',act.uf+' — Revisão fiscal pendente','tag warn'));
+    card.appendChild(elem('h3',act.ato));
+    card.appendChild(elem('p',act.tema,'small'));
+    card.appendChild(elem('p',act.impacto_potencial,'small'));
+    card.appendChild(elem('p','Publicado: '+(act.publicado_em||'data a conferir'),'small'));
+    try{
+      const u=new URL(act.fonte_url);
+      if(u.protocol==='https:'&&(u.hostname==='gov.br'||u.hostname.endsWith('.gov.br'))){
+        const link=elem('a','Consultar ato oficial');
+        link.href=u.href;link.target='_blank';link.rel='noopener noreferrer';card.appendChild(link);
+      }
+    }catch(e){}
+    $('legalActs').appendChild(card);
+  }
   const alerts=data.alerts||[];$('alerts').replaceChildren();
   if(!alerts.length)$('alerts').appendChild(elem('p','Nenhuma mudança detectada desde a linha de base inicial.'));
   else{
    const ul=elem('ul',undefined,'events');
    for(const e of alerts){
     ul.appendChild(elem('li',e.fonte_chave+' — '+date(e.detectado_em)+' — '+(
-      e.status==='pendente_revisao'?'Aguardando revisão':e.status==='homologado'?'Homologado':e.status==='analisado_sem_impacto'?'Revisado sem impacto':'Descartado')));
+      e.status==='pendente_revisao'?'Aguardando revisão':e.status==='homologado'?'Homologado':e.status==='analisado_sem_impacto'?'Alerta técnico analisado (não homologa lei)':'Descartado')+
+      (e.avaliacao?' — '+e.avaliacao:'')));
    }
    $('alerts').appendChild(ul);
   }
@@ -106,6 +129,7 @@ async function load(){
    $('sources').replaceChildren();$('sources').appendChild(elem('p','Não foi possível carregar o status.'));
    $('stateCards').replaceChildren();$('stateCards').appendChild(elem('p','A consulta nacional está temporariamente indisponível.'));
    $('alerts').textContent='Não foi possível consultar o histórico.';
+   $('legalActs').replaceChildren();$('legalActs').appendChild(elem('p','Não foi possível consultar os atos oficiais.'));
  }
 }
 $('refresh').addEventListener('click',load);
