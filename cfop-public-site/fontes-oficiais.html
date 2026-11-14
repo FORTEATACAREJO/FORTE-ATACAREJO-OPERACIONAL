@@ -9,14 +9,27 @@
 <main><h1>Atualizações tributárias oficiais</h1>
 <p class="hint">Acompanhe as fontes públicas verificadas pela FORTECOMPANNY e veja quando uma página oficial mudou. Esta é a base para manter nossas classificações fiscais atualizadas.</p>
 <div class="notice"><strong>Importante:</strong> detectar mudança em uma página não significa que a lei mudou ou que a tributação esteja homologada. Uma alteração em NCM, CEST, CFOP, ICMS-ST, CST/CSOSN ou reforma tributária somente deve ser aplicada após conferir texto legal, vigência, UF, operação, produto e evidências.</div>
-<div class="panel"><h2>Monitoramento automático</h2><p>A verificação está agendada diariamente às <strong>08h de Brasília</strong> no Supabase próprio da FORTECOMPANNY, sem depender de um serviço pago adicional.</p>
+<div class="panel"><h2>Monitoramento automático</h2><p>As fontes nacionais e as páginas legislativas de MG e GO são verificadas às <strong>08h de Brasília</strong>. Os demais portais estaduais são distribuídos em verificações horárias ao longo do dia, no Supabase próprio da FORTECOMPANNY.</p>
 <p id="overall" class="status" role="status">Consultando o estado da coleta...</p><button type="button" id="refresh">Atualizar status</button></div>
-<section class="panel"><h2>Fontes atualmente monitoradas</h2>
+<section class="panel"><h2>Brasil inteiro — 27 UFs</h2>
+<p id="nationalSummary" class="notice">Consultando cobertura nacional e situação das regras fiscais...</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0">
+<label for="regionFilter" style="font-weight:700">Filtrar por região ou estado</label>
+<select id="regionFilter" style="max-width:240px;padding:9px;border:1px solid #afc4d6;border-radius:7px;background:white">
+<option value="">Todas as 27 UFs</option>
+<option value="Norte">Norte</option><option value="Nordeste">Nordeste</option>
+<option value="Sudeste">Sudeste</option><option value="Sul">Sul</option>
+<option value="Centro-Oeste">Centro-Oeste</option></select>
+</div>
+<div id="stateCards" class="grid"><p>Carregando estados...</p></div>
+<p class="small"><strong>Cobertura não significa homologação tributária:</strong> os portais foram catalogados a partir do diretório SINTEGRA; as alíquotas, ST, MVA/PMPF, benefícios e CST de cada estado precisam de regras específicas verificadas e aprovadas.</p>
+</section>
+<section class="panel"><h2>Portais e páginas oficiais acompanhados</h2>
 <div id="sources" class="grid"><p>Carregando fontes oficiais...</p></div></section>
 <section class="panel"><h2>Alertas de alterações detectadas</h2><p class="small">São registros para revisão. Não alteram automaticamente os cálculos do aplicativo.</p>
 <div id="alerts" class="status">Consultando alertas...</div></section>
 <section class="panel"><h2>Integrações a ampliar</h2>
-<p>O acompanhamento inicial abrange a Receita Federal/Classif, CONFAZ/CEST e legislação de Minas Gerais e Goiás. O módulo de NF-e/Notas Técnicas, regras específicas por NCM/CEST, tabelas CFOP completas, PIS/COFINS, IBS/CBS, novas unidades da Federação e fontes com CAPTCHA exigem integração e homologação específicas.</p>
+<p>A cobertura cadastral já contempla as 27 UFs, seus portais estaduais e 729 combinações de origem/destino. O módulo de NF-e/Notas Técnicas, regras específicas por NCM/CEST, tabelas CFOP completas, PIS/COFINS, IBS/CBS e publicações estaduais que exigem autenticação ou CAPTCHA ainda necessitam de integração e homologação individual.</p>
 <p><strong>Prioridade:</strong> monitorar alterações oficiais, registrar fonte e data de vigência, comparar conteúdo, gerar alerta para revisão e só depois publicar uma nova versão validada das regras fiscais.</p>
 <p class="small">A tabela NCM disponível no assistente é uma cópia sincronizada em uma data anterior; detectar alteração na página Classif não atualiza automaticamente a tabela NCM nem confirma a tributação. O mesmo vale para CEST e convênios.</p>
 </section><footer>FORTECOMPANNY • Consulta fiscal pública • Fonte e vigência devem ser conferidas antes de emissão fiscal</footer>
@@ -28,12 +41,38 @@ const ENDPOINT='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-fonte
 const $=id=>document.getElementById(id);
 const date=v=>{if(!v)return 'Ainda não houve';const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})};
 const elem=(tag,txt,cls)=>{const el=document.createElement(tag);if(txt!==undefined)el.textContent=txt;if(cls)el.className=cls;return el};
+let latestData=null;
+function showStates(){
+ const d=latestData;if(!d)return;
+ const total=d.coverage?.registeredUFs||0,routes=d.coverage?.originDestinationRoutes||0,approved=d.coverage?.officiallyValidatedStateRules||0;
+ $('nationalSummary').textContent=total+' unidades federativas registradas • '+routes+' rotas origem/destino • '+approved+' regras estaduais homologadas. A legislação específica por UF ainda requer revisão antes de calcular impostos.';
+ const filter=$('regionFilter').value;
+ $('stateCards').replaceChildren();
+ const states=(d.states||[]).filter(x=>!filter||x.regiao===filter);
+ for(const st of states){
+   const card=elem('article',undefined,'source');
+   card.appendChild(elem('span',st.uf+' — '+st.nome,'tag warn'));
+   card.appendChild(elem('h3',st.regiao));
+   const src=(d.sources||[]).find(x=>x.uf===st.uf);
+   const check=src?.ultima_verificacao?(src.ultimo_http===200&&!src.ultima_falha?'Portal acessível em '+date(src.ultima_verificacao):'Portal exige revisão técnica'):'Portal listado, aguardando primeira captura automática';
+   card.appendChild(elem('p',check,'small'));
+   card.appendChild(elem('p','Regras fiscais estaduais: ainda não homologadas para cálculo de tributos.','small'));
+   try{
+     const u=new URL(st.portal_tributario);
+     if(u.protocol==='https:'&&(u.hostname.endsWith('.gov.br')||u.hostname==='gov.br')){
+       const a=elem('a','Abrir órgão oficial');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';card.appendChild(a);
+     }
+   }catch(e){}
+   $('stateCards').appendChild(card);
+ }
+}
+$('regionFilter').addEventListener('change',showStates);
 async function load(){
  $('overall').textContent='Consultando as fontes...';
  try{
   const r=await fetch(ENDPOINT,{cache:'no-store'});
   if(!r.ok)throw new Error('HTTP '+r.status);
-  const data=await r.json(),sources=data.sources||[];
+  const data=await r.json(),sources=data.sources||[];latestData=data;showStates();
   $('sources').replaceChildren();
   for(const s of sources){
     const panel=elem('article',undefined,'source');
@@ -51,7 +90,7 @@ async function load(){
     if(s.ultima_falha)panel.appendChild(elem('p','Falha técnica: '+s.ultima_falha,'small'));
     $('sources').appendChild(panel);
   }
-  $('overall').textContent=sources.length+' fonte(s) cadastrada(s). Última consulta do painel: '+date(data.updatedAt)+'. Verificação automática diária; as alterações ainda exigem análise.';
+  $('overall').textContent=sources.length+' fontes nacionais/estaduais cadastradas. Última consulta: '+date(data.updatedAt)+'. Verificações distribuídas ao longo do dia; alterações exigem análise jurídica.';
   const alerts=data.alerts||[];$('alerts').replaceChildren();
   if(!alerts.length)$('alerts').appendChild(elem('p','Nenhuma mudança detectada desde a linha de base inicial.'));
   else{
@@ -65,6 +104,7 @@ async function load(){
  }catch(e){
    $('overall').textContent='Monitoramento temporariamente indisponível. As fontes oficiais devem ser consultadas diretamente.';
    $('sources').replaceChildren();$('sources').appendChild(elem('p','Não foi possível carregar o status.'));
+   $('stateCards').replaceChildren();$('stateCards').appendChild(elem('p','A consulta nacional está temporariamente indisponível.'));
    $('alerts').textContent='Não foi possível consultar o histórico.';
  }
 }
