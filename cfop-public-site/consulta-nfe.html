@@ -244,6 +244,9 @@ function showSummary(res){
  summary.appendChild(heading);
  const t=mk("table"),entries=[
   ["Data",res.date],["Visão",res.mode==="saida"?"Saída (remetente)":"Entrada (destinatário)"],
+  ["Situação do cadastro","Informações dos participantes declaradas pelo visitante; não confirmadas por bases oficiais"],
+  ["Regime remetente",res.sender.regime==="real"?"Lucro Real — declarado":res.sender.regime==="presumido"?"Lucro Presumido — declarado":res.sender.regime==="simples"?"Simples Nacional — declarado":"Não confirmado"],
+  ["Regime destinatário",res.recipient.regime==="real"?"Lucro Real — declarado":res.recipient.regime==="presumido"?"Lucro Presumido — declarado":res.recipient.regime==="simples"?"Simples Nacional — declarado":"Não confirmado"],
   ["Remetente", (res.sender.name||"Nome não informado")+" — "+(res.sender.document||"Sem CPF/CNPJ")+" — IE "+(res.sender.ie||"não informada")+" — "+res.sender.uf],
   ["Endereço remetente", [res.sender.address,res.sender.number,res.sender.district,res.sender.city,res.sender.uf,res.sender.cep].filter(Boolean).join(", ")||"Não informado"],
   ["Destinatário", (res.recipient.name||"Nome não informado")+" — "+(res.recipient.document||"Sem CPF/CNPJ")+" — IE "+(res.recipient.ie||"não informada")+" — "+res.recipient.uf],
