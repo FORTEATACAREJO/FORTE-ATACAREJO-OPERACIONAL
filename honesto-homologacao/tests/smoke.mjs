@@ -56,11 +56,17 @@ try{
  let admin=await roleRequest('/api/restaurant/dashboard',demo.adminToken,demo.establishmentId);
  assert.equal(admin.status,200);assert.equal(admin.body.role,'admin');
  assert.equal(admin.body.billing.monthlyCents,499);assert.equal(admin.body.billing.realChargesEnabled,false);
+ const linkedPOS=await roleRequest('/api/restaurant/demo-pdv-access',demo.adminToken,demo.establishmentId);
+ assert.equal(linkedPOS.status,200,'Administrador pode conectar PDV técnico ao mesmo restaurante');
+ assert.equal(linkedPOS.body.token,token,'PDV deve compartilhar a mesma comanda usada pelo cliente');
+ assert.equal(linkedPOS.body.staff,staff,'Credencial de caixa apenas no acesso técnico autorizado');
+ assert.equal((await roleRequest('/api/restaurant/demo-pdv-access',token,demo.establishmentId)).status,403,'Cliente não acessa credencial técnica do PDV');
  assert(admin.body.tables.some(t=>t.table==='Mesa 12'),'Painel deve mostrar mesa aberta');
  const waiter=await roleRequest('/api/restaurant/waiters',demo.adminToken,demo.establishmentId,{name:'Mariana'});
  assert.equal(waiter.status,201);assert(waiter.body.accessToken);assert.equal(waiter.body.role,'garcom');
  const waiterView=await roleRequest('/api/restaurant/dashboard',waiter.body.accessToken,demo.establishmentId);
  assert.equal(waiterView.status,200);assert.equal(waiterView.body.role,'garcom');
+ assert.equal((await roleRequest('/api/restaurant/demo-pdv-access',waiter.body.accessToken,demo.establishmentId)).status,403,'Garçom não pode entrar no PDV técnico pelo NANA PAY');
  assert.equal(waiterView.body.waiters,undefined,'Garçom não recebe cadastro de outros funcionários');
  assert.equal((await roleRequest('/api/restaurant/settings',waiter.body.accessToken,demo.establishmentId,{name:'Não autorizado',orderingEnabled:false})).status,403,'Garçom não pode alterar restaurante');
  assert.equal((await roleRequest('/api/restaurant/waiters',waiter.body.accessToken,demo.establishmentId,{name:'Outra'})).status,403,'Garçom não cadastra garçons');
@@ -232,5 +238,5 @@ try{
  assert.equal((await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'agua',qty:1,note:'teste',requestId:'46ff5b85-4470-41f4-b5cb-01dc6ce6a234'})).status,409);
  const freshAfterSettlement=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'12'});
  assert.notEqual(freshAfterSettlement.body.token,token,'Nova comanda só após quitação anterior');
- console.log('PASS: pedido de devolução mantém cobrança, recusa com motivo mantém item, garçom aprova e abate só depois, trilha auditável com horário');
+ console.log('PASS: NANA PAY 3 perfis isolados + PDV técnico conectado + devoluções e histórico com data/hora');
 }finally{child.kill('SIGTERM');}
