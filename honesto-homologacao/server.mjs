@@ -32,14 +32,14 @@ function validTable(raw){
  return value.toUpperCase();
 }
 function newDemo(tableNo='12',seed=true,venue=null){
- const established=venue||{id:mk(),name:'Restaurante Exemplo',staffToken:mk(),tables:new Map()};
+ const established=venue||{id:mk(),name:'Restaurante Exemplo',staffToken:mk(),adminToken:mk(),waiters:new Map(),createdAt:now(),orderingEnabled:true,tables:new Map()};
  if(!venue)restaurants.set(established.id,established);
  const number=validTable(tableNo),table='Mesa '+number;
  const s={id:rand(),viewToken:mk(),staffToken:established.staffToken,establishmentId:established.id,name:established.name,tableNumber:number,table,createdAt:now(),expires:Date.now()+3*3600_000,closed:false,settledAt:null,mode:'restante',count:seed?4:1,
  people:(seed?['Ana','Bruno','Carla','Diego']:[]).map((name)=>({id:rand(),name,present:true,service:false,table})),items:[],payments:[],disputes:[],events:[],transfers:[],
 
  // In the public demonstration this represents the restaurant POS menu and its optional receive-orders feature.
- orderingEnabled:true,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
+ orderingEnabled:established.orderingEnabled,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
  const add=(name,qty,price,person)=>{const i={id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now(),cancelledAt:null};s.items.push(i);recordEvent(s,'item','Lançado: '+qty+' × '+name,qty*price,i.id);};
  if(seed){add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);}
  established.tables.set(number,s.viewToken);store.set(s.viewToken,s);return s;
@@ -66,6 +66,9 @@ function reply(res,code,payload,headers={}){res.writeHead(code,{'Content-Type':'
 function safe(res,e){reply(res,e.http||400,{error:e.message||'Falha'});}
 function body(req){return new Promise((resolve,reject)=>{let data='';req.on('data',c=>{data+=c;if(data.length>22000){reject(Object.assign(new Error('Pedido muito grande'),{http:413}));req.destroy()}});req.on('end',()=>{try{resolve(JSON.parse(data||'{}'))}catch{reject(new Error('JSON inválido'))}});req.on('error',reject)});}
 function staff(req,s){if(req.headers['x-honesto-staff']!==s.staffToken)throw Object.assign(new Error('Ação exclusiva do caixa na demonstração'),{http:403});}
+function venueForId(id){const v=restaurants.get(String(id||''));if(!v)throw Object.assign(new Error('Restaurante de demonstração não encontrado ou expirado'),{http:404});return v;}
+function roleFor(req,venue){const header=String(req.headers.authorization||'');const token=header.startsWith('Bearer ')?header.slice(7):'';if(!token)throw Object.assign(new Error('Acesso exclusivo do restaurante. Informe sua credencial de demonstração.'),{http:401});if(token===venue.adminToken)return {role:'admin',name:'Administrador',id:'admin'};for(const [id,w] of venue.waiters)if(w.token===token)return {role:'garcom',name:w.name,id};throw Object.assign(new Error('Acesso não autorizado para este estabelecimento'),{http:403});}
+function venueStatus(venue){const tables=[...venue.tables].map(([number,t])=>{const s=store.get(t);if(!s||Date.now()>s.expires||s.closed)return null;const snap=snapshot(s);return {table:s.table,number,openedAt:s.createdAt,people:s.people.filter(p=>p.present).length,balance:snap.balance,ordersPending:s.orders.filter(o=>o.status==='solicitado').length,returnsPending:s.disputes.filter(d=>d.status==='pendente').length,tableMovesPending:s.transfers.filter(t=>t.status==='pendente').length,lastUpdate:(s.events.at(-1)?.at||s.createdAt)};}).filter(Boolean);return {establishmentId:venue.id,name:venue.name,orderingEnabled:venue.orderingEnabled,createdAt:venue.createdAt,tables,billing:{monthlyCents:499,currency:'BRL',status:'not_configured',method:'credit_card',realChargesEnabled:false}};}
 function existingPerson(s,id){if(!id)return null;const p=s.people.find(x=>x.id===id);if(!p)throw new Error('Participante inválido');return p;}
 const server=http.createServer(async(req,res)=>{
  try{
@@ -85,13 +88,48 @@ const server=http.createServer(async(req,res)=>{
    const b=fs.readFileSync(path.join(__dirname,'pdv-simulado.html'));
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(b);
   }
+  if(req.method==='GET'&&u.pathname==='/painel'){
+   const b=fs.readFileSync(path.join(__dirname,'painel.html'));
+   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(b);
+  }
   if(req.method==='GET'&&u.pathname==='/'){
    const b=fs.readFileSync(path.join(__dirname,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});return res.end(b);
   }
   if(req.method==='GET'&&u.pathname==='/api/demo'){const s=newDemo();return reply(res,200,{token:s.viewToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});}
   if(req.method==='POST'&&u.pathname==='/api/pdv-demo/create'){
    // Exclusively a demonstration bootstrap; NEVER use a public credential bootstrap in production.
-   const s=newDemo();return reply(res,201,{token:s.viewToken,staff:s.staffToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});
+   const s=newDemo();return reply(res,201,{token:s.viewToken,staff:s.staffToken,adminToken:restaurants.get(s.establishmentId).adminToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});
+  }
+  if(u.pathname.startsWith('/api/restaurant/')){
+   const venue=venueForId(req.headers['x-nana-establishment']);
+   const user=roleFor(req,venue);
+   if(req.method==='GET'&&u.pathname==='/api/restaurant/dashboard'){
+    return reply(res,200,{...venueStatus(venue),role:user.role,user:{name:user.name,id:user.id},waiters:user.role==='admin'?[...venue.waiters].map(([id,w])=>({id,name:w.name,createdAt:w.createdAt})):undefined});
+   }
+   if(req.method==='POST'){
+    if(user.role!=='admin')throw Object.assign(new Error('Somente o administrador pode alterar as configurações'),{http:403});
+    const x=await body(req);
+    if(u.pathname==='/api/restaurant/settings'){
+     const name=String(x.name||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,80);
+     if(name.length<3)throw new Error('Informe o nome do restaurante (mínimo de 3 caracteres)');
+     if(typeof x.orderingEnabled!=='boolean')throw new Error('Configuração de pedidos inválida');
+     venue.name=name;venue.orderingEnabled=x.orderingEnabled;
+     for(const t of venue.tables.values()){const s=store.get(t);if(s&&!s.closed){s.name=name;s.orderingEnabled=venue.orderingEnabled;recordEvent(s,'configuracao','Configuração do restaurante atualizada pelo administrador');broadcast(s);}}
+     return reply(res,200,{ok:true,...venueStatus(venue)});
+    }
+    if(u.pathname==='/api/restaurant/waiters'){
+     const name=String(x.name||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,45);
+     if(name.length<2)throw new Error('Informe o nome do garçom');
+     if(venue.waiters.size>=20)throw Object.assign(new Error('Limite de contas de demonstração atingido'),{http:429});
+     const id=rand(),accessToken=mk();venue.waiters.set(id,{name,token:accessToken,createdAt:now()});
+     return reply(res,201,{id,name,accessToken,role:'garcom',establishmentId:venue.id});
+    }
+    if(u.pathname==='/api/restaurant/waiters/revoke'){
+     const w=venue.waiters.get(String(x.id||''));if(!w)throw Object.assign(new Error('Garçom não encontrado'),{http:404});
+     venue.waiters.delete(String(x.id));return reply(res,200,{ok:true});
+    }
+   }
+   return reply(res,404,{error:'Operação não encontrada'});
   }
   if(req.method==='POST'&&u.pathname==='/api/table/enter'){
    const x=await body(req);
