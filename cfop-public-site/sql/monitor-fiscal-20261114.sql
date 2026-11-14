@@ -75,8 +75,8 @@ BEGIN
       RETURN jsonb_build_object('fonte',p_chave,'estado','falha_http','http',resposta.status);
     END IF;
 
-    texto := regexp_replace(resposta.content,'<(script|style)[^>]*>.*?</(script|style)>',' ','gis');
-    conteudo := lower(regexp_replace(regexp_replace(texto,'<[^>]+>',' ','g'),'[[:space:]]+',' ','g'));
+    texto := regexp_replace(resposta.content,'<[^>]+>',' ','g');
+    conteudo := lower(regexp_replace(texto,'[[:space:]]+',' ','g'));
     IF length(conteudo) < 300 THEN
       UPDATE public.cfop_fontes_oficiais SET ultima_verificacao=now(),ultimo_http=200,
        ultima_falha='Conteúdo ilegível após extração de HTML' WHERE chave=p_chave;
