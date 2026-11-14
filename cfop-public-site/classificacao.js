@@ -57,6 +57,21 @@ function cfopSuggest(o){
    if(st==="no_st")return {code:same?"1.102":"2.102",status:"hipótese",explanation:"Compra para comercialização sem ST, conforme condição declarada.",assumptions:["Revenda de mercadorias","Operação normal sem antecipação ou ST","Conferir a NF-e original e exceções legais"]};
    if(st==="prior_st")return {code:same?"1.403":"2.403",status:"hipótese",explanation:"Compra para comercialização de mercadoria sujeita ao regime de ST, caso efetivamente comprovado.",assumptions:["Mercadoria recebida com enquadramento de ST","Conferir a NF-e, retenção e regra da UF"]};
   }
+  if(purpose==="ativo" || purpose==="consumo"){
+    const fixed=purpose==="ativo";
+    if(st==="no_st")return {
+      code:fixed?(same?"1.551":"2.551"):(same?"1.556":"2.556"),
+      status:"hipótese",
+      explanation:fixed?"Compra de bem destinado ao ativo imobilizado, com hipótese de operação regular sem enquadramento ST.":"Compra de material destinado ao uso ou consumo do estabelecimento, com hipótese de operação regular sem ST.",
+      assumptions:["Destinação comprovada ao "+(fixed?"ativo imobilizado":"uso ou consumo"),"Não se trata de transferência, bonificação, devolução ou operação especial","Verificar NCM/CEST, regime fiscal e documentação da operação"]
+    };
+    if(st==="prior_st")return {
+      code:fixed?(same?"1.406":"2.406"):(same?"1.407":"2.407"),
+      status:"hipótese",
+      explanation:fixed?"Compra de bem para ativo imobilizado cuja mercadoria efetivamente se enquadre em ST, segundo documentação e legislação vigente.":"Compra de material para uso ou consumo cuja mercadoria efetivamente se enquadre em ST, segundo documentação e legislação vigente.",
+      assumptions:["Regime de substituição tributária comprovado para produto e UF","Confirmar legislação, retenção, contribuinte e natureza da operação","Não usar sem documento e fundamento estadual"]
+    };
+  }
   if(purpose==="industrializacao"&&st==="no_st")return {code:same?"1.101":"2.101",status:"hipótese",explanation:"Compra para industrialização ou produção rural quando destinada ao processo produtivo e sem ST, conforme as condições declaradas.",assumptions:["A mercadoria é insumo de produção","Conferir regra de entrada e UF"]};
   return unknown;
  }
