@@ -1,10 +1,10 @@
-# HONESTO — homologação inicial
+# NANA PAY — homologação inicial
 
-**Titular do projeto:** FORTE ATACAREJO LTDA. (futura empresa HONESTO controlada pela FORTE, conforme estrutura societária a formalizar).
+**Titular do projeto:** FORTE ATACAREJO LTDA. (futura empresa NANA PAY controlada pela FORTE, conforme estrutura societária a formalizar).
 
 ## Isolamento
 
-Esta pasta está em uma branch exclusiva de homologação do repositório público FORTE OPERACIONAL, **sem alterações no branch main nem nos serviços operacionais existentes**. Contém apenas uma **demonstração pública com dados inventados**, sem segredos e sem código proprietário definitivo. O ambiente de produção do HONESTO deverá ficar em repositório privado independente.
+Esta pasta está em uma branch exclusiva de homologação do repositório público FORTE OPERACIONAL, **sem alterações no branch main nem nos serviços operacionais existentes**. Contém apenas uma **demonstração pública com dados inventados**, sem segredos e sem código proprietário definitivo. O ambiente de produção do NANA PAY deverá ficar em repositório privado independente.
 
 ## Executar
 
@@ -30,14 +30,14 @@ Acesse `http://localhost:10000`. Ao iniciar, o servidor cria uma mesa fictícia 
 
 Armazenamento em memória é **volátil** e reinicia em cada implantação. Não há autenticação de restaurante real, LGPD operacional, backups, controles antispam, conectores com PDV externo ou cobrança de licença. Código meramente ilustrativo e público. Para entrar em produção, migrar para banco isolado PostgreSQL, autenticação e RBAC/RLS, HMAC e idempotência, observabilidade, monitoramento e infraestrutura próprias.
 
-O preço aprovado para a licença futura é R$ 4,99/mês por estabelecimento; cliente final será gratuito. O HONESTO não recebe pagamento pelo celular na primeira fase, por decisão expressa da FORTE.
+O preço aprovado para a licença futura é R$ 4,99/mês por estabelecimento; cliente final será gratuito. O NANA PAY não recebe pagamento pelo celular na primeira fase, por decisão expressa da FORTE.
 
 ## Independência futura
 
-- Construir repositório privado `FORTEATACAREJO/HONESTO` assim que disponível;
+- Construir repositório privado `FORTEATACAREJO/NANA PAY` assim que disponível;
 - Criar banco exclusivo e ambiente seguro de homologação;
 - Migrar código e configuração por infraestrutura como código, sem dependência dos bancos do FORTE FISCAL e OPERACIONAL;
-- A marca e a tecnologia serão atribuídas à futura pessoa jurídica HONESTO conforme documentação societária, com a FORTE ATACAREJO LTDA. como controladora.
+- A marca e a tecnologia serão atribuídas à futura pessoa jurídica NANA PAY conforme documentação societária, com a FORTE ATACAREJO LTDA. como controladora.
 
 ## Atualização — QR único e trocas de mesa (13/11/2026)
 
@@ -50,8 +50,8 @@ O preço aprovado para a licença futura é R$ 4,99/mês por estabelecimento; cl
 
 ## Diretriz: aceitação e recusa SOMENTE no PDV (13/11/2026)
 
-A interface HONESTO do cliente `/` não possui abas, botões nem autorização para cancelar lançamentos ou aprovar/recusar devoluções. A pessoa pode solicitar a devolução, mas o item fica cobrado até a confirmação originada do **sistema do restaurante**.
+A interface NANA PAY do cliente `/` não possui abas, botões nem autorização para cancelar lançamentos ou aprovar/recusar devoluções. A pessoa pode solicitar a devolução, mas o item fica cobrado até a confirmação originada do **sistema do restaurante**.
 
-Integração de produção: o PDV recebe a solicitação (identificador de comanda, item, participante, motivo) e envia decisão assinada de forma idempotente com `status=aprovada|recusada`, horário, ID externo de cancelamento e motivo obrigatório na recusa. **Somente** o registro confirmado do cancelamento no PDV poderá abater o saldo no HONESTO. A recusa mantém o item e mostra motivo e horário ao cliente. Nenhuma escolha do cliente tem autoridade para mudar a soma.
+Integração de produção: o PDV recebe a solicitação (identificador de comanda, item, participante, motivo) e envia decisão assinada de forma idempotente com `status=aprovada|recusada`, horário, ID externo de cancelamento e motivo obrigatório na recusa. **Somente** o registro confirmado do cancelamento no PDV poderá abater o saldo no NANA PAY. A recusa mantém o item e mostra motivo e horário ao cliente. Nenhuma escolha do cliente tem autoridade para mudar a soma.
 
-Para teste sem um PDV real, existe um **simulador técnico separado** em `/pdv-simulado`. Não é parte do HONESTO entregue a clientes nem um novo sistema a ser utilizado por garçons. A página apenas representa mensagens que, em operação real, deverão vir do PDV já existente. A rota pública de demonstração `/api/demo` não fornece chave de operador. A rota `/api/pdv-demo/create` é exclusiva da homologação e **deve ser removida/substituída** por autenticação empresarial real antes de produção.
+Para teste sem um PDV real, existe um **simulador técnico separado** em `/pdv-simulado`. Não é parte do NANA PAY entregue a clientes nem um novo sistema a ser utilizado por garçons. A página apenas representa mensagens que, em operação real, deverão vir do PDV já existente. A rota pública de demonstração `/api/demo` não fornece chave de operador. A rota `/api/pdv-demo/create` é exclusiva da homologação e **deve ser removida/substituída** por autenticação empresarial real antes de produção.
