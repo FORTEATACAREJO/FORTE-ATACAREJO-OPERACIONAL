@@ -9,8 +9,14 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#073a2b",
   "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -22,12 +28,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
