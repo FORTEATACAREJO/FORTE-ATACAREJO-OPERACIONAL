@@ -1,5 +1,5 @@
 /**
- * HONESTO - demonstração pública isolada.
+ * NANA PAY - demonstração pública isolada.
  * Sem dados de clientes reais, sem faturamento, sem autorização para uso comercial.
  * Volátil por intenção: para produção migrar para PostgreSQL, tenants e integrações auditadas.
  * Titular do projeto: FORTE ATACAREJO LTDA.
@@ -137,7 +137,7 @@ const server=http.createServer(async(req,res)=>{
   };
   if(u.pathname==='/api/client/order'){
    // A request is NOT an invoiceable item until the simulated POS confirms it.
-   if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo HONESTO'),{http:403});
+   if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo NANA PAY'),{http:403});
    const memberId=verifyMember(x.person,true);
    const person=existingPerson(s,memberId);
    if(!person||!person.present)throw new Error('Participante não encontrado na mesa');
@@ -216,7 +216,7 @@ const server=http.createServer(async(req,res)=>{
    recordEvent(s,'devolucao',status==='aprovada'?'Devolução aceita no PDV: '+item.name:'Devolução recusada no PDV: '+item.name+' — '+decisionReason,null,dispute.id);
   }else if(u.pathname==='/api/pdv/order-settings'){
    if(typeof x.enabled!=='boolean')throw new Error('Configuração inválida');
-   s.orderingEnabled=x.enabled;recordEvent(s,'configuracao',x.enabled?'Solicitações pelo HONESTO habilitadas':'Solicitações pelo HONESTO desabilitadas');
+   s.orderingEnabled=x.enabled;recordEvent(s,'configuracao',x.enabled?'Solicitações pelo NANA PAY habilitadas':'Solicitações pelo NANA PAY desabilitadas');
   }else if(u.pathname==='/api/pdv/item'){
    const name=String(x.name||'').trim(),qty=Number(x.qty),unit=money(x.price);
    if(name.length<2||name.length>90||!Number.isInteger(qty)||qty<1||qty>50)throw new Error('Produto ou quantidade inválidos');
@@ -266,14 +266,14 @@ const server=http.createServer(async(req,res)=>{
  }catch(e){safe(res,e)}
 });
 server.listen(PORT,'0.0.0.0',()=>{
- console.log('HONESTO DEMO escutando na porta',PORT);
+ console.log('NANA PAY DEMO escutando na porta',PORT);
  // Homologação somente: executar teste real HTTP após cada inicialização.
  // Processo de teste isolado, sem tocar em clientes e sessões desta instância.
  if(process.env.HONESTO_SKIP_SMOKE!=='1'){
   const smoke=spawn(process.execPath,[path.join(__dirname,'tests','smoke.mjs')],{cwd:__dirname,stdio:['ignore','pipe','pipe']});
-  smoke.stdout.on('data',b=>console.log('[HONESTO TESTE]',String(b).trim()));
-  smoke.stderr.on('data',b=>console.error('[HONESTO TESTE]',String(b).trim()));
-  smoke.on('close',code=>console.log('[HONESTO TESTE]',code===0?'APROVADO':'FALHOU (código '+code+')'));
+  smoke.stdout.on('data',b=>console.log('[NANA PAY TESTE]',String(b).trim()));
+  smoke.stderr.on('data',b=>console.error('[NANA PAY TESTE]',String(b).trim()));
+  smoke.on('close',code=>console.log('[NANA PAY TESTE]',code===0?'APROVADO':'FALHOU (código '+code+')'));
  }
 });
 setInterval(()=>{
