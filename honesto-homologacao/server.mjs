@@ -103,6 +103,14 @@ const server=http.createServer(async(req,res)=>{
   if(u.pathname.startsWith('/api/restaurant/')){
    const venue=venueForId(req.headers['x-nana-establishment']);
    const user=roleFor(req,venue);
+   if(req.method==='GET'&&u.pathname==='/api/restaurant/demo-pdv-access'){
+    if(user.role!=='admin')throw Object.assign(new Error('Acesso exclusivo do administrador de demonstração'),{http:403});
+    let chosen=venue.tables.get('12');
+    if(!chosen)chosen=venue.tables.values().next().value;
+    let s=chosen?store.get(chosen):null;
+    if(!s||Date.now()>s.expires||s.closed)s=newDemo('12',false,venue);
+    return reply(res,200,{token:s.viewToken,staff:s.staffToken,establishmentId:venue.id,table:s.table,mode:'homologacao-pdv-ficticio'});
+   }
    if(req.method==='GET'&&u.pathname==='/api/restaurant/dashboard'){
     return reply(res,200,{...venueStatus(venue),role:user.role,user:{name:user.name,id:user.id},waiters:user.role==='admin'?[...venue.waiters].map(([id,w])=>({id,name:w.name,createdAt:w.createdAt})):undefined});
    }
