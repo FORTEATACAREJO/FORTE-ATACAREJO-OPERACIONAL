@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect x="8" y="8" width="496" height="496" rx="120" fill="#fff"/><rect x="42" y="42" width="428" height="428" rx="105" fill="#fff" stroke="#e0ebe5" stroke-width="8"/><rect x="139" y="75" width="234" height="353" rx="50" fill="#121a14"/><rect x="157" y="93" width="198" height="310" rx="33" fill="#fff"/><path d="M211 109h87" stroke="#121a14" stroke-width="11" stroke-linecap="round"/><path d="M185 188h145M185 221h100M185 255h110" stroke="#252f27" stroke-width="15" stroke-linecap="round"/><circle cx="273" cy="318" r="75" fill="#0aa946" stroke="#fff" stroke-width="13"/><path d="m236 317 27 29 48-56" stroke="#fff" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M165 127q55-58 130-17" fill="none" stroke="#16bd4c" stroke-width="9" stroke-linecap="round"/><path d="m285 96 18 21-26 4" fill="#16bd4c"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="NANA PAY - N verde e preto com recibo e cartão">
+<defs>
+ <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#052a25"/><stop offset="1" stop-color="#001711"/></linearGradient>
+ <linearGradient id="fresh" x1=".1" y1=".05" x2=".9" y2=".98"><stop stop-color="#00e4a2"/><stop offset=".57" stop-color="#05bb79"/><stop offset="1" stop-color="#007a4d"/></linearGradient>
+ <linearGradient id="credit" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#0de59e"/><stop offset=".6" stop-color="#008d59"/><stop offset="1" stop-color="#00402e"/></linearGradient>
+ <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#053b29" flood-opacity=".12"/></filter>
+</defs>
+<rect x="4" y="4" width="504" height="504" rx="108" fill="#fff" stroke="#e8efea" stroke-width="6"/>
+<g filter="url(#soft)">
+ <path d="M111 319V180c0-41 23-65 58-65 26 0 47 13 67 35l115 139 2-128c1-46 26-72 64-72 44 0 68 27 65 73l-17 221c-3 36-23 61-57 63-30 2-51-12-72-35L198 261v65H111Z" fill="url(#dark)"/>
+ <path d="M114 167c21-41 55-64 92-48 18 7 32 20 48 40l108 128c31 36 49 39 90 12l-8 50c-28 37-68 50-106 20-11-8-19-18-32-34L176 189c-25-27-41-26-62-3Z" fill="url(#fresh)"/>
+ <path d="M355 142l16-23 17 11 16-11 15 12 17-9 14 14-24 129c-5 27-18 46-39 53-24 7-43-3-44-25l6-99Z" fill="#fff" stroke="#e6f1eb" stroke-width="4"/>
+ <path d="M375 175h49M374 196h41" stroke="#80cbb7" stroke-linecap="round" stroke-width="9"/>
+ <circle cx="395" cy="245" r="23" fill="#049b6b"/>
+ <path d="m385 244 8 8 14-17" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+ <path d="M68 364c0-12 7-19 19-21l125-22c13-2 24 8 24 21v74c0 14-8 23-22 23H75c-13 0-20-8-18-20Z" fill="url(#credit)"/>
+ <path d="m70 364 159-28v23L64 390Z" fill="#0ce1a0" opacity=".8"/>
+ <rect x="82" y="401" width="36" height="18" rx="5" fill="#fff"/>
+ <path d="M184 386q18 15 0 30m12-39q30 25 0 48" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>
+</g></svg>
