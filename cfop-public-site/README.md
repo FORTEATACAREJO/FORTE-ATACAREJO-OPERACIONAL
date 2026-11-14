@@ -63,3 +63,14 @@ Rota pública: **`/consulta-nfe.html`**, disponível na página inicial de `http
 - Fontes estruturais: Portal NF-e, manual de orientação da NF-e e convênio SINIEF s/n, Receita Federal (Classif NCM), CONFAZ 142/18, RICMS MG 2023 e legislação GO.
 - Acesso antigo por `/assistente.html` e simulador da página inicial continuam funcionando, preservando o histórico. Não alterar FORTE FISCAL nem sistemas da matriz/filial.
 - **Pendente:** integrar provedores cadastrais gratuitos se ativados, versão e vigência tributária MG/GO, ST/MVA/PMPF/pauta e homologação completa de CST/CSOSN, ICMS, PIS/COFINS, IBS/CBS/cClassTrib.
+
+## Atualização tributária oficial — monitoramento diário (14/11/2026)
+
+- **Painel público:** `https://fortecompanny.com.br/fontes-oficiais.html`; link na página inicial.
+- **API pública somente leitura:** `https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-fontes/status`, código versionado em `supabase/functions/cfop-fontes/index.ts`. Sem CPF/CNPJ ou segredos retornados.
+- **Banco dedicado:** tabelas `cfop_fontes_oficiais` e `cfop_alertas_normativos`, RLS ativado e nenhum acesso anon/authenticated. Migração versionada em `sql/monitor-fiscal-20261114.sql`.
+- **Agendamento Supabase Cron:** `fortecompanny-monitor-fontes-oficiais` (job 4), `0 11 * * *` GMT — 08h Brasília; usa apenas o Postgres existente e o módulo `http`.
+- **Fontes verificadas em 14/11/2026 (duas leituras sem alteração):** Receita Federal Classif/NCM, CONFAZ Convênio ICMS 142/18, SEF/MG RICMS e SEFAZ/GO legislação tributária. Não confundir hash de página com homologação de nova lei.
+- **Alertas:** alteração de conteúdo gera `pendente_revisao`. **O monitor NÃO altera automaticamente CFOP, NCM, CEST, CST/CSOSN, ICMS-ST, PIS/COFINS, IBS/CBS, nem publica regras legais sem validação técnica e jurídica.**
+- **Próxima fase:** integrar o monitor de notas técnicas NF-e (portal possui redirecionamentos automáticos que impediram coleta direta), arquivos oficiais estruturados de NCM/CEST/CFOP, vigências, protocolos de ICMS-ST MG/GO, legislações estaduais e reforma tributária; implementar validação/revisão/versionamento e rollback.
+- **Rastreabilidade:** GitHub issue [#68](https://github.com/FORTEATACAREJO/FORTE-ATACAREJO-OPERACIONAL/issues/68).
