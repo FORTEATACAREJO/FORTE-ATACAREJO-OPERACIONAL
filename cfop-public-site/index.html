@@ -121,8 +121,8 @@ function el(x){return $(x).value}
 function evalCFOP(o){
   var api=window.FORTE_CLASSIFICACAO;
   if(!api||typeof api.cfop!=='function')return {code:'—',status:'pendente',desc:'Classificação provisoriamente indisponível.'};
-  if(o.ncm&&!/^\\d{8}$/.test(o.ncm))return {code:'—',status:'pendente',desc:'NCM deve conter 8 dígitos.'};
-  if(o.cest&&!/^\\d{7}$/.test(o.cest))return {code:'—',status:'pendente',desc:'CEST deve conter 7 dígitos.'};
+  if(o.ncm&&!/^\d{8}$/.test(o.ncm))return {code:'—',status:'pendente',desc:'NCM deve conter 8 dígitos.'};
+  if(o.cest&&!/^\d{7}$/.test(o.cest))return {code:'—',status:'pendente',desc:'CEST deve conter 7 dígitos.'};
   if(o.purpose==='obra')return {code:'—',status:'pendente',desc:'Operação para obra/construção exige definição da natureza e destinação. Consulte a pré-nota nacional.'};
   var stMap={nao:'no_st',retida:'prior_st',recolher:'substitute',indefinido:'unknown'};
   var cfop=api.cfop({
