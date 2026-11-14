@@ -27,7 +27,7 @@
 <section class="panel"><h2>Portais e páginas oficiais acompanhados</h2>
 <div id="sources" class="grid"><p>Carregando fontes oficiais...</p></div></section>
 <section class="panel"><h2>São Paulo, Mato Grosso e Ceará — atos oficiais sob análise</h2>
-<p class="small">A coleta segura das fontes foi corrigida. Os atos abaixo são registros para análise jurídica e tributária. Não representam homologação de alíquotas, substituição tributária ou benefícios.</p>
+<p class="small">A coleta das fontes foi corrigida e o conteúdo de três decretos foi conferido nas publicações oficiais, com vigência e condições específicas. Ainda falta homologar a aplicação ao produto e à operação; nenhuma alíquota ou isenção é aplicada automaticamente.</p>
 <div id="legalActs" class="grid"><p>Carregando os atos identificados...</p></div></section>
 <section class="panel"><h2>Alertas de alterações detectadas</h2><p class="small">São registros para revisão. Não alteram automaticamente os cálculos do aplicativo.</p>
 <div id="alerts" class="status">Consultando alertas...</div></section>
@@ -99,11 +99,14 @@ async function load(){
   if(!acts.length)$('legalActs').appendChild(elem('p','Nenhum ato normativo registrado.','small'));
   else for(const act of acts){
     const card=elem('article',undefined,'source');
-    card.appendChild(elem('span',act.uf+' — Revisão fiscal pendente','tag warn'));
+    card.appendChild(elem('span',act.uf+' — Texto conferido; cálculo não homologado','tag warn'));
     card.appendChild(elem('h3',act.ato));
     card.appendChild(elem('p',act.tema,'small'));
     card.appendChild(elem('p',act.impacto_potencial,'small'));
-    card.appendChild(elem('p','Publicado: '+(act.publicado_em||'data a conferir'),'small'));
+    card.appendChild(elem('p','Assinatura: '+(act.data_assinatura||'a verificar')+' • DOE: '+(act.publicado_em||'a verificar')+' • Efeitos: '+(act.inicio_efeitos||'a verificar'),'small'));
+    if(act.termino_dispositivo)card.appendChild(elem('p','Término do benefício específico: '+act.termino_dispositivo+' (sujeito a norma posterior)','small'));
+    if(act.condicoes_de_aplicacao)card.appendChild(elem('p','Condições: '+act.condicoes_de_aplicacao,'small'));
+    card.appendChild(elem('p','Conferência textual: '+(act.conferencia_textual_em?'realizada':'pendente')+' • Cálculo automático: '+(act.calculo_automatico_autorizado?'autorizado':'não autorizado'),'small'));
     try{
       const u=new URL(act.fonte_url);
       if(u.protocol==='https:'&&(u.hostname==='gov.br'||u.hostname.endsWith('.gov.br'))){
