@@ -49,7 +49,7 @@
 <div class="field"><label>CEST do produto (opcional)</label><input id="cest" maxlength="7" inputmode="numeric" placeholder="7 dígitos"></div>
 <div class="field sale hide"><label>Comprador é contribuinte do ICMS?</label><select id="tax"><option value="indefinido">Não sei</option><option value="sim">Sim, com inscrição estadual</option><option value="nao">Não contribuinte</option></select></div>
 <div class="field sale hide"><label>Mercadoria vendida</label><select id="own"><option value="terceiros">Adquirida de terceiros</option><option value="propria">Produção própria</option></select></div>
-</div><div class="actions"><button type="submit" class="gold">Calcular CFOP</button><button type="reset" class="soft">Limpar</button></div></form></section><section><div class="flag">CONSULTAS DE EXEMPLO</div><div class="examples"><button class="soft" type="button" id="beer">Cerveja • MS → RJ • Revenda</button><button class="soft" type="button" id="cement">Cimento • MG → MG • Revenda / ST</button><button class="soft" type="button" id="sale">Argamassa • GO → MG • Venda</button></div></section><section id="result" class="result"><div class="muted">Preencha os dados e toque em Calcular CFOP.</div></section><section><strong>Sobre a utilização</strong><p class="muted">O cálculo é preliminar e não substitui análise de NCM, CEST, regime de ICMS-ST, contribuinte, DIFAL, natureza da operação e legislação da UF. A classificação automática experimental está limitada a MG e GO; outras rotas são registradas como demanda, mas não recebem um CFOP inventado.</p><p class="muted">Para entrar, a empresa informa seu CNPJ e aceita os termos. As consultas são vinculadas ao CNPJ somente com autorização adicional marcada na entrada. Sem essa autorização, ficam apenas estatísticas agrupadas. Os documentos de fornecedores e compradores não entram nas estatísticas. Consulte a <a href="#" id="privacy">informação de privacidade</a>.</p></section></main><footer>FORTECOMPANNY • Consulta de CFOP • Versão pública experimental</footer><script>
+</div><div class="actions"><button type="submit" class="gold">Calcular CFOP</button><button type="reset" class="soft">Limpar</button></div></form></section><section><div class="flag">CONSULTAS DE EXEMPLO</div><div class="examples"><button class="soft" type="button" id="beer">Cerveja • MS → RJ • Revenda</button><button class="soft" type="button" id="cement">Cimento • MG → MG • Revenda / ST</button><button class="soft" type="button" id="sale">Argamassa • GO → MG • Venda</button></div></section><section id="result" class="result"><div class="muted">Preencha os dados e toque em Calcular CFOP.</div></section><section><strong>Sobre a utilização</strong><p class="muted">O cálculo é preliminar e não substitui análise de NCM, CEST, regime de ICMS-ST, contribuinte, DIFAL, natureza da operação e legislação da UF. A consulta nacional aceita as 27 unidades federativas; CFOP é hipótese condicionada e o cálculo dos tributos estaduais depende da regra legal homologada para cada UF, operação, NCM/CEST e vigência.</p><p class="muted">Para entrar, a empresa informa seu CNPJ e aceita os termos. As consultas são vinculadas ao CNPJ somente com autorização adicional marcada na entrada. Sem essa autorização, ficam apenas estatísticas agrupadas. Os documentos de fornecedores e compradores não entram nas estatísticas. Consulte a <a href="#" id="privacy">informação de privacidade</a>.</p></section></main><footer>FORTECOMPANNY • Consulta de CFOP • Versão pública experimental</footer><script src="/classificacao.js"></script><script>
 (function(){
 'use strict';
 var BASE='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop';
@@ -118,14 +118,26 @@ var op='entrada';
 function mode(s){op=s;document.querySelectorAll('.tab').forEach(function(el){el.classList.toggle('active',el.id===(s==='entrada'?'entradaTab':'saidaTab'))});document.querySelectorAll('.sale').forEach(function(el){el.classList.toggle('hide',s!=='saida')});$('purposeLabel').textContent=s==='saida'?'Finalidade da venda / comprador':'Finalidade da compra';$('origemDocLabel').textContent=s==='saida'?'CNPJ da empresa vendedora (opcional)':'CNPJ do fornecedor (opcional)';$('destinoDocLabel').textContent=s==='saida'?'CPF/CNPJ do comprador (opcional)':'CNPJ/CPF do comprador (opcional)';$('result').innerHTML='<div class="muted">Preencha os dados e toque em Calcular CFOP.</div>'}
 $('entradaTab').onclick=function(){mode('entrada')};$('saidaTab').onclick=function(){mode('saida')};
 function el(x){return $(x).value}
-function evalCFOP(o){var same=o.uf1===o.uf2,cd='',detail='',state='condicionado';
- if(!(['MG','GO'].includes(o.uf1)&&['MG','GO'].includes(o.uf2)))return {code:'—',status:'pendente',desc:'A rota '+o.uf1+' → '+o.uf2+' foi registrada para estudo. A regra fiscal ainda não está homologada para esses estados.'};
- if(o.st==='indefinido')return {code:'—',status:'pendente',desc:'Informe o enquadramento de substituição tributária. Não é possível determinar ST somente pelo produto.'};
- if(o.ncm&&!/^\d{8}$/.test(o.ncm))return {code:'—',status:'pendente',desc:'NCM deve conter 8 dígitos.'};
- if(o.cest&&!/^\d{7}$/.test(o.cest))return {code:'—',status:'pendente',desc:'CEST deve conter 7 dígitos.'};
- if(o.op==='entrada'){var p=o.purpose==='obra'?'consumo':o.purpose;if(o.st==='recolher')return {code:'—',status:'pendente',desc:'Entrada com ST a recolher exige verificar responsabilidade, recolhimento e legislação estadual.'};var map={revenda:['102','403'],industrializacao:['101','401'],consumo:['556','407'],ativo:['551','406']};if(!map[p])return {code:'—',status:'pendente',desc:'Finalidade inválida.'};cd=(same?'1.':'2.')+map[p][o.st==='retida'?1:0];detail='Compra '+(same?'interna':'interestadual')+' para '+p+', conforme ST declarada. Conferir a NF-e recebida.';}
- else{if(!same&&o.st==='retida')return {code:'—',status:'pendente',desc:'ST retida na origem não determina automaticamente o CFOP interestadual. Verifique regras do destino.'};if(!same&&o.st==='nao'&&o.tax==='indefinido')return {code:'—',status:'pendente',desc:'Confirme se comprador é contribuinte do ICMS para escolher o CFOP interestadual.'};if(same){cd=o.st==='retida'?(o.own==='terceiros'?'5.405':'—'):o.st==='recolher'?(o.own==='terceiros'?'5.403':'5.401'):(o.own==='terceiros'?'5.102':'5.101');if(cd==='—')return {code:'—',status:'pendente',desc:'ST previamente retida em produção própria requer análise específica.'};detail='Venda interna com enquadramento declarado. Confirmar documentação, NCM, CEST e legislação aplicável.';}else{cd=o.st==='recolher'?(o.own==='terceiros'?'6.403':'6.401'):(o.own==='terceiros'?(o.tax==='nao'?'6.108':'6.102'):(o.tax==='nao'?'6.107':'6.101'));detail='Venda interestadual. Confirmar DIFAL, contribuinte e eventual responsabilidade de ST no destino.';}}
- return {code:cd,status:state,desc:detail+' Resultado orientativo; não é autorização para emissão.'};}
+function evalCFOP(o){
+  var api=window.FORTE_CLASSIFICACAO;
+  if(!api||typeof api.cfop!=='function')return {code:'—',status:'pendente',desc:'Classificação provisoriamente indisponível.'};
+  if(o.ncm&&!/^\\d{8}$/.test(o.ncm))return {code:'—',status:'pendente',desc:'NCM deve conter 8 dígitos.'};
+  if(o.cest&&!/^\\d{7}$/.test(o.cest))return {code:'—',status:'pendente',desc:'CEST deve conter 7 dígitos.'};
+  if(o.purpose==='obra')return {code:'—',status:'pendente',desc:'Operação para obra/construção exige definição da natureza e destinação. Consulte a pré-nota nacional.'};
+  var stMap={nao:'no_st',retida:'prior_st',recolher:'substitute',indefinido:'unknown'};
+  var cfop=api.cfop({
+    operation:o.op,originUf:o.uf1,destUf:o.uf2,purpose:o.purpose,
+    stEvidence:stMap[o.st]||'unknown',
+    sellerSource:o.own==='terceiros'?'third_party':'own_production',
+    buyerIsContributor:o.tax==='sim'?'yes':o.tax==='nao'?'no':'unknown',
+    consultantKind:'company',otherKind:'company'
+  });
+  return {
+    code:cfop.code||'—',status:cfop.code?'condicionado':'pendente',
+    desc:(cfop.explanation||'Dados insuficientes.')+
+    ' CFOP somente indicativo para as 27 UFs; valores de ICMS, ST, DIFAL, FCP, CST e demais impostos não homologados por UF e operação. Confirme ato, NCM/CEST, vigência e enquadramento legal.'
+  };
+}
 function fmt(s){return String(s).replace(/[&<>"]/g,function(x){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]})}
 $('f').onsubmit=function(e){e.preventDefault();
  if(!activeAccess){showLoginError('Identifique a empresa e aceite os termos para consultar.');showAccess();return}
