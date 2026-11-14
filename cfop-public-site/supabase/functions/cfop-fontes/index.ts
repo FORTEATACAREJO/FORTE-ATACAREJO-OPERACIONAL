@@ -36,7 +36,7 @@ Deno.serve(async(req:Request):Promise<Response>=>{
     fetch(query+"cfop_alertas_normativos?select=fonte_chave,detectado_em,status,avaliacao&order=detectado_em.desc&limit=20",{headers,signal:AbortSignal.timeout(5000)}),
     fetch(query+"cfop_uf_nacionais?select=uf,cuf,nome,regiao,portal_tributario,situacao_regras&order=cuf.asc",{headers,signal:AbortSignal.timeout(5000)}),
     fetch(query+"cfop_regras_tributarias_uf?select=id&situacao=eq.homologada&limit=1",{headers:{...headers,Prefer:"count=exact"},signal:AbortSignal.timeout(5000)}),
-    fetch(query+"cfop_atos_em_analise?select=uf,ato,publicado_em,inicio_efeitos,fonte_url,tema,impacto_potencial,situacao&order=uf.asc,publicado_em.desc&limit=25",{headers,signal:AbortSignal.timeout(5000)})
+    fetch(query+"cfop_atos_em_analise?select=uf,ato,data_assinatura,publicado_em,inicio_efeitos,termino_dispositivo,dispositivo,classe_impacto,fonte_url,fonte_consolidada_url,tema,impacto_potencial,condicoes_de_aplicacao,conferencia_textual_em,calculo_automatico_autorizado,situacao&order=uf.asc,publicado_em.desc&limit=25",{headers,signal:AbortSignal.timeout(5000)})
   ]);
   if(!sr.ok||!ar.ok||!ufr.ok||!lr.ok||!acts.ok)return json({error:"source_database_unavailable"},503,origin);
   const sources=await sr.json(),alerts=await ar.json(),states=await ufr.json(),legalActs=await acts.json();
