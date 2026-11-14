@@ -164,4 +164,4 @@ showAccess();
 window.addEventListener('pagehide',function(){if(activeAccess)navigator.sendBeacon(BASE+'/api/presence',new Blob([JSON.stringify({sessionId:sid,event:'leave'})],{type:'application/json'}))});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});
 })();
-</script></body></html>
+</script><script src="/pwa-actions.js?v=20261114a" defer></script></body></html>
