@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Simulador de PDV — Homologação HONESTO</title>
+<title>Simulador de PDV — Homologação NANA PAY</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3f5f4;color:#172218}
 *{box-sizing:border-box}body{margin:0}header{background:#18251b;color:white;padding:18px 20px}header div,main{max-width:1060px;margin:auto}
 h1{margin:0;font-size:22px}main{padding:22px 16px}p{line-height:1.5}.tag{font-weight:800;font-size:11px;color:#1f7d40;background:#e3f7e9;padding:6px 10px;border-radius:99px}.panel{background:white;border:1px solid #dbe7dd;border-radius:15px;padding:19px;margin:15px 0}h2{font-size:18px;margin:0 0 13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.line{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ecf0ed}.line:last-child{border:0}.muted{font-size:12px;color:#697b70}.status{color:#207a39;font-size:12px;font-weight:800}.warn{color:#9e5b00}.btn{border:0;border-radius:10px;padding:10px 13px;background:#178444;color:#fff;font:inherit;font-weight:750;cursor:pointer}.btn.alt{background:#e8f2eb;color:#176b33}.btn.danger{background:#a5382f}.btn:disabled{opacity:.5}input,select{font:inherit;border:1px solid #ccd9cf;border-radius:9px;padding:11px;width:100%}.cols{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}label{font-size:12px;font-weight:700;display:block;margin-bottom:5px}form{display:grid;gap:10px}.buttons{display:flex;gap:6px;flex-wrap:wrap}.note{background:#fffae9;border:1px solid #efe1b2;border-radius:11px;padding:11px 13px;font-size:13px}.small{font-size:12px}.mono{overflow-wrap:anywhere;font-family:monospace;font-size:11px}#qr svg{max-width:210px;height:auto}#notice{margin-top:10px;color:#176b33;font-weight:700}.hidden{display:none!important}
 @media(max-width:680px){.grid,.cols{grid-template-columns:1fr}.panel{padding:14px}.line{flex-wrap:wrap}}
 </style></head>
-<body><header><div><h1>PDV de testes — Restaurante Exemplo</h1><span class="small">SIMULADOR EXTERNO AO APLICATIVO HONESTO</span></div></header>
+<body><header><div><h1>PDV de testes — Restaurante Exemplo</h1><span class="small">SIMULADOR EXTERNO AO APLICATIVO NANA PAY</span></div></header>
 <main>
-<div class="note"><strong>Somente para homologação.</strong> Esta é uma representação técnica do sistema do restaurante, separada do HONESTO usado pelo cliente. Em produção, todos estes botões pertencem ao PDV já contratado pelo estabelecimento. Nenhuma transação é real.</div>
+<div class="note"><strong>Somente para homologação.</strong> Esta é uma representação técnica do sistema do restaurante, separada do NANA PAY usado pelo cliente. Em produção, todos estes botões pertencem ao PDV já contratado pelo estabelecimento. Nenhuma transação é real.</div>
 <div class="panel">
 <h2>Restaurante fictício</h2>
 <button class="btn" id="new">Criar restaurante e comanda demonstrativa</button>
@@ -17,21 +17,21 @@ h1{margin:0;font-size:22px}main{padding:22px 16px}p{line-height:1.5}.tag{font-we
 <p><span class="tag">Simulação conectada</span> <strong id="mesa"></strong></p>
 <div class="grid">
  <div><h2>QR Code único do restaurante</h2><div id="qr"></div><div class="mono" id="venueLink"></div></div>
- <div><h2>Teste com dois dispositivos</h2><p class="muted">Abra o HONESTO em outro aparelho usando o QR. Informe mesa 12 e seu nome, escolha um produto e solicite a devolução. Somente aqui, no simulador de PDV, será possível aceitar ou recusar.</p>
- <a id="guest" target="_blank" rel="noopener">Abrir HONESTO do cliente</a></div>
+ <div><h2>Teste com dois dispositivos</h2><p class="muted">Abra o NANA PAY em outro aparelho usando o QR. Informe mesa 12 e seu nome, escolha um produto e solicite a devolução. Somente aqui, no simulador de PDV, será possível aceitar ou recusar.</p>
+ <a id="guest" target="_blank" rel="noopener">Abrir NANA PAY do cliente</a></div>
 </div>
 </div>
 </div>
 <div id="work" class="hidden">
 <div class="grid">
 <section>
- <div class="panel"><h2>Devoluções enviadas pelo HONESTO</h2><div id="returns"></div></div>
- <div class="panel"><h2>Pedidos enviados pelo HONESTO</h2><div id="orders"></div></div>
+ <div class="panel"><h2>Devoluções enviadas pelo NANA PAY</h2><div id="returns"></div></div>
+ <div class="panel"><h2>Pedidos enviados pelo NANA PAY</h2><div id="orders"></div></div>
  <div class="panel"><h2>Trocas de mesa solicitadas</h2><div id="moves"></div></div>
 </section>
 <section>
  <div class="panel"><h2>Lançar produto no PDV (teste)</h2><form id="productForm"><input id="prodName" value="Água mineral" required placeholder="Produto"><div class="cols"><input id="qty" type="number" min="1" value="1" required><input id="price" value="6,00" required placeholder="Preço"></div><button class="btn" type="submit">Lançar produto</button></form></div>
- <div class="panel"><h2>Recebimento presencial (simulado)</h2><p class="muted">O HONESTO não recebe dinheiro.</p><form id="payForm"><input id="amount" required placeholder="Valor (R$)" value="10,00"><select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select><button class="btn" type="submit">Confirmar pagamento no PDV</button></form><div class="small" id="balance"></div></div>
+ <div class="panel"><h2>Recebimento presencial (simulado)</h2><p class="muted">O NANA PAY não recebe dinheiro.</p><form id="payForm"><input id="amount" required placeholder="Valor (R$)" value="10,00"><select id="method"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select><button class="btn" type="submit">Confirmar pagamento no PDV</button></form><div class="small" id="balance"></div></div>
  <div class="panel"><h2>Movimentações no PDV</h2><div id="audit"></div></div>
 </section>
 </div>
