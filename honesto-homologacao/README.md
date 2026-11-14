@@ -55,3 +55,16 @@ A interface NANA PAY do cliente `/` não possui abas, botões nem autorização 
 Integração de produção: o PDV recebe a solicitação (identificador de comanda, item, participante, motivo) e envia decisão assinada de forma idempotente com `status=aprovada|recusada`, horário, ID externo de cancelamento e motivo obrigatório na recusa. **Somente** o registro confirmado do cancelamento no PDV poderá abater o saldo no NANA PAY. A recusa mantém o item e mostra motivo e horário ao cliente. Nenhuma escolha do cliente tem autoridade para mudar a soma.
 
 Para teste sem um PDV real, existe um **simulador técnico separado** em `/pdv-simulado`. Não é parte do NANA PAY entregue a clientes nem um novo sistema a ser utilizado por garçons. A página apenas representa mensagens que, em operação real, deverão vir do PDV já existente. A rota pública de demonstração `/api/demo` não fornece chave de operador. A rota `/api/pdv-demo/create` é exclusiva da homologação e **deve ser removida/substituída** por autenticação empresarial real antes de produção.
+
+## Evolução 14/11/2026 — NANA PAY, plataforma única e três camadas
+
+- **Cliente**: acesso pelo QR Code único, nome e mesa, na raiz `/`, sem acesso ao painel e sem confirmação de devoluções.
+- **Administrador do restaurante**: acesso autenticado em `/painel` por credencial aleatória do próprio estabelecimento; configura nome, habilita pedidos, consulta comandas, gera QR Code e cadastra ou revoga acessos de garçons.
+- **Garçom**: acesso individual em `/painel`, somente para visualização de mesas, pedidos e devoluções pendentes. **Não pode** modificar configurações, criar contas ou aprovar devoluções no NANA PAY.
+- **PDV real (futuro)**: continua sendo a única fonte autorizada para aceitar/recusar devoluções, lançar/cancelar itens, registrar pagamentos e quitação. `/pdv-simulado` é apenas infraestrutura de testes e não é uma quarta camada do aplicativo.
+- **Licença**: valor previsto de **R$ 4,99/mês**, cobrança recorrente no cartão escolhido pelo administrador; **nenhuma cobrança, armazenamento de cartão ou assinatura ativa nesta demonstração**.
+- **Identidade visual**: nome NANA PAY, marca em preto/verde, ícone vetorial que adapta o símbolo N + recibo + cartão aprovado; o material raster final deve ser sincronizado com as versões PNG do PWA antes da distribuição.
+
+### Limitações antes de produção
+
+O ambiente atual permanece **volátil em memória**, com credenciais de demonstração obtidas pela criação pública de um restaurante fictício, sem login empresarial definitivo, dados pessoais persistentes, pagamentos reais ou integração homologada com PDVs. É necessário migrar para banco com isolamento por restaurante, autenticação real, auditoria imutável e gateway autorizado de cobrança antes de disponibilizar comercialmente. Preservar a regra de que o cliente não deduz itens unilateralmente.
