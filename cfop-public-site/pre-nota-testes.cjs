@@ -37,11 +37,21 @@ test("Compra uso/consumo sujeita ST",{...base,mode:"entrada",nature:"compra",stE
 test("Compra uso/consumo sem ST",{...base,mode:"entrada",nature:"compra",items:[{...base.items[0],purpose:"consumo"}]},"2.556");
 test("Remessa especial",{...base,nature:"remessa"},"Não determinado");
 test("Sem prova ST",{...base,stEvidence:"unknown"},"Não determinado");
-test("UF não parametrizada",{...base,recipient:{...base.recipient,uf:"SP"}},"Não determinado");
+test("UF SP incluída na cobertura nacional",{...base,recipient:{...base.recipient,uf:"SP"}},"6.102");
+test("UF inválida permanece bloqueada",{...base,recipient:{...base.recipient,uf:"ZZ"}},"Não determinado");
 test("CPF sem IE na saída",{...base,sender:{kind:"person",document:"12345678909",name:"Pessoa",uf:"MG"}},"Não determinado");
 test("Documento do destinatário vazio",{...base,recipient:{...base.recipient,document:""}},"Não determinado");
 test("Mesmo estabelecimento",{...base,recipient:{...base.recipient,document:base.sender.document}},"Não determinado");
 test("Uso em obra não generalizado",{...base,mode:"entrada",nature:"compra",items:[{...base.items[0],purpose:"obra"}]},"Não determinado");
+// 729 combinações nacionais: o CFOP-base segue a tabela nacional, sem validar impostos estaduais.
+const ufs="AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO".split(" ");
+for(const from of ufs)for(const to of ufs){
+  const result=fiscal.analyze({...base,sender:{...base.sender,uf:from},recipient:{...base.recipient,uf:to}},api);
+  assert.equal(result.items[0].fields.cfop.value,from===to?"5.102":"6.102");
+  assert.equal(result.items[0].fields.legislacaoUF.status,"pendente");
+  count++;
+}
+process.stdout.write("OK 729 rotas nacionais — CFOP indicativo, legislação estadual pendente\n");
 const multi=fiscal.analyze({...base,items:[base.items[0],{...base.items[0],quantity:2,unitPrice:11}]},api);
 assert.equal(multi.amount,1342);
 count++;
