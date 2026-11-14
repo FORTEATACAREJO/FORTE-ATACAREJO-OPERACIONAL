@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102640">
+<meta name="description" content="Instale o aplicativo FORTECOMPANNY no Android, iPhone ou computador.">
+<meta name="application-name" content="FORTECOMPANNY">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FORTECOMPANNY">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Instalar FORTECOMPANNY no celular</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#142b42;background:#f3f6fa}
+*{box-sizing:border-box}body{margin:0}header{background:#102640;color:white;padding:16px max(16px,calc((100% - 800px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px}
+header strong{font-size:18px}header a{color:#fff;text-decoration:none;border:1px solid #91a6bc;padding:8px 12px;border-radius:9px;font-size:13px}
+main{max-width:800px;margin:0 auto;padding:24px 16px 60px}h1{font-size:clamp(27px,5vw,36px);margin:7px 0}h2{font-size:19px}p{line-height:1.55;color:#526a80}
+.intro{display:flex;gap:16px;align-items:center}.logo{width:85px;height:85px;flex-shrink:0;box-shadow:0 4px 18px #1026402f;border-radius:20px}
+.panel{background:white;border:1px solid #dbe4ee;border-radius:15px;padding:18px 20px;margin:16px 0}
+button,.link{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#102640;color:white;border:0;border-radius:11px;padding:14px 18px;min-height:50px;font:700 15px inherit;cursor:pointer;text-decoration:none;width:100%;margin:9px 0}
+button[hidden]{display:none}.link.secondary{color:#102640;border:1px solid #b6c7d8;background:#f6f9fb}
+.small{font-size:13px}.note{border-left:4px solid #d5aa49;padding:12px 15px;background:#fff5de;border-radius:6px;font-size:13px;line-height:1.55}
+ol{padding-left:24px;line-height:1.7}li{padding:3px 0}code{padding:2px 5px;background:#e7edf3;border-radius:5px}
+#installState{font-size:13px;color:#496179;line-height:1.5}
+@media(max-width:520px){.intro{align-items:flex-start}.logo{width:70px;height:70px}header strong{font-size:16px}}
+</style>
+</head>
+<body>
+<header><strong>FORTECOMPANNY + IA</strong><a href="/">Voltar ao aplicativo</a></header>
+<main>
+<div class="intro"><img class="logo" src="/icon.svg" alt="Ícone do aplicativo FORTECOMPANNY">
+<div><h1>Instalar no celular</h1><p>Aplicativo de consulta fiscal do Brasil inteiro. Instalação gratuita, diretamente pelo navegador.</p></div></div>
+<section class="panel">
+<h2>Instalador FORTECOMPANNY</h2>
+<p>O aplicativo é uma <strong>PWA</strong>: abre com ícone próprio na tela inicial e utiliza o domínio oficial. Não é necessário baixar arquivo APK.</p>
+<button id="installButton" type="button" hidden>Instalar FORTECOMPANNY</button>
+<p id="installState" role="status" aria-live="polite">Verificando se o navegador oferece a instalação direta...</p>
+<a class="link secondary" href="/">Abrir o aplicativo sem instalar</a>
+</section>
+<section class="panel" id="android">
+<h2>Android — Google Chrome</h2>
+<ol>
+<li>Abra esta página diretamente no <strong>Chrome</strong>, fora do navegador interno de WhatsApp ou outros aplicativos.</li>
+<li>Se aparecer o botão <strong>Instalar FORTECOMPANNY</strong> acima, toque nele e confirme.</li>
+<li>Se não aparecer, toque em <strong>⋮</strong> no canto do Chrome e selecione <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+<li>Depois, procure o ícone <strong>FORTECOMPANNY</strong> entre seus aplicativos.</li>
+</ol>
+</section>
+<section class="panel" id="iphone">
+<h2>iPhone — Safari</h2>
+<ol>
+<li>Abra <code>https://fortecompanny.com.br/instalar.html</code> no Safari.</li>
+<li>Toque no ícone de <strong>Compartilhar</strong>.</li>
+<li>Escolha <strong>Adicionar à Tela de Início</strong> e confirme.</li>
+</ol>
+<p class="small">O botão de instalação direta não é suportado pelo Safari; utilize a opção de compartilhamento.</p>
+</section>
+<section class="panel">
+<h2>Computador</h2>
+<p>No Chrome ou Edge, abra este endereço e procure a opção de instalar na barra de endereços ou no menu do navegador.</p>
+</section>
+<div class="note"><strong>Etapa de testes:</strong> a FORTECOMPANNY pode ser instalada para avaliação, mas a homologação tributária das 27 UFs não está concluída. Os CFOPs apresentados são hipóteses condicionadas; não utilize resultados pendentes para emitir documentos fiscais.</div>
+</main>
+<script>
+(function(){
+'use strict';
+let deferredPrompt=null;
+const button=document.getElementById('installButton');
+const state=document.getElementById('installState');
+function installed(){
+ return window.matchMedia('(display-mode: standalone)').matches
+ || window.navigator.standalone===true;
+}
+function markInstalled(){
+ button.hidden=true;deferredPrompt=null;
+ state.textContent='FORTECOMPANNY já está instalado neste aparelho. Abra pelo ícone da tela inicial.';
+}
+if(installed())markInstalled();
+else state.textContent='Caso o botão de instalação não apareça, use o menu do navegador conforme as instruções abaixo.';
+window.addEventListener('beforeinstallprompt',event=>{
+ event.preventDefault();
+ deferredPrompt=event;
+ if(!installed()){
+  button.hidden=false;
+  state.textContent='Seu navegador permite instalar o aplicativo diretamente. Toque no botão acima.';
+ }
+});
+button.addEventListener('click',async ()=>{
+ if(!deferredPrompt)return;
+ const prompt=deferredPrompt;deferredPrompt=null;button.hidden=true;
+ try{
+  const outcome=await prompt.prompt();
+  state.textContent=outcome.outcome==='accepted'?
+    'Instalação solicitada. Verifique o ícone do FORTECOMPANNY na tela inicial.':
+    'Instalação cancelada. Você pode utilizar a opção do menu do Chrome.';
+ }catch(e){
+  state.textContent='O navegador não iniciou o instalador. Abra o menu ⋮ e escolha Instalar app ou Adicionar à tela inicial.';
+ }
+});
+window.addEventListener('appinstalled',markInstalled);
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
+}
+})();
+</script>
+</body></html>
