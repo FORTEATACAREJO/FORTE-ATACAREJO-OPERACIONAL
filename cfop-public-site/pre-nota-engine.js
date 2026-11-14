@@ -22,6 +22,8 @@ function validateParty(p){
  if(!p)return ["Participante não informado."];
  if(!["company","rural","person"].includes(p.kind))errors.push("Tipo do participante não definido.");
  const document=docRaw(p.document);
+ if(!document)errors.push("CPF/CNPJ não informado.");
+ if(!String(p.name||"").trim())errors.push("Nome/razão social não informado.");
  if(p.kind==="company" && document && !/^[A-Z0-9]{12}[0-9]{2}$/.test(document))errors.push("CNPJ em formato inválido.");
  if(p.kind!=="company" && document && !/^\d{11}$/.test(document))errors.push("CPF deve ter 11 dígitos.");
  if(p.kind==="rural" && !String(p.ie||"").trim())errors.push("Produtor rural sem IE informada.");
@@ -59,7 +61,16 @@ function fiscalItem(params,item,api){
  if(!["MG","GO"].includes(origin)||!["MG","GO"].includes(destination)){
    candidate={code:"",status:"pendente",explanation:"Regras estaduais ainda não homologadas para operações fora de MG e GO.",assumptions:[]};
  }
- if(sender.kind==="person"&&!sender.ie && mode==="saida")candidate={code:"",status:"pendente",explanation:"Remetente pessoa física sem IE: verificar obrigação de emissão e documento fiscal aplicável.",assumptions:[]};
+ if(!docRaw(sender.document)||!docRaw(recipient.document)){
+   candidate={code:"",status:"pendente",explanation:"Informe o documento do remetente e destinatário para montar a hipótese de CFOP da operação.",assumptions:[]};
+ }
+ if(docRaw(sender.document)&&docRaw(sender.document)===docRaw(recipient.document)){
+   candidate={code:"",status:"pendente",explanation:"Remetente e destinatário têm o mesmo documento: verificar transferência/estabelecimento antes de indicar CFOP.",assumptions:[]};
+ }
+ if(mode==="entrada"&&sender.kind==="person"&&!sender.ie){
+   candidate={code:"",status:"pendente",explanation:"Compra de pessoa física sem IE exige verificar emissão de entrada e natureza da operação.",assumptions:[]};
+ }
+  if(sender.kind==="person"&&!sender.ie && mode==="saida")candidate={code:"",status:"pendente",explanation:"Remetente pessoa física sem IE: verificar obrigação de emissão e documento fiscal aplicável.",assumptions:[]};
  if(purpose==="rural"||purpose==="prestacao"||purpose==="outro")candidate={code:"",status:"pendente",explanation:"Finalidade especial requer CFOP e tratamento fiscal específicos.",assumptions:[]};
  const ncmOrigin=item.source==="xml"?"Declarado no XML selecionado (assinatura e autorização não verificadas)":item.source==="curated"?"Catálogo ilustrativo FORTECOMPANNY":"Informado pelo usuário";
  const ncmExplanation=ncm?"Existência e descrição do código devem ser verificadas na tabela oficial da Receita; classificação depende da composição/uso real.":"Confira a composição, XML ou ficha técnica e identifique NCM de 8 dígitos.";
