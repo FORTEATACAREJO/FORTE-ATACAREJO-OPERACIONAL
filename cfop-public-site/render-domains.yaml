@@ -1,0 +1,15 @@
+# FORTECOMPANNY — declaracao do dominio no servico Render EXISTENTE.
+# Gerenciado inicialmente em modo de planejamento, sem auto-aplicacao.
+# Nenhum recurso novo, plano pago, banco ou outro servico deve ser criado.
+services:
+  - type: web
+    runtime: static
+    name: forte-tech-cfop-publico
+    repo: https://github.com/FORTEATACAREJO/FORTE-ATACAREJO-OPERACIONAL
+    branch: deploy/forte-tech-cfop-publico-20261112
+    buildCommand: echo build-ready
+    staticPublishPath: cfop-public-site
+    autoDeployTrigger: commit
+    renderSubdomainPolicy: enabled
+    domains:
+      - fortecompanny.com.br
