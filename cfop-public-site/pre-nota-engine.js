@@ -58,8 +58,10 @@ function fiscalItem(params,item,api){
     consultantKind:mode==="entrada"?buyerKind:sellerKind,
     otherKind:mode==="entrada"?sellerKind:buyerKind});
  }
- if(!["MG","GO"].includes(origin)||!["MG","GO"].includes(destination)){
-   candidate={code:"",status:"pendente",explanation:"Regras estaduais ainda não homologadas para operações fora de MG e GO.",assumptions:[]};
+ const allUFs=("AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO").split(" ");
+ const validRoute=allUFs.includes(origin)&&allUFs.includes(destination);
+ if(!validRoute){
+   candidate={code:"",status:"pendente",explanation:"Selecione origem e destino entre as 27 UFs oficiais.",assumptions:[]};
  }
  if(!docRaw(sender.document)||!docRaw(recipient.document)){
    candidate={code:"",status:"pendente",explanation:"Informe o documento do remetente e destinatário para montar a hipótese de CFOP da operação.",assumptions:[]};
@@ -88,7 +90,8 @@ function fiscalItem(params,item,api){
    ipi:field(null,"pendente","Depende da TIPI, estabelecimento e fato gerador."),
    pisCofins:field(null,"pendente","Depende do regime, CST e incidência do produto."),
    ibsCbs:field(null,"pendente","CST, cClassTrib e regras da reforma tributária conforme vigência e operação."),
-   cbenef:field(null,"pendente","Exige benefício legal vigente, quando houver.")
+   cbenef:field(null,"pendente","Exige benefício legal vigente, quando houver."),
+   legislacaoUF:field(null,"pendente","Legislação estadual aplicável à rota "+origin+" → "+destination+" ainda não homologada para produto, regime, operação e data; não calcular imposto como definitivo.","SEFAZ origem e destino; CONFAZ; Portal NF-e")
  };
  const qty=num(item.quantity),unitPrice=num(item.unitPrice);
  return {
@@ -119,6 +122,8 @@ function analyze(params,api){
   sender:{...sender},recipient:{...recipient},
   items:resultItems,amount,errors,
   classification:"CONSULTA SIMULADA NÃO HOMOLOGADA — NÃO É NF-e, DANFE OU XML DE AUTORIZAÇÃO",
+  coverage:{territory:"BR",registeredStates:27,combinations:729,legalRuleApproval:"pendente_homologacao",
+   nationalCfopCandidates:true,stateTaxAmounts:"nao_calculados"},
   note:"Os campos de tributos não preenchidos dependem da legislação específica, documentos e homologação. Não transmitir ao Fisco.",
   sources:{
    ncm:"https://portalunico.siscomex.gov.br/classif/",
