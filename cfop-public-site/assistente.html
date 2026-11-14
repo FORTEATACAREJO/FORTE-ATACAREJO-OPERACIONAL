@@ -161,7 +161,7 @@ footer{text-align:center;color:#8392a3;font-size:12px;padding:15px}
 <div id="fiscalReview" class="warning" style="margin-top:15px"><strong>Classificação fiscal condicionada:</strong> sugestões não substituem a legislação vigente, o XML do produto nem a análise da operação. CST/CSOSN, PIS/COFINS, bases e alíquotas ainda requerem validação.</div>
 <div style="font-size:13px;margin-top:12px;line-height:1.8">Fontes: <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">CONFAZ — CEST e ST</a> · <a href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif" target="_blank" rel="noopener">Receita — NCM/Classif</a> · <a href="https://www.sefaz.pe.gov.br/Legislacao/Tributaria/Documents/Legislacao/Tabelas/CFOP.htm" target="_blank" rel="noopener">Tabela CFOP</a></div>
 <div class="divider"></div>
-<p>Você poderá realizar uma simulação indicativa na versão anterior (MG/GO), mas deverá conferir o resultado com documentação fiscal e legislação vigente.</p>
+<p>Você poderá realizar consulta indicativa para qualquer uma das 27 UFs, mas deverá conferir o resultado com documentação fiscal e legislação de origem e destino vigentes.</p>
 <div class="actions"><button id="back4">Alterar dados</button><button class="primary" id="printDossier" type="button">Imprimir / salvar PDF</button><button id="legacy">Abrir simulador experimental</button></div></div>
 <div id="msg" role="alert"></div></main><footer>FORTECOMPANNY • Fluxo simplificado experimental • CPF e IE do produtor ficam somente nesta página; documentos de outras partes não são enviados às estatísticas.</footer>
 <script>
@@ -771,7 +771,7 @@ async function checkNcmCestForOperation(ncm,cest,when){
    lines.push(pairFound?'Vínculo NCM–CEST: CONSTA na compilação de terceiros (NCM/SH compatível).':'Vínculo NCM–CEST: NÃO CONSTA na compilação consultada. Verifique a descrição e o CONFAZ; ausência não prova incorreção.');
  }else if(checkNcm&&checkCest){lines.push('Vínculo NCM–CEST: ainda não verificado.')}
  if(foundNcm&&(!checkCest || (foundCest&&pairFound)))output.className='warning good';
- lines.push('Resultado fiscal da operação: NÃO HOMOLOGADO. O vínculo CEST não define ST; confirme Convênio 142/18, legislação MG/GO, regime, finalidade, data e responsabilidade do imposto.');
+ lines.push('Resultado fiscal da operação: NÃO HOMOLOGADO. O vínculo CEST não define ST; confirme Convênio 142/18, legislação das UFs de origem e destino, regime, finalidade, data e responsabilidade do imposto.');
  output.textContent=lines.join('\n');
 }
 
