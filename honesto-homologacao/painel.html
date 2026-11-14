@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07402D"><title>NANA PAY | Restaurante</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--green:#057b4b;--mint:#e6f8ec;--ink:#102821;--muted:#627770;--line:#dceae1;color:var(--ink);background:#f5f8f6}*{box-sizing:border-box}
+body{margin:0}header{background:#fff;border-bottom:1px solid var(--line);padding:17px 20px;position:sticky;top:0;z-index:1}.head{max-width:1140px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.brand{font-size:22px;font-weight:900;letter-spacing:-.7px}.brand span{color:var(--green)}a{color:var(--green);font-weight:650;text-decoration:none}
+main{padding:22px 18px 70px;max-width:1140px;margin:auto}.eyebrow{text-transform:uppercase;letter-spacing:1px;color:var(--green);font-size:11px;font-weight:800}
+h1{font-size:clamp(27px,4vw,42px);letter-spacing:-1.2px;margin:5px 0 9px}h2{font-size:21px;margin:0 0 11px}h3{font-size:15px;margin:0 0 10px}.subtitle,.hint{color:var(--muted);line-height:1.5}.hint{font-size:13px}
+.card{background:#fff;border:1px solid var(--line);box-shadow:0 8px 30px #103f2510;border-radius:19px;padding:22px;margin:16px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}.grid-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+label{font-size:13px;font-weight:750;display:block;margin:10px 0 5px}input,select{font:inherit;width:100%;border:1px solid #cfded5;border-radius:12px;padding:12px;background:#fff;color:var(--ink)}input:focus{outline:2px solid #66be96}
+button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;border-radius:12px;padding:12px 18px;font-weight:800;min-height:43px}.btn.soft{color:var(--green);background:#eaf7ef}.btn.border{color:#334b3f;background:#fff;border:1px solid var(--line)}.btn.warn{background:#fff0ec;color:#aa3922}.btn:disabled{opacity:.55;cursor:not-allowed}.btn.sm{font-size:12px;min-height:34px;padding:7px 11px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.stack{display:flex;flex-direction:column;gap:9px}.flex{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pill{display:inline-flex;border-radius:999px;background:#e7f5ec;color:#087846;font-size:11px;font-weight:850;padding:6px 10px}.pill.wait{color:#9b5715;background:#fff4df}.pill.gray{background:#eef1ef;color:#6b7770}
+.mini{font-size:12px;color:var(--muted)}.big{font-size:28px;font-weight:900;letter-spacing:-.7px}
+.table-row{padding:14px 0;border-bottom:1px solid var(--line)}.table-row:last-child{border:0}.closed{display:none!important}
+.role-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:12px}.role-btn{padding:16px;border-radius:14px;background:#fff;border:2px solid var(--line);font-weight:800;text-align:left}.role-btn.on{border-color:var(--green);background:var(--mint)}.role-btn span{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:5px}
+.info{border:1px solid #d7ebdd;border-radius:14px;background:#f1faf4;padding:14px;font-size:13px;line-height:1.5}.warning{border-color:#f3dfbf;background:#fff8e6}.action{display:flex;gap:8px;flex-wrap:wrap}.mono{font:12px ui-monospace,monospace;overflow-wrap:anywhere;color:#376951}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:17px}
+#qr svg{width:190px;height:190px;max-width:100%}#alert{margin-top:12px;color:#217c41;line-height:1.5}.muted{color:var(--muted)}.divider{border:0;border-top:1px solid var(--line);margin:18px 0}footer{font-size:12px;color:#718479;text-align:center;padding:22px}
+@media(max-width:750px){.grid,.grid-three,.split{grid-template-columns:1fr}.card{padding:17px}.head{align-items:center}.brand{font-size:19px}.role-grid{grid-template-columns:1fr 1fr}main{padding:15px 13px 55px}}
+</style></head><body>
+<header><div class="head"><div class="brand">NANA <span>PAY</span> <span class="pill">DEMO</span></div><a href="/">Conta do cliente</a></div></header>
+<main>
+<div id="login">
+ <div class="eyebrow">Acesso exclusivo do estabelecimento</div>
+ <h1>Seu restaurante, sob controle.</h1>
+ <p class="subtitle">Uma plataforma NANA PAY. Administrador e garçom têm acesso próprio, sem abrir a conta do cliente.</p>
+ <div class="split">
+ <div class="card"><h2>Escolha seu perfil</h2>
+  <div class="role-grid">
+    <button class="role-btn on" id="roleAdmin" onclick="chooseRole('admin')">Administrador<span>Configurações, garçons, QR Code e assinatura</span></button>
+    <button class="role-btn" id="roleWaiter" onclick="chooseRole('garcom')">Garçom<span>Consulta das mesas e solicitações</span></button>
+  </div>
+  <form id="accessForm">
+    <label for="venue">Código do estabelecimento</label><input id="venue" required placeholder="Código gerado pelo administrador" autocomplete="off">
+    <label for="accessKey">Chave de acesso do seu perfil</label><input id="accessKey" required type="password" autocomplete="off" placeholder="Sua chave individual">
+    <button class="btn" type="submit" style="margin-top:13px;width:100%">Entrar no painel</button>
+  </form>
+  <p class="hint">Cada credencial é exclusiva do estabelecimento. O garçom não pode acessar configurações administrativas; o cliente não usa este login.</p>
+ </div>
+ <div class="card"><h2>Experimentar a demonstração</h2><p class="subtitle">Crie um restaurante fictício para conferir os três perfis sem contratar serviços ou cadastrar cartão.</p>
+ <button class="btn soft" id="createDemo">Criar restaurante de teste</button>
+ <div class="info warning" style="margin-top:18px">Este ambiente é temporário. Os dados e as chaves são apagados ao reiniciar o servidor. O login por senha, persistência no banco e a assinatura no cartão serão ativados somente após testes e integração segura.</div>
+ </div></div>
+</div>
+<div id="panel" class="closed">
+ <div class="row" style="align-items:start;flex-wrap:wrap">
+  <div><div class="eyebrow" id="accessLevel">ADMINISTRADOR</div><h1 id="venueName">Restaurante</h1><div class="hint">Acesso autenticado por estabelecimento · <span id="identity"></span></div></div>
+  <button class="btn border" onclick="signout()">Sair deste perfil</button>
+ </div>
+ <div class="grid-three" style="margin-top:8px">
+  <div class="card"><div class="mini">Mesas abertas</div><div class="big" id="activeTables">0</div></div>
+  <div class="card"><div class="mini">Pedidos aguardando</div><div class="big" id="pendingOrders">0</div></div>
+  <div class="card"><div class="mini">Devoluções pendentes</div><div class="big" id="pendingReturns">0</div></div>
+ </div>
+ <div class="grid">
+  <div>
+   <div class="card"><div class="row"><h2>Mesas e comandas</h2><button class="btn soft sm" onclick="refresh()">Atualizar</button></div>
+   <div id="tables"></div></div>
+   <div class="card"><h2>Fluxo de devoluções</h2><div class="info">Os pedidos de devolução seguem para o PDV do restaurante. A aprovação, recusa e abatimento do valor nunca são realizados pelo NANA PAY nem pelo painel do garçom.</div></div>
+  </div>
+  <div>
+   <div class="card" id="adminSettings"><h2>Configurações do estabelecimento</h2>
+    <form id="settingsForm"><label for="restaurantName">Nome do restaurante</label><input id="restaurantName" required minlength="3" maxlength="80">
+     <label style="display:flex;align-items:center;gap:9px"><input id="enableOrders" type="checkbox" style="width:auto">Permitir solicitações de pedidos pelo NANA PAY</label>
+     <button class="btn" type="submit">Salvar configurações</button>
+    </form></div>
+   <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o NANA PAY.</p><div id="qr"></div><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
+   <div class="card" id="adminWaiters"><h2>Garçons autorizados</h2><form id="waiterForm"><label for="waiterName">Cadastrar garçom</label><input id="waiterName" required placeholder="Primeiro nome" minlength="2" maxlength="45"><button class="btn" type="submit">Criar acesso individual</button></form>
+    <div id="newWaiterKey" class="info closed" style="margin-top:10px"></div><div id="waiters"></div></div>
+   <div class="card" id="adminBilling"><h2>Licença NANA PAY</h2><div class="row"><strong class="big">R$ 4,99</strong><span>/mês por estabelecimento</span></div><p class="hint">Cartão de crédito escolhido pelo administrador. A cobrança recorrente ainda não está ativada nesta demonstração.</p><span class="pill wait">Cobrança desativada</span></div>
+  </div>
+ </div>
+</div>
+<p id="alert" role="status"></p></main>
+<footer>NANA PAY · Projeto FORTE ATACAREJO LTDA. · Homologação sem transações reais</footer>
+<script src="/vendor/qrcode.js"></script><script>
+let role='admin',session=null,current=null;
+const $=id=>document.getElementById(id);
+const fmt=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((v||0)/100);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const stamp=v=>v?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'}).format(new Date(v)):'';
+function message(t,error=false){$('alert').textContent=t;$('alert').style.color=error?'#b33838':'#187d4b'}
+function chooseRole(v){role=v;$('roleAdmin').classList.toggle('on',role==='admin');$('roleWaiter').classList.toggle('on',role==='garcom')}
+async function api(route,payload){
+ const r=await fetch(route,{method:payload?'POST':'GET',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.key,'X-Nana-Establishment':session.venue},body:payload?JSON.stringify(payload):undefined});
+ const v=await r.json();if(!r.ok)throw Error(v.error||'Falha na operação');return v;
+}
+async function enter(venue,key,expected){
+ session={venue:String(venue).trim(),key:String(key).trim(),expected};
+ const d=await api('/api/restaurant/dashboard');if(d.role!==expected)throw Error('Esta chave pertence a outro perfil. Selecione seu perfil correto.');
+ sessionStorage.setItem('nana-pay-panel',JSON.stringify(session));current=d;render();
+ $('login').classList.add('closed');$('panel').classList.remove('closed');message('Painel conectado.');}
+function signout(){session=null;current=null;sessionStorage.removeItem('nana-pay-panel');$('panel').classList.add('closed');$('login').classList.remove('closed');$('accessKey').value='';message('Acesso encerrado neste aparelho.')}
+async function refresh(){if(!session)return;try{current=await api('/api/restaurant/dashboard');render()}catch(e){message(e.message,true);if(/não autorizado|não encontrado/.test(e.message))signout()}}
+function render(){
+ const d=current,admin=d.role==='admin';
+ $('venueName').textContent=d.name;$('accessLevel').textContent=admin?'ADMINISTRADOR DO RESTAURANTE':'GARÇOM · SOMENTE CONSULTA';$('identity').textContent=d.user.name;
+ $('activeTables').textContent=d.tables.length;
+ $('pendingOrders').textContent=d.tables.reduce((v,t)=>v+t.ordersPending,0);
+ $('pendingReturns').textContent=d.tables.reduce((v,t)=>v+t.returnsPending,0);
+ for(const k of ['adminSettings','adminQR','adminWaiters','adminBilling'])$(k).classList.toggle('closed',!admin);
+ $('tables').innerHTML=d.tables.map(t=>'<div class="table-row"><div class="row"><strong>'+esc(t.table)+'</strong><span class="pill">'+fmt(t.balance)+' em aberto</span></div><div class="mini">'+t.people+' pessoa(s) · '+stamp(t.openedAt)+'</div><div class="flex" style="margin-top:8px">'+(t.ordersPending?'<span class="pill wait">'+t.ordersPending+' pedido(s)</span>':'')+(t.returnsPending?'<span class="pill wait">'+t.returnsPending+' devolução(ões)</span>':'')+(t.tableMovesPending?'<span class="pill wait">'+t.tableMovesPending+' troca(s)</span>':'')+'</div></div>').join('')||'<p class="hint">Nenhuma mesa aberta. Quando o cliente entrar pelo QR Code, sua mesa aparecerá aqui.</p>';
+ if(!admin)return;
+ $('restaurantName').value=d.name;$('enableOrders').checked=d.orderingEnabled;
+ const url=location.origin+'/?est='+encodeURIComponent(d.establishmentId);
+ $('qrLink').textContent=url;$('openClient').href=url;
+ try{const qr=qrcode(0,'M');qr.addData(url);qr.make();$('qr').innerHTML=qr.createSvgTag({cellSize:5,margin:7,scalable:true})}catch{}
+ $('waiters').innerHTML=(d.waiters||[]).map(w=>'<div class="table-row row"><div><strong>'+esc(w.name)+'</strong><div class="mini">Criado em '+stamp(w.createdAt)+'</div></div><button class="btn warn sm" onclick="revoke(\''+esc(w.id)+'\')">Revogar</button></div>').join('')||'<p class="hint">Nenhum garçom cadastrado.</p>';
+}
+async function copyQR(){try{await navigator.clipboard.writeText($('qrLink').textContent);message('Endereço do QR copiado.')}catch{message('Copie o endereço exibido acima.',true)}}
+async function revoke(id){if(!confirm('Revogar acesso do garçom? A chave não funcionará mais.'))return;try{await api('/api/restaurant/waiters/revoke',{id});await refresh();message('Acesso revogado.')}catch(e){message(e.message,true)}}
+$('accessForm').addEventListener('submit',async e=>{e.preventDefault();try{await enter($('venue').value,$('accessKey').value,role)}catch(e){message(e.message,true)}});
+$('createDemo').addEventListener('click',async()=>{try{
+ const r=await fetch('/api/pdv-demo/create',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'Falha ao criar demonstração');
+ $('venue').value=d.establishmentId;$('accessKey').value=d.adminToken;chooseRole('admin');await enter(d.establishmentId,d.adminToken,'admin');
+ message('Restaurante fictício criado. Esta chave de administrador é temporária e exclusiva desta sessão.');
+}catch(e){message(e.message,true)}});
+$('settingsForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ await api('/api/restaurant/settings',{name:$('restaurantName').value,orderingEnabled:$('enableOrders').checked});await refresh();message('Configuração do restaurante atualizada.')
+}catch(e){message(e.message,true)}});
+$('waiterForm').addEventListener('submit',async e=>{e.preventDefault();try{
+ const d=await api('/api/restaurant/waiters',{name:$('waiterName').value});
+ $('newWaiterKey').classList.remove('closed');
+ $('newWaiterKey').innerHTML='<strong>Acesso criado para '+esc(d.name)+'</strong><p class="mini">Informe ao garçom o código do restaurante e a chave abaixo. Esta chave não será exibida novamente.</p><div class="mono">'+esc(d.accessToken)+'</div><button class="btn sm soft" id="copyWaiter">Copiar chave</button>';
+ $('copyWaiter').addEventListener('click',()=>navigator.clipboard.writeText(d.accessToken).then(()=>message('Chave copiada.')).catch(()=>message('Copie a chave acima.',true)));
+ $('waiterName').value='';await refresh();message('Garçom cadastrado.')
+}catch(e){message(e.message,true)}});
+try{const s=JSON.parse(sessionStorage.getItem('nana-pay-panel')||'null');if(s?.key&&s?.venue&&s?.expected){enter(s.venue,s.key,s.expected).catch(()=>sessionStorage.removeItem('nana-pay-panel'))}}catch{}
+</script></body></html>
