@@ -30,10 +30,10 @@ try{
  assert(landingHtml.includes('joinForm')&&landingHtml.includes('menuList')&&landingHtml.includes('joinPanel'));
  
  const publicDemo=await req('/api/demo');
- assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'HONESTO do cliente não deve obter credencial de PDV');
+ assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'NANA PAY do cliente não deve obter credencial de PDV');
  const simulator=await fetch(origin+'/pdv-simulado');assert.equal(simulator.status,200);
  const simulatorHtml=await simulator.text();
- assert(simulatorHtml.includes('SIMULADOR EXTERNO AO APLICATIVO HONESTO'));
+ assert(simulatorHtml.includes('SIMULADOR EXTERNO AO APLICATIVO NANA PAY'));
  const customer=await fetch(origin+'/');const customerHtml=await customer.text();
  assert(!customerHtml.includes('id="staffTab"'),'Cliente não deve ter aba de PDV');
  assert(!customerHtml.includes('id="staffSection"'),'Cliente não deve operar PDV');
@@ -102,7 +102,7 @@ try{
  assert.equal((await req('/api/pdv/order-status',{token,id:ordered.orders[0].id,status:'entregue'},staff)).status,200);
  const prevHistory=(await snap()).items.length;
  const requestedMove=await req('/api/client/transfer-request',{token,memberToken,newTable:'15'});
- assert.equal(requestedMove.status,201,'Cliente pede transferência no HONESTO');
+ assert.equal(requestedMove.status,201,'Cliente pede transferência no NANA PAY');
  let moveSnapshot=await snap();assert.equal(moveSnapshot.transfers.length,1);
  assert.equal(moveSnapshot.transfers[0].status,'pendente');
  assertISO(moveSnapshot.transfers[0].requestedAt,'solicitação da troca de mesa');
