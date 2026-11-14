@@ -9,6 +9,18 @@
   "theme_color": "#102640",
   "icons": [
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/icon.svg?v=fortecompanny2",
       "sizes": "any",
       "type": "image/svg+xml",
@@ -21,5 +33,5 @@
       "purpose": "maskable"
     }
   ],
-  "description": "Consulta inteligente de NCM, CEST, CFOP e informações fiscais."
+  "description": "Consulta fiscal nacional indicativa: CFOP, NCM, CEST e acompanhamento de fontes oficiais para as 27 unidades federativas. Em homologação."
 }
