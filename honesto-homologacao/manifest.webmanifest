@@ -1,6 +1,6 @@
 {
-  "name": "HONESTO — Sua conta sob seu controle",
-  "short_name": "HONESTO",
+  "name": "NANA PAY — Sua conta sob seu controle",
+  "short_name": "NANA PAY",
   "description": "Confira a conta e acompanhe o cardápio do restaurante. Pedidos quando autorizados.",
   "lang": "pt-BR",
   "id": "/",
@@ -32,7 +32,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Abrir HONESTO",
+      "name": "Abrir NANA PAY",
       "url": "/",
       "description": "Acessar o aplicativo"
     }
