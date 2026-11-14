@@ -6,7 +6,7 @@
 <title>Pré-nota de consulta fiscal | FORTECOMPANNY</title>
 <link rel="icon" type="image/svg+xml" href="/icon.svg?v=fortecompanny2">
 <link rel="manifest" href="/manifest.json?v=fortecompanny2">
-<script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script><script src="/pre-nota-engine.js"></script>
+<script src="/uf-national.js"></script><script src="/classificacao.js"></script><script src="/xml-nfe-local.js"></script><script src="/pre-nota-engine.js"></script>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f3f6fa;color:#102640}
 *{box-sizing:border-box}body{margin:0}header{padding:14px max(16px,calc((100% - 1100px)/2));background:#102640;color:white;display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -116,6 +116,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;
 <div class="controls"><button type="button" class="alt" id="addItemBottom">+ Outro produto</button></div>
 </section>
 <section class="sheet noprint">
+<div class="notice" id="nationalRoute" role="status"><strong>Abrangência nacional:</strong> 27 UFs cadastradas. Selecione origem e destino; os CFOPs são hipóteses e os impostos estaduais permanecem pendentes de homologação específica.</div>
 <div class="controls"><button type="button" class="gold" id="analyze">Preencher ficha fiscal da operação</button><button type="button" class="alt" id="clear">Limpar consulta</button></div>
 <div id="formStatus" class="status" role="status">Informe os dados da operação e produtos; nenhum documento será enviado ao servidor.</div>
 </section>
@@ -133,7 +134,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 6px;text-align:left;
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const UF="AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO".split(" ");
+const UF=window.FORTE_UFS.list;
 const fiscal=window.FORTE_PRE_NOTA, catalog=window.FORTE_CLASSIFICACAO;
 const API="https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-ncm";
 const picks=document.createElement("template");
@@ -162,12 +163,21 @@ function setStatus(message,err){
 function selectOptions(select,dict){
  Object.entries(dict).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;select.appendChild(o)})
 }
-["senderUF","recipientUF"].forEach(id=>{selectOptions($(id),Object.fromEntries(UF.map(x=>[x,x])));$(id).value="MG"});
+["senderUF","recipientUF"].forEach(id=>{selectOptions($(id),Object.fromEntries(UF.map(x=>[x.uf,x.uf+" — "+x.name])));$(id).value="MG"});
 selectOptions($("nature"),fiscal.NATURES);
 $("nature").value="venda";
 const now=new Date();$("opDate").value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");
 $("mode").addEventListener("change",()=>{if(["venda","compra"].includes($("nature").value))$("nature").value=$("mode").value==="entrada"?"compra":"venda"});
 $("recipientKind").addEventListener("change",()=>{if($("recipientKind").value==="person")$("buyerContributor").value="no";else if($("buyerContributor").value==="no")$("buyerContributor").value="unknown"});
+function refreshNationalRoute(){
+  const route=window.FORTE_UFS.route($("senderUF").value,$("recipientUF").value);
+  $("nationalRoute").textContent=route.valid?
+    "Cobertura: "+route.origin+" → "+route.destination+" ("+route.type+"). Código IBGE: "+route.originCode+" / "+route.destinationCode+
+    ". CFOP nacional apenas indicativo; ICMS, ST, DIFAL, FCP, CST/CSOSN e benefícios dependem de legislação estadual vigente e homologação.":
+    route.warning;
+}
+["senderUF","recipientUF"].forEach(id=>$(id).addEventListener("change",refreshNationalRoute));
+refreshNationalRoute();
 function getRow(card){
  const x=name=>card.querySelector('[data-p="'+name+'"]')?.value||"";
  return {id:card.dataset.id,description:x("description").trim(),sku:x("sku").trim(),purpose:x("purpose"),
@@ -251,6 +261,7 @@ function showSummary(res){
   ["Endereço remetente", [res.sender.address,res.sender.number,res.sender.district,res.sender.city,res.sender.uf,res.sender.cep].filter(Boolean).join(", ")||"Não informado"],
   ["Destinatário", (res.recipient.name||"Nome não informado")+" — "+(res.recipient.document||"Sem CPF/CNPJ")+" — IE "+(res.recipient.ie||"não informada")+" — "+res.recipient.uf],
   ["Endereço destinatário", [res.recipient.address,res.recipient.number,res.recipient.district,res.recipient.city,res.recipient.uf,res.recipient.cep].filter(Boolean).join(", ")||"Não informado"],
+  ["Cobertura",res.coverage.registeredStates+" UFs / "+res.coverage.combinations+" rotas; CFOP nacional sob hipótese; impostos estaduais não homologados"],
   ["Número de itens",res.items.length],["Valor de mercadorias (não é total NF-e)",res.amount.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})]
  ];
  for(const [k,v] of entries){const row=t.insertRow();row.insertCell().textContent=k;row.insertCell().textContent=v}
@@ -270,7 +281,7 @@ function showResults(res,checks){
   const names={ncm:"NCM",cest:"CEST",cfop:res.mode==="saida"?"CFOP da saída (hipótese)":"CFOP de entrada/escrituração (hipótese)",
     icmsst:"Situação ICMS-ST",cst:"CST ICMS",csosn:"CSOSN",icms:"ICMS (base, alíquota e valor)",
     stCalc:"ICMS-ST / MVA / PMPF / pauta",difal:"DIFAL / FCP",ipi:"IPI",pisCofins:"PIS / COFINS",
-    ibsCbs:"IBS / CBS / cClassTrib",cbenef:"Benefício fiscal / cBenef"};
+    ibsCbs:"IBS / CBS / cClassTrib",cbenef:"Benefício fiscal / cBenef",legislacaoUF:"Enquadramento estadual da operação"};
   Object.entries(names).forEach(([key,label])=>addValue(grid,label,item.fields[key]));
   card.appendChild(grid);
   const check=checks[index],block=mk("p",check?.message||"Consulta dos códigos oficiais não realizada.","inline-note");
