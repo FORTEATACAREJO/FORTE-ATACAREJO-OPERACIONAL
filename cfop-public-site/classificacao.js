@@ -43,6 +43,9 @@ function cfopSuggest(o){
  var st=o.stEvidence||"unknown",seller=o.sellerSource||"unknown";
  var unknown={code:"",status:"pendente",explanation:"Dados ainda insuficientes para indicar CFOP.",assumptions:[]};
  if(!o.originUf||!o.destUf)return unknown;
+ var ufs="AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO".split(" ");
+ if(!ufs.includes(o.originUf)||!ufs.includes(o.destUf))
+  return {code:"",status:"pendente",explanation:"UF de origem ou destino inválida. O módulo nacional aceita as 27 unidades federativas.",assumptions:[]};
  if(!["entrada","saida"].includes(op))return unknown;
  if(o.consultantKind==="person")
   return {code:"",status:"pendente",explanation:"CPF comum sem IE não representa automaticamente estabelecimento emissor/escriturador de NF-e. É necessário definir o sujeito tributário antes de atribuir CFOP.",assumptions:[]};
