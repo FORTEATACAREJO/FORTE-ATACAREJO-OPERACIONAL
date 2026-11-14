@@ -1,0 +1,74 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fontes Oficiais e Atualizações Tributárias | FORTECOMPANNY</title>
+<meta name="theme-color" content="#102640">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#19324d;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#102640;color:#fff;padding:15px max(16px,calc((100% - 1050px)/2));display:flex;gap:14px;align-items:center;justify-content:space-between}header a{color:#fff;text-decoration:none;border:1px solid #bccadc;border-radius:9px;padding:9px 11px;font-size:13px}header img{width:45px;height:45px}main{max-width:1070px;padding:25px 15px 60px;margin:auto}h1{font-size:clamp(24px,5vw,34px);margin:0 0 8px}h2{font-size:19px}p{line-height:1.55}.hint{color:#64758a;font-size:14px}.panel{background:#fff;border:1px solid #dee6ee;border-radius:12px;padding:19px;margin:15px 0;box-shadow:0 2px 9px #0c27340b}.notice{border-left:4px solid #cba34d;padding:11px 15px;background:#fff7e5;border-radius:5px;line-height:1.52;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px}.source{border:1px solid #dbe6f0;border-radius:11px;padding:15px;background:#fff}.source h3{font-size:17px;margin:8px 0}.source a{color:#1c547f;font-size:13px;text-underline-offset:3px;overflow-wrap:anywhere}.tag{display:inline-block;padding:5px 9px;border-radius:30px;font-size:11px;font-weight:700;background:#e7f2eb;color:#245a3a}.tag.warn{color:#8a5d18;background:#fff0d3}.tag.fail{color:#8d322e;background:#fff0ed}button{border:1px solid #102640;padding:10px 14px;border-radius:8px;background:#102640;color:#fff;font-weight:700;font-size:14px;cursor:pointer;min-height:40px}.status{font-size:12px;color:#66758b}.small{font-size:12px;color:#596d82}.events{padding-left:20px}.events li{margin:8px 0}footer{text-align:center;margin-top:18px;color:#6e7c8c;font-size:12px}
+</style></head><body>
+<header><div style="display:flex;gap:12px;align-items:center"><img src="/icon.svg" alt=""><div><strong>FORTECOMPANNY</strong><div style="font-size:12px;color:#cfddec">Fontes oficiais • Monitoramento fiscal</div></div></div><a href="/">Página inicial</a></header>
+<main><h1>Atualizações tributárias oficiais</h1>
+<p class="hint">Acompanhe as fontes públicas verificadas pela FORTECOMPANNY e veja quando uma página oficial mudou. Esta é a base para manter nossas classificações fiscais atualizadas.</p>
+<div class="notice"><strong>Importante:</strong> detectar mudança em uma página não significa que a lei mudou ou que a tributação esteja homologada. Uma alteração em NCM, CEST, CFOP, ICMS-ST, CST/CSOSN ou reforma tributária somente deve ser aplicada após conferir texto legal, vigência, UF, operação, produto e evidências.</div>
+<div class="panel"><h2>Monitoramento automático</h2><p>A verificação está agendada diariamente às <strong>08h de Brasília</strong> no Supabase próprio da FORTECOMPANNY, sem depender de um serviço pago adicional.</p>
+<p id="overall" class="status" role="status">Consultando o estado da coleta...</p><button type="button" id="refresh">Atualizar status</button></div>
+<section class="panel"><h2>Fontes atualmente monitoradas</h2>
+<div id="sources" class="grid"><p>Carregando fontes oficiais...</p></div></section>
+<section class="panel"><h2>Alertas de alterações detectadas</h2><p class="small">São registros para revisão. Não alteram automaticamente os cálculos do aplicativo.</p>
+<div id="alerts" class="status">Consultando alertas...</div></section>
+<section class="panel"><h2>Integrações a ampliar</h2>
+<p>O acompanhamento inicial abrange a Receita Federal/Classif, CONFAZ/CEST e legislação de Minas Gerais e Goiás. O módulo de NF-e/Notas Técnicas, regras específicas por NCM/CEST, tabelas CFOP completas, PIS/COFINS, IBS/CBS, novas unidades da Federação e fontes com CAPTCHA exigem integração e homologação específicas.</p>
+<p><strong>Prioridade:</strong> monitorar alterações oficiais, registrar fonte e data de vigência, comparar conteúdo, gerar alerta para revisão e só depois publicar uma nova versão validada das regras fiscais.</p>
+<p class="small">A tabela NCM disponível no assistente é uma cópia sincronizada em uma data anterior; detectar alteração na página Classif não atualiza automaticamente a tabela NCM nem confirma a tributação. O mesmo vale para CEST e convênios.</p>
+</section><footer>FORTECOMPANNY • Consulta fiscal pública • Fonte e vigência devem ser conferidas antes de emissão fiscal</footer>
+</main>
+<script>
+(function(){
+'use strict';
+const ENDPOINT='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-fontes/status';
+const $=id=>document.getElementById(id);
+const date=v=>{if(!v)return 'Ainda não houve';const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})};
+const elem=(tag,txt,cls)=>{const el=document.createElement(tag);if(txt!==undefined)el.textContent=txt;if(cls)el.className=cls;return el};
+async function load(){
+ $('overall').textContent='Consultando as fontes...';
+ try{
+  const r=await fetch(ENDPOINT,{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const data=await r.json(),sources=data.sources||[];
+  $('sources').replaceChildren();
+  for(const s of sources){
+    const panel=elem('article',undefined,'source');
+    const healthy=s.ultimo_http===200&&!s.ultima_falha;
+    const tag=elem('span',healthy?'Página acessível':'Exige verificação','tag'+(healthy?'':' fail'));
+    panel.appendChild(tag);
+    panel.appendChild(elem('h3',s.orgao));
+    panel.appendChild(elem('p',s.assunto,'small'));
+    const link=elem('a','Consultar fonte oficial');
+    if(/^https:\/\/(www\.)?(gov\.br|confaz\.fazenda\.gov\.br|fazenda\.mg\.gov\.br|goias\.gov\.br)/.test(s.url)){
+      link.href=s.url;link.target='_blank';link.rel='noopener noreferrer';panel.appendChild(link);
+    }
+    panel.appendChild(elem('p','Última verificação: '+date(s.ultima_verificacao),'small'));
+    panel.appendChild(elem('p','Mudança de página detectada: '+(s.ultima_alteracao_detectada?date(s.ultima_alteracao_detectada):'Nenhuma desde a referência inicial'),'small'));
+    if(s.ultima_falha)panel.appendChild(elem('p','Falha técnica: '+s.ultima_falha,'small'));
+    $('sources').appendChild(panel);
+  }
+  $('overall').textContent=sources.length+' fonte(s) cadastrada(s). Última consulta do painel: '+date(data.updatedAt)+'. Verificação automática diária; as alterações ainda exigem análise.';
+  const alerts=data.alerts||[];$('alerts').replaceChildren();
+  if(!alerts.length)$('alerts').appendChild(elem('p','Nenhuma mudança detectada desde a linha de base inicial.'));
+  else{
+   const ul=elem('ul',undefined,'events');
+   for(const e of alerts){
+    ul.appendChild(elem('li',e.fonte_chave+' — '+date(e.detectado_em)+' — '+(
+      e.status==='pendente_revisao'?'Aguardando revisão':e.status==='homologado'?'Homologado':e.status==='analisado_sem_impacto'?'Revisado sem impacto':'Descartado')));
+   }
+   $('alerts').appendChild(ul);
+  }
+ }catch(e){
+   $('overall').textContent='Monitoramento temporariamente indisponível. As fontes oficiais devem ser consultadas diretamente.';
+   $('sources').replaceChildren();$('sources').appendChild(elem('p','Não foi possível carregar o status.'));
+   $('alerts').textContent='Não foi possível consultar o histórico.';
+ }
+}
+$('refresh').addEventListener('click',load);
+load();
+})();
+</script></body></html>
