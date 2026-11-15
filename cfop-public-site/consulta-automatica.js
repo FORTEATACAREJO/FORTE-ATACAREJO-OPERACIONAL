@@ -161,32 +161,30 @@ function fiscalStatus(nature,from,to,info){
 }
 function resultHTML(input,from,to,info,fiscal){
  const s=info.suggest||{};
- const code=info.code?'<strong>'+safe(ncmFmt(info.code))+'</strong>':'<strong>Não identificado com segurança</strong>';
- const valid=info.official?.entry?'<span class="good">Código encontrado na tabela NCM</span>':'<span class="warn">Classificação não homologada para o produto</span>';
- let cest='<strong>Não identificado</strong>';
- if(s.cest && info.code) {
-  const matching=info.cests.find(c=>digits(c.cest)===digits(s.cest));
-  cest='<strong>'+safe(cestFmt(s.cest))+'</strong> <span class="warn">'+(matching?'Referência compatível com a compilação CEST':'Sugestão do catálogo, sem confirmação independente')+'</span>';
- }else if(info.cests.length){
-  cest='<span class="warn">'+info.cests.length+' CEST(s) possíveis; necessário confrontar descrição e vigência</span>';
- }
- let classification='<p>Produto: <strong>'+safe(input.product)+'</strong></p><p>NCM: '+code+' '+valid+'</p><p>CEST: '+cest+'</p>';
- if(s.detail)classification+='<p class="muted">'+safe(s.detail)+'</p>';
- if(info.official?.entry?.descricao)classification+='<p class="muted">Descrição oficial do código: '+safe(info.official.entry.descricao)+'</p>';
- if(info.results.length)classification+='<p class="muted">Códigos encontrados na pesquisa por descrição (não representam enquadramento automático): '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(' · ')+'</p>';
- if(info.issues.length)classification+='<p class="muted">'+info.issues.map(safe).join(' ')+'</p>';
- return '<div class="result-top"><h2>Consulta automática — ficha informativa</h2><span class="warn">Tributação ainda não homologada</span></div>'+
- '<p>Operação: <strong>'+safe(input.natureText)+'</strong> · '+safe(fiscal.route)+' · '+safe(fiscal.date)+'</p>'+
- '<p>Finalidade indicada na natureza da operação: <strong>'+safe(fiscal.purpose)+'</strong></p>'+
- '<div class="result-grid"><article><h3>CNPJ de origem</h3>'+formatCompany(from)+'</article><article><h3>CNPJ de destino</h3>'+formatCompany(to)+'</article></div>'+
- '<article><h3>Classificação do produto</h3>'+classification+'</article>'+
- '<article><h3>CFOP e impostos</h3><p>CFOP: <strong>'+safe(fiscal.cfop)+'</strong></p>'+
- '<p>ICMS / ICMS-ST / DIFAL / FCP / PIS / COFINS / IPI / IBS / CBS: <strong>'+safe(fiscal.tax)+'</strong></p>'+
- '<p class="muted">O cadastro das empresas e o nome do produto, isoladamente, não autorizam afirmar o CFOP nem calcular tributos.</p></article>'+
- '<details><summary>O que falta para concluir a classificação fiscal?</summary><ul>'+
- fiscal.pending.map(x=>'<li>'+safe(x)+'</li>').join('')+'</ul>'+
- '<p>Se a documentação do produto ou da operação trouxer os dados pendentes, utilize a <a href="/consulta-nfe.html">consulta detalhada da pré-nota</a>.</p></details>'+
- '<p class="muted">Fontes: consulta cadastral pública de CNPJ; <a href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif" target="_blank" rel="noopener">Classif/RFB</a>; <a href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18" target="_blank" rel="noopener">Convênio ICMS 142/18/CONFAZ</a>. Códigos identificados não equivalem a enquadramento legal homologado.</p>';
+ const ncm=info.code?ncmFmt(info.code):'Não identificado';
+ const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' possibilidades':'Não identificado';
+ const partyLine=(p)=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj)+' · '+safe(p.uf||'UF não confirmada');
+ const details=[];
+ if(s.detail)details.push('<p>'+safe(s.detail)+'</p>');
+ if(info.official?.entry?.descricao)details.push('<p>Descrição NCM: '+safe(info.official.entry.descricao)+'</p>');
+ if(info.results.length)details.push('<p>Códigos encontrados (não classificados): '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(', ')+'</p>');
+ for(const issue of info.issues)details.push('<p>'+safe(issue)+'</p>');
+ return '<h2>Resultado</h2>'+
+  '<p class="muted">'+safe(input.natureText)+' · '+safe(fiscal.route)+'</p>'+
+  '<div class="result-main"><small>CFOP</small><div class="result-value">Pendente</div><p class="muted">Tributos não calculados: regras fiscais ainda não homologadas para esta operação.</p></div>'+
+  '<div class="result-compact">'+
+   '<div><small>Produto</small><strong>'+safe(short(input.product,55))+'</strong></div>'+
+   '<div><small>NCM sugerido</small><strong>'+safe(ncm)+'</strong></div>'+
+   '<div><small>CEST sugerido</small><strong>'+safe(cest)+'</strong></div>'+
+  '</div>'+
+  '<div class="participants"><p><b>Origem:</b> '+partyLine(from)+'</p><p><b>Destino:</b> '+partyLine(to)+'</p></div>'+
+  '<details><summary>O que falta validar?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
+  '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
+  '<details><summary>Classificação e fontes</summary>'+
+   '<p>NCM: '+(info.official?.entry?'código encontrado na tabela oficial':'não verificado')+'. CEST: referência indicativa, não comprova ICMS-ST.</p>'+
+   details.join('')+
+   '<p><a target="_blank" rel="noopener" href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif">Receita — Classif</a> · <a target="_blank" rel="noopener" href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18">CONFAZ — CEST/ST</a></p>'+
+  '</details>';
 }
 function loadSaved(){
  try{const s=JSON.parse(localStorage.getItem(COMPANY_KEY)||'null');if(!s||!validCnpj(s.cnpj))return;
@@ -219,7 +217,7 @@ function populateOwnDocument(){
  }
  ownPlacement=where;
  $('companyTarget').value=where==='fromCnpj'?'destino':'origem';
- $('myDocStatus').textContent=(validCpf(value)?'CPF':'CNPJ')+' preenchido em '+(where==='fromCnpj'?'origem':'destino')+'. O outro participante pode ser localizado pelo nome ou CNPJ.';
+ $('myDocStatus').textContent='Preenchido em '+(where==='fromCnpj'?'origem':'destino')+'.';
  clearPreviousAnalysis();
 }
 function persistOwnIdentity(){
@@ -335,13 +333,13 @@ async function onSubmit(event,registerIfAsked=true){
   $('afterActions').hidden=false;
   if(registerIfAsked)maybeRegister(input);
  }catch(e){showError('A consulta não pôde ser concluída. Verifique a conexão e tente novamente.');$('results').hidden=true}
- finally{if(id===runId){btn.disabled=false;btn.textContent='Consultar automaticamente'}}
+ finally{if(id===runId){btn.disabled=false;btn.textContent='Consultar'}}
 }
 
 function clearPreviousAnalysis(){
  ++runId;lastInput=null;
  $('results').hidden=true;$('results').innerHTML='';$('afterActions').hidden=true;
- $('submit').disabled=false;$('submit').textContent='Pesquisar e montar ficha fiscal';
+ $('submit').disabled=false;$('submit').textContent='Consultar';
  clearError();
 }
 ['nature','fromCnpj','toCnpj','product'].forEach(id=>{
@@ -359,9 +357,9 @@ $('swapCnpj').addEventListener('click',()=>{
   persistOwnIdentity();
  }
  clearPreviousAnalysis();
- $('swapStatus').textContent='Origem e destino invertidos. A natureza e a finalidade foram mantidas; revise se a nova operação tem outra finalidade.';
+ $('swapStatus').textContent='Origem/destino invertidos. Confira a natureza.';
  if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&$('nature').value&&$('product').value.trim().length>=3){
-  $('swapStatus').textContent+=' Recalculando a consulta para o novo sentido...';
+  $('swapStatus').textContent+=' Atualizando...';
   onSubmit({preventDefault(){}},false);
  }
 });
