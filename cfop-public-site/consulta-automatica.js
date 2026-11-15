@@ -330,7 +330,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
  return r;
 }
-function resultHTML(input,from,to,info,fiscal){
+function resultHTML(input,from,to,info,fiscal,audit){
  const s=info.suggest||{};
  const ncm=info.code?ncmFmt(info.code):'Não identificado';
  const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' possibilidades':'Não identificado';
@@ -343,7 +343,13 @@ function resultHTML(input,from,to,info,fiscal){
  const cites=fiscal.sources.map(x=>'<a target="_blank" rel="noopener noreferrer" href="'+safe(x.url)+'">'+safe(x.label)+'</a>').join(' · ');
  const originText=input.goodsOrigin==='terceiros'?'Mercadoria de terceiros':input.goodsOrigin==='propria'?'Fabricação própria':'Origem da mercadoria não confirmada';
  const profileText=profiles[input.profile]?.label||'Não informado';
- return '<h2>Resultado da consulta</h2>'+
+ const review=audit||{title:'Ficha orientativa — não homologada para emissão',reason:'Consulta fiscal ainda não homologada',issues:[]};
+ const auditBox='<section class="fiscal-audit" aria-label="Status da parametrização">'+
+   '<strong>'+safe(review.title)+'</strong><p>'+safe(review.reason)+'</p>'+
+   '<details><summary>Verificar antes de usar na NF-e ('+review.issues.length+')</summary><ul>'+
+   review.issues.map(x=>'<li>'+safe(x.text)+'</li>').join('')+
+   '</ul></details></section>';
+ return '<h2>Resultado da consulta</h2>'+auditBox+
   '<p class="muted">Perfil: '+safe(profileText)+' · '+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?
    '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>Confira a IE do destinatário na <a target="_blank" rel="noopener noreferrer" href="'+(to.uf==='MG'?'https://www.mg.gov.br/servico/realizar-consulta-publica-ao-cadastro-de-contribuintes-do-icms-sintegra':'https://www.sintegra.gov.br/links.html')+'">consulta pública do SINTEGRA</a>. CNPJ e Simples não comprovam IE.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, IE ativa conferida</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
@@ -362,7 +368,7 @@ function resultHTML(input,from,to,info,fiscal){
    '<p><b>ST na compra anterior:</b> '+safe(input.priorSt==='sim'?'Retenção declarada; confirmar no XML':input.priorSt==='nao'?'Sem retenção declarada':'Não informado')+'</p>':'')+
   (fiscal.difal!=='Não definido'?'<p><b>DIFAL:</b> '+safe(fiscal.difal)+'</p>':'')+
   '<p><b>Valores:</b> '+safe(fiscal.tax)+'. Sem valores da operação e regras confirmadas não há valor em R$.</p></article>'+
-  '<details><summary>O que confirmar antes de emitir?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
+  '<details><summary>Detalhes técnicos da análise</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
   '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
   '<details><summary>Classificação e legislação</summary><p>Base nacional cobre 27 UFs; fontes estaduais indexadas não equivalem a 27 conjuntos de regras homologadas. Nesta rota: '+safe(fiscal.certified)+' regra(s) estadual(is) homologada(s) identificada(s).</p>'+
    '<p>NCM: '+(info.official?.entry?'código existente na tabela':'não verificado')+'. CEST sugerido não comprova ICMS-ST.</p>'+
@@ -515,8 +521,9 @@ async function onSubmit(event,registerIfAsked=true){
   const rules=await stateRules(a,b,info);
   if(id!==runId)return;
   const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt);
+  const audit=window.FORTE_QUALIDADE_FISCAL?.assess({from:a,to:b,product:info,fiscal,stateData:rules,input})||null;
   lastInput=input;
-  $('results').innerHTML=resultHTML(input,a,b,info,fiscal);
+  $('results').innerHTML=resultHTML(input,a,b,info,fiscal,audit);
   $('afterActions').hidden=false;
   if(registerIfAsked)maybeRegister(input);
  }catch(e){showError('A consulta não pôde ser concluída. Verifique a conexão e tente novamente.');$('results').hidden=true}
