@@ -104,6 +104,6 @@
   }else{
    showPrompt(q,'Não foi possível copiar automaticamente. Selecione o texto abaixo, copie e cole na sua IA.');
   }
-  if(urls[id]&&!newTab)setStatus(el('aiStatus').textContent+' Se a IA não abriu, permita a abertura de uma nova aba.');
+  // window.open com noopener pode retornar null mesmo quando a aba abriu; não exibir falso bloqueio.
  });
 })();
