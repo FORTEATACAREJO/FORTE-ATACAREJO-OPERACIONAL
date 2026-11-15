@@ -312,6 +312,11 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
    r.costWarning=mgAgreement?
     'MG: há previsão de ST interestadual para esse grupo; o remetente pode ter ICMS-ST adicional a recolher para MG. Conferir responsável, base, guia e prazo.':
     'MG: pode haver ICMS-ST adicional no momento da entrada, a cargo do destinatário contribuinte, quando a responsabilidade não couber ao remetente. Conferir guia e base.';
+   if(mgArgamassa&&mgAgreement&&isSale){
+    r.cfop=ownership==='propria'?'6.401 ou 6.101 (conforme ST)':'6.403 ou 6.102 (conforme ST)';
+    r.confidence='Alternativas — conferir responsabilidade do remetente pela ST';
+    r.note='Para argamassa com UF de origem incluída no acordo, confirmar se o remetente atua como substituto. O CFOP muda conforme a responsabilidade por ST.';
+   }
    if(mgCimento&&isSale){
     if(mgAgreement){
      r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
