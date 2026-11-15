@@ -9,11 +9,14 @@ const PERSONAL_KEY='fortecompanny-my-document-v1';
 const NAME_SEARCH='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-busca-empresas';
 
 const STATE_RULES='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-regras-nacionais';
-async function stateRules(from,to,info){
+async function stateRules(from,to,info,nature){
+ const finalidade=/revenda/.test(nature)?'revenda':/consumo/.test(nature)?'uso_consumo':/ativo/.test(nature)?'ativo_imobilizado':/industrializacao/.test(nature)?'industrializacao':'';
  if(!ufList.has(from.uf)||!ufList.has(to.uf))return null;
  const url=STATE_RULES+'/route?from='+encodeURIComponent(from.uf)+'&to='+encodeURIComponent(to.uf)+
   (info.code?'&ncm='+encodeURIComponent(info.code):'')+
-  (info.suggest?.cest?'&cest='+encodeURIComponent(info.suggest.cest):'');
+  (info.suggest?.cest?'&cest='+encodeURIComponent(info.suggest.cest):'')+
+  '&natureza='+encodeURIComponent(nature||'')+
+  (finalidade?'&finalidade='+encodeURIComponent(finalidade):'');
  try{return await jsonFetch(url,{},9000)}catch(_){return null}
 }
 function taxpayerStatus(company,declared){
@@ -518,7 +521,7 @@ async function onSubmit(event,registerIfAsked=true){
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
-  const rules=await stateRules(a,b,info);
+  const rules=await stateRules(a,b,info,nature);
   if(id!==runId)return;
   const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt);
   const audit=window.FORTE_QUALIDADE_FISCAL?.assess({from:a,to:b,product:info,fiscal,stateData:rules,input})||null;
