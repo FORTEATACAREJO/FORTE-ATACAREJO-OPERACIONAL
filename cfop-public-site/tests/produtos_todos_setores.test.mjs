@@ -37,7 +37,7 @@ function validCnpj(base){
 }
 const FROM=validCnpj('112223330001'),TO=validCnpj('998887770001');
 
-function setup({label='Produto de teste',ncm='',uf='MG',candidate=''}={}){
+function setup({label='Produto de teste',ncm='',uf='MG',candidate='',family=false}={}){
  const e=Object.fromEntries(IDS.map(id=>[id,mk()]));
  const document={getElementById(id){if(!e[id])throw Error('element_missing:'+id);return e[id]},createElement:mk};
  e.profileRevenda.checked=true;e.goodsOrigin.value='terceiros';e.priorSt.value='unknown';e.buyerTaxStatus.value='unknown';
@@ -54,7 +54,9 @@ function setup({label='Produto de teste',ncm='',uf='MG',candidate=''}={}){
   else if(u.includes('/code?code='))result={entry:{codigo:ncm||candidate,nivel:8,descricao:'Código presente na base NCM'}};
   else if(u.includes('/cest-by-ncm'))result={items:[]};
   else if(u.includes('/regras-nacionais/route'))result={ufs:[],verifiedRules:[],verifiedRuleCount:0};
-  else if(u.includes('/search?q='))result={items:candidate?[{codigo:candidate,nivel:8,descricao:'Possível classificação oficial'}]:[]};
+  else if(u.includes('/search?q='))result={items:family?[{codigo:'1006',nivel:4,descricao:'Arroz'}]:
+   candidate?[{codigo:candidate,nivel:8,descricao:'Possível classificação oficial'}]:[]};
+  else if(u.includes('/family?prefix='))result={items:candidate?[{codigo:candidate,nivel:8,descricao:'Código da família NCM'}]:[],hasMore:false};
   return {ok:true,status:200,json:async()=>result};
  };
  vm.runInNewContext(main,{window:win,document,fetch,
@@ -91,4 +93,12 @@ test('NCM informado com menos de oito dígitos é rejeitado',async()=>{
  const {e}=setup({label:'Produto de teste',ncm:'8479'});
  await e.consultation.handlers.submit({preventDefault(){}});
  assert.match(e.message.textContent,/oito dígitos/);
+});
+
+test('busca por todos os produtos encontra código em grupo NCM sem inferir classificação',async()=>{
+ const {e,urls}=setup({label:'Arroz polido',candidate:'10063021',family:true});
+ await e.consultation.handlers.submit({preventDefault(){}});
+ assert.ok(urls.some(x=>x.includes('/family?prefix=1006')));
+ assert.match(e.results.innerHTML,/data-confirm-ncm="10063021"/);
+ assert.match(e.results.innerHTML,/Confirmar NCM do produto/);
 });
