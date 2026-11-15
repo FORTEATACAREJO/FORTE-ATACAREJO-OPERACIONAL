@@ -501,6 +501,7 @@ async function maybeRegister(input){
 }
 async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
+ window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
  const profile=selectedProfile();
  if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
@@ -528,12 +529,14 @@ async function onSubmit(event,registerIfAsked=true){
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal,audit);
   $('afterActions').hidden=false;
+  if(audit)window.FORTE_FICHA_EXPORTACAO?.setSnapshot({input,from:a,to:b,info,fiscal,audit,rules});
   if(registerIfAsked)maybeRegister(input);
  }catch(e){showError('A consulta não pôde ser concluída. Verifique a conexão e tente novamente.');$('results').hidden=true}
  finally{if(id===runId){btn.disabled=false;btn.textContent='Consultar'}}
 }
 
 function clearPreviousAnalysis(){
+ window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
  ++runId;lastInput=null;
  $('results').hidden=true;$('results').innerHTML='';$('afterActions').hidden=true;
  $('submit').disabled=false;$('submit').textContent='Consultar';
@@ -582,6 +585,7 @@ $('results').addEventListener('click',event=>{
 });
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
+ window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
  $('companySearchResults').replaceChildren();recoverOwnIdentity();refreshProfileDetails(selectedProfile(),false);
 });
