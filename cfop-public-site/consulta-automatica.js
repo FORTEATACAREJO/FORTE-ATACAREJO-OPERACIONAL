@@ -8,6 +8,22 @@ const COMPANY_KEY='fortecompanny-optional-company-v1';
 const TERMS='cfop-privacy-2026-11-12-v1';
 const ufList=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '));
 let providerReady=null,runId=0,lastInput=null;
+// A natureza descreve tanto o sentido documental quanto a finalidade declarada
+// do destinatário. Inverter CNPJs NÃO presume mudança de finalidade.
+const natureMetadata=Object.freeze({
+ compra_revenda:{kind:'compra',purpose:'Revenda pelo destinatário',known:true},
+ compra_consumo:{kind:'compra',purpose:'Uso ou consumo do destinatário',known:true},
+ compra_ativo:{kind:'compra',purpose:'Ativo imobilizado do destinatário',known:true},
+ compra_industrializacao:{kind:'compra',purpose:'Industrialização pelo destinatário',known:true},
+ compra:{kind:'compra',purpose:'Ainda não identificada',known:false},
+ venda_revenda:{kind:'venda',purpose:'Revenda pelo destinatário',known:true},
+ venda_consumo:{kind:'venda',purpose:'Uso ou consumo do destinatário',known:true},
+ venda:{kind:'venda',purpose:'Ainda não identificada',known:false}
+});
+function natureInfo(value){
+ return natureMetadata[value]||{kind:'especial',purpose:'Conforme natureza especial e documentos vinculados',known:false};
+}
+
 function normCnpj(value){return String(value||'').toUpperCase().replace(/[^0-9A-Z]/g,'')}
 function validCnpj(v){
  const c=normCnpj(v);
@@ -108,10 +124,16 @@ function fiscalStatus(nature,from,to,info){
  if(!from.uf||!to.uf)pending.push('A localização de um dos estabelecimentos não foi retornada pela consulta cadastral.');
  if(!info.code)pending.push('O produto precisa de NCM definido pela composição, marca/modelo, ficha técnica ou XML de origem.');
  if(info.code&&!info.official?.entry)pending.push('É necessário confirmar a vigência do NCM na tabela oficial.');
- if(key==='venda'||key==='compra')pending.push('A classificação da operação depende da finalidade do destinatário, origem da mercadoria, condição de contribuinte e eventual ST; esses dados não são dedutíveis apenas pelo CNPJ.');
+ const metadata=natureInfo(key);
+ if((metadata.kind==='venda'||metadata.kind==='compra')&&!metadata.known){
+  pending.push('A finalidade da compra/venda ainda não foi definida na natureza da operação. Escolha revenda, uso/consumo ou outra finalidade para completar essa informação.');
+ }
+ if(metadata.kind==='venda'||metadata.kind==='compra'){
+  pending.push('Conferir origem da mercadoria, condição de contribuinte do ICMS e responsabilidade por eventual ICMS-ST: o CNPJ e a finalidade declarada não comprovam esses enquadramentos.');
+ }
  if(['devolucao','remessa','transferencia','retorno','consignacao','bonificacao','comodato','conserto','industrializacao','outro'].includes(key))pending.push('A natureza especial exige identificar o motivo e/ou o documento fiscal vinculado antes de definir o CFOP.');
  pending.push('As regras tributárias estaduais ainda não estão homologadas neste motor para atribuir com segurança ICMS, ST, DIFAL, FCP, PIS, COFINS, IPI e IBS/CBS.');
- return {route,pending,cfop:'Aguardando regra fiscal verificada',tax:'Ainda não calculado',date:new Date().toLocaleDateString('pt-BR')};
+ return {route,pending,purpose:natureInfo(key).purpose,cfop:'Aguardando regra fiscal verificada',tax:'Ainda não calculado',date:new Date().toLocaleDateString('pt-BR')};
 }
 function resultHTML(input,from,to,info,fiscal){
  const s=info.suggest||{};
@@ -131,6 +153,7 @@ function resultHTML(input,from,to,info,fiscal){
  if(info.issues.length)classification+='<p class="muted">'+info.issues.map(safe).join(' ')+'</p>';
  return '<div class="result-top"><h2>Consulta automática — ficha informativa</h2><span class="warn">Tributação ainda não homologada</span></div>'+
  '<p>Operação: <strong>'+safe(input.natureText)+'</strong> · '+safe(fiscal.route)+' · '+safe(fiscal.date)+'</p>'+
+ '<p>Finalidade indicada na natureza da operação: <strong>'+safe(fiscal.purpose)+'</strong></p>'+
  '<div class="result-grid"><article><h3>CNPJ de origem</h3>'+formatCompany(from)+'</article><article><h3>CNPJ de destino</h3>'+formatCompany(to)+'</article></div>'+
  '<article><h3>Classificação do produto</h3>'+classification+'</article>'+
  '<article><h3>CFOP e impostos</h3><p>CFOP: <strong>'+safe(fiscal.cfop)+'</strong></p>'+
@@ -167,7 +190,7 @@ async function maybeRegister(input){
   }else throw Error('Sem confirmação');
  }catch(e){$('registerState').textContent='Não foi possível concluir o cadastro opcional. A consulta pública continua disponível sem cadastro.'}
 }
-async function onSubmit(event){
+async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
  const from=normCnpj($('fromCnpj').value),to=normCnpj($('toCnpj').value);
  const product=$('product').value.trim(),nature=$('nature').value;
@@ -190,10 +213,34 @@ async function onSubmit(event){
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal);
   $('afterActions').hidden=false;
-  maybeRegister(input);
+  if(registerIfAsked)maybeRegister(input);
  }catch(e){showError('A consulta não pôde ser concluída. Verifique a conexão e tente novamente.');$('results').hidden=true}
  finally{if(id===runId){btn.disabled=false;btn.textContent='Consultar automaticamente'}}
 }
+
+function clearPreviousAnalysis(){
+ ++runId;lastInput=null;
+ $('results').hidden=true;$('results').innerHTML='';$('afterActions').hidden=true;
+ $('submit').disabled=false;$('submit').textContent='Pesquisar e montar ficha fiscal';
+ clearError();
+}
+['nature','fromCnpj','toCnpj','product'].forEach(id=>{
+ $(id).addEventListener('input',clearPreviousAnalysis);
+});
+$('nature').addEventListener('change',clearPreviousAnalysis);
+$('swapCnpj').addEventListener('click',()=>{
+ const from=$('fromCnpj').value,to=$('toCnpj').value;
+ $('fromCnpj').value=to;$('toCnpj').value=from;
+ if($('registerCompany').checked){
+  $('registerRole').value=$('registerRole').value==='origem'?'destino':'origem';
+ }
+ clearPreviousAnalysis();
+ $('swapStatus').textContent='Origem e destino invertidos. A natureza e a finalidade foram mantidas; revise se a nova operação tem outra finalidade.';
+ if(validCnpj($('fromCnpj').value)&&validCnpj($('toCnpj').value)&&$('nature').value&&$('product').value.trim().length>=3){
+  $('swapStatus').textContent+=' Recalculando a consulta para o novo sentido...';
+  onSubmit({preventDefault(){}},false);
+ }
+});
 $('registerCompany').addEventListener('change',()=>{$('registerBox').hidden=!$('registerCompany').checked;clearError()});
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
