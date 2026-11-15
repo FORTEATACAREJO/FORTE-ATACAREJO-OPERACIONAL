@@ -297,7 +297,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  const mgCimento=from.uf==='GO'&&to.uf==='MG'&&/^2523\d{4}$/.test(info.code||'')&&
    String(info.suggest?.cest||'').replace(/\D/g,'')==='0500100';
  if(mgCimento&&(isSale||isPurchase)){
-  r.st='Cimento (CEST 05.001.00) integra ST de MG no Protocolo ICM 11/85, que inclui Goiás. O art. 14 do Anexo VII/MG pode atribuir a retenção ao REMETENTE comercial (não industrial) em vendas para contribuinte mineiro.';
+  r.st='Cimento GO → MG: ST prevista no Protocolo ICM 11/85. Art. 14/MG pode atribuir recolhimento à revenda remetente em venda para contribuinte.';
   sources.push({label:'SEF/MG — Anexo VII, capítulo 5: cimento, protocolo 11/85 e MVA de referência 20%',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
   sources.push({label:'SEF/MG — Anexo VII, arts. 13–16 e 24: responsabilidade e prazo de ST',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
   r.pending.push('Confirmar a IE/condição de contribuinte do destinatário em MG, a responsabilidade pela retenção e eventual regime especial do remetente.');
@@ -305,8 +305,8 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   if(buyer==='sim'&&isSale){
    r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
    r.confidence='Operação sujeita a análise de ST';
-   r.note='Hipótese condicionada à responsabilidade do remetente por ICMS-ST de MG. 6.401 para produção própria ou 6.403 para mercadoria de terceiros, na condição de substituto. 6.404 exige verificar a hipótese específica de imposto previamente retido para a operação; ST anterior de GO não basta.';
-   r.costWarning='CIMENTO GO → MG: há previsão de ICMS-ST interestadual para contribuinte mineiro. O remetente comercial pode ser responsável por recolher o imposto a MG. Pode existir custo adicional e necessidade de guia/prazo específico; não presuma quitação pela retenção anterior em GO.';
+   r.note='CFOP condicionado à atuação do remetente como substituto tributário: fabricação própria (6.401) ou mercadoria de terceiros (6.403). ST anterior em GO não comprova retenção para MG.';
+   r.costWarning='Cimento GO → MG: o remetente pode ter ICMS-ST adicional a recolher para MG. Confira valor, guia e prazo; a ST recolhida em GO não comprova quitação em MG.';
   }else if(buyer==='nao'&&isSale){
    r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
    r.confidence='Venda a não contribuinte declarada';
@@ -316,8 +316,8 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   }else if(buyer==='unknown'&&isSale){
    r.cfop='Confirmar IE do destinatário';
    r.confidence='CFOP indefinido — ST ou DIFAL';
-   r.note='Para cimento GO → MG, confirmar primeiro se o comprador é contribuinte do ICMS. A resposta define se a análise seguirá ICMS-ST interestadual ou venda a não contribuinte/DIFAL.';
-   r.costWarning='CIMENTO GO → MG: poderá haver ICMS-ST ou DIFAL a recolher ao estado de destino. A obrigação e o responsável dependem da condição do destinatário; confirme a IE antes de emitir.';
+   r.note='Confirme a inscrição estadual do destinatário em MG para definir o CFOP e seguir a análise de ICMS-ST ou DIFAL.';
+   r.costWarning='Cimento GO → MG: pode haver ICMS-ST ou DIFAL adicional. Confirme a IE para identificar a obrigação e quem recolhe antes de emitir.';
   }else if(isPurchase){
    r.costWarning='CIMENTO GO → MG: avaliar ICMS-ST na entrada conforme Protocolo ICM 11/85. Verificar se houve retenção válida para MG e a responsabilidade de cada parte.';
   }
