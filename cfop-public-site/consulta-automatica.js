@@ -281,53 +281,55 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }else if(different&&isSale){
   r.difal=nature==='venda_revenda'?'Não é operação declarada de consumidor final; verificar ICMS-ST e finalidade real.':'DIFAL somente se operação for destinada a consumidor final, conforme condições legais.';
  }
- const mgArgamassa=from.uf==='GO'&&to.uf==='MG'&&info.code==='32149000'&&info.suggest?.cest==='1000300';
- if(mgArgamassa&&(isSale||isPurchase)){
-  r.st='MG: NCM 3214.90.00 / CEST 10.003.00 consta no Anexo VII para ST. GO não consta entre as UFs do protocolo desse segmento. Para destinatário mineiro contribuinte, art. 15 atribui recolhimento na entrada quando não couber ao remetente.';
+  const mgEvidence=window.FORTE_ST_MG_EVIDENCIAS?.evaluate({
+  from:from.uf,to:to.uf,ncm:info.code,cest:info.suggest?.cest
+ })||null;
+ const mgAgreement=mgEvidence?.status==='st_ambito_interestadual_por_acordo';
+ const mgCimento=different&&mgEvidence?.base?.cest==='0500100';
+ const mgArgamassa=different&&['1000200','1000300'].includes(mgEvidence?.base?.cest);
+ if(mgCimento||mgArgamassa){
+  r.mgLegalEvidence=mgEvidence;
+  r.st=mgAgreement?
+   'MG: produto relacionado no Anexo VII, com UF de origem listada no âmbito interestadual deste grupo. Verificar a responsabilidade do remetente conforme arts. 13/14, regime e exceções.':
+   'MG: produto relacionado na ST interna, mas UF de origem não listada no âmbito interestadual do grupo. O destinatário mineiro contribuinte poderá recolher ST na entrada, conforme art. 15, se o remetente não for responsável.';
+  for(const src of mgEvidence.sources)sources.push({label:src.title,url:src.url});
+  r.pending.push('Confirmar o NCM/CEST pelo produto real, IE do destinatário, regimes especiais e exceções legais de ST.');
+  r.pending.push('Verificar se o comprovante de ST anterior se refere à UF de destino; recolhimento na origem não prova quitação em MG.');
   if(buyer==='sim'){
-   r.costWarning='ATENÇÃO: pode haver ICMS-ST adicional a recolher em Minas Gerais pelo destinatário, se não houver retenção válida pelo remetente. É um custo tributário potencial além do valor da mercadoria; confirmar base, MVA e guia antes de pagar.';
-  }else{
-   r.pending.push('A condição de contribuinte de ICMS do destinatário mineiro não foi confirmada. Isso altera a exigência de ST e/ou DIFAL.');
-   if(buyer==='unknown')r.costWarning='ATENÇÃO: há possibilidade de ICMS-ST ou DIFAL para MG, com pagamento adicional no estado de destino. Confirme se o destinatário é contribuinte antes de definir quem recolhe.';
-  }
-  sources.push({label:'SEF/MG — Anexo VII, item 10.003.00',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
-  sources.push({label:'SEF/MG — Anexo VII, art. 15',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
- }else if(different&&nature==='venda_revenda'){
-  r.pending.push('Verificar se há ICMS-ST por NCM/CEST, protocolos e responsabilidade no estado de destino.');
-  if(!r.costWarning)r.costWarning='Atenção: se a regra de ICMS-ST do destino atribuir recolhimento ao remetente ou destinatário, poderá haver pagamento adicional ao estado de destino. Ainda não confirmado para esta mercadoria.';
- }
-
- const mgCimento=from.uf==='GO'&&to.uf==='MG'&&/^2523\d{4}$/.test(info.code||'')&&
-   String(info.suggest?.cest||'').replace(/\D/g,'')==='0500100';
- if(mgCimento&&(isSale||isPurchase)){
-  r.st='Cimento GO → MG: ST prevista no Protocolo ICM 11/85. Art. 14/MG pode atribuir recolhimento à revenda remetente em venda para contribuinte.';
-  sources.push({label:'SEF/MG — Anexo VII, capítulo 5: cimento, protocolo 11/85 e MVA de referência 20%',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
-  sources.push({label:'SEF/MG — Anexo VII, arts. 13–16 e 24: responsabilidade e prazo de ST',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
-  r.pending.push('Confirmar a IE/condição de contribuinte do destinatário em MG, a responsabilidade pela retenção e eventual regime especial do remetente.');
-  r.pending.push('Conferir se o imposto já recolhido na compra anterior se refere à UF de destino; ST retida em GO não comprova quitação da ST de MG.');
-  if(buyer==='sim'&&isSale){
-   r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
-   r.confidence='Operação sujeita a análise de ST';
-   r.note='CFOP condicionado à atuação do remetente como substituto tributário: fabricação própria (6.401) ou mercadoria de terceiros (6.403). ST anterior em GO não comprova retenção para MG.';
-   r.costWarning='Cimento GO → MG: o remetente pode ter ICMS-ST adicional a recolher para MG. Confira valor, guia e prazo; a ST recolhida em GO não comprova quitação em MG.';
+   r.costWarning=mgAgreement?
+    'MG: há previsão de ST interestadual para esse grupo; o remetente pode ter ICMS-ST adicional a recolher para MG. Conferir responsável, base, guia e prazo.':
+    'MG: pode haver ICMS-ST adicional no momento da entrada, a cargo do destinatário contribuinte, quando a responsabilidade não couber ao remetente. Conferir guia e base.';
+   if(mgCimento&&isSale){
+    if(mgAgreement){
+     r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
+     r.confidence='CFOP condicionado à responsabilidade por ST';
+     r.note='O CFOP 6.401/6.403 pressupõe remetente substituto tributário. Confirme a operação e eventual exceção antes de parametrizar.';
+    }else{
+     r.cfop='CFOP a confirmar conforme retenção';
+     r.confidence='ST na entrada pode ser devida pelo destinatário';
+     r.note='Sem acordo interestadual listado para a origem, não presumir CFOP de remetente substituto. Conferir CFOP da saída e ST na entrada.';
+    }
+   }
+  }else if(buyer==='unknown'){
+   r.pending.push('Confirmar IE ativa ou não contribuinte do destinatário em MG; isso altera ST/DIFAL e CFOP.');
+   r.costWarning='MG: a operação pode gerar ST ou DIFAL a recolher no destino. Confirme a condição de contribuinte antes de atribuir quem paga.';
+   if(mgCimento&&isSale){r.cfop='Confirmar IE do destinatário';r.confidence='CFOP indefinido — ST ou DIFAL';}
   }else if(buyer==='nao'&&isSale){
-   r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
-   r.confidence='Venda a não contribuinte declarada';
-   r.st='A ST de operações subsequentes depende de destinatário contribuinte e demais condições; para não contribuinte, analisar venda a consumidor final e eventual DIFAL.';
-   r.difal='Possível DIFAL devido a Minas Gerais na venda interestadual a não contribuinte (consumidor final), sujeito à apuração específica.';
-   r.costWarning='CIMENTO GO → MG: avaliar DIFAL a recolher ao destino na venda a não contribuinte. Não marcar ICMS-ST como devido por substituição sem confirmar a operação.';
-  }else if(buyer==='unknown'&&isSale){
-   r.cfop='Confirmar IE do destinatário';
-   r.confidence='CFOP indefinido — ST ou DIFAL';
-   r.note='Confirme a inscrição estadual do destinatário em MG para definir o CFOP e seguir a análise de ICMS-ST ou DIFAL.';
-   r.costWarning='Cimento GO → MG: pode haver ICMS-ST ou DIFAL adicional. Confirme a IE para identificar a obrigação e quem recolhe antes de emitir.';
-  }else if(isPurchase){
-   r.costWarning='CIMENTO GO → MG: avaliar ICMS-ST na entrada conforme Protocolo ICM 11/85. Verificar se houve retenção válida para MG e a responsabilidade de cada parte.';
+   r.st='Operação destinada a não contribuinte: não presumir ST de operações subsequentes; avaliar DIFAL e condições legais.';
+   r.difal='Possível DIFAL ao estado de destino em operação interestadual para consumidor final não contribuinte.';
+   r.costWarning='MG: avaliar eventual DIFAL ao destino. Não afirmar ST de operações subsequentes sem confirmar a natureza da operação.';
+   if(mgCimento){
+    r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
+    r.confidence='Hipótese de venda interestadual a não contribuinte';
+   }
   }
+ }else if(different&&nature==='venda_revenda'&&!r.costWarning){
+  r.pending.push('Verificar eventual ICMS-ST por NCM/CEST e acordos do estado de destino.');
+  r.costWarning='Se houver responsabilidade por ST no estado de destino, poderá haver recolhimento adicional. Ainda não verificado nesta consulta.';
  }
 
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
-  if(!mgCimento)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
+  if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
@@ -374,6 +376,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
   '<details><summary>Detalhes técnicos da análise</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
   '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
   '<details><summary>Classificação e legislação</summary><p>Base nacional cobre 27 UFs; fontes estaduais indexadas não equivalem a 27 conjuntos de regras homologadas. Nesta rota: '+safe(fiscal.certified)+' regra(s) estadual(is) homologada(s) identificada(s).</p>'+
+  (fiscal.mgLegalEvidence?'<p><b>Âmbito da norma MG (em revisão):</b> '+safe(fiscal.mgLegalEvidence.legalScope)+' — '+safe(fiscal.mgLegalEvidence.product)+'. Não comprova pagamento devido.</p>':'')+
    '<p>NCM: '+(info.official?.entry?'código existente na tabela':'não verificado')+'. CEST sugerido não comprova ICMS-ST.</p>'+
    details.join('')+'<p>'+cites+'</p></details>';
 }
