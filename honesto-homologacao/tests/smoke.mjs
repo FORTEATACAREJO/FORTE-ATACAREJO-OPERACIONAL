@@ -27,7 +27,24 @@ try{
  const landing=await fetch(origin+'/');
  assert.equal(landing.status,200);
  const landingHtml=await landing.text();
- assert(landingHtml.includes('joinForm')&&landingHtml.includes('menuList')&&landingHtml.includes('joinPanel'));
+ assert(landingHtml.includes('joinForm')&&landingHtml.includes('menuList')&&landingHtml.includes('joinPanel')); 
+ assert(landingHtml.includes('id="installBtn"'),'Instalar fica visível no começo da tela');
+ assert.equal((landingHtml.match(/id="installBtn"/g)||[]).length,1,'Instalar deve ter um único controle');
+ assert(landingHtml.includes('id="openBrowserBtn"'),'Botão de abrir no Chrome/Safari deve existir');
+ assert(landingHtml.includes('id="shareBtn"'),'Compartilhar deve estar disponível');
+ assert(landingHtml.includes('function shareNana()'),'Compartilhamento deve ter ação real');
+ assert(landingHtml.includes('function installNana()'),'Instalação deve ter ação real');
+ assert(landingHtml.includes('function openNanaBrowser()'),'Abrir Chrome/Safari deve ter ação real');
+ assert(landingHtml.includes('class="quicktools"'),'Botões devem estar na faixa visível antes da entrada');
+ assert(landingHtml.indexOf('id="joinPanel"')<landingHtml.indexOf('id="workspace"'),'Cadastro simples deve vir antes das funções internas');
+ assert(landingHtml.includes('/icon-192.png?v=5'),'Cabeçalho deve usar o novo símbolo NANA PAY');
+ assert(!landingHtml.includes('<section class="hero">'),'Evitar apresentação extensa antes da mesa');
+ assert(manifest.name.startsWith('NANA PAY'),'PWA deve ter nome NANA PAY');
+ assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=5'),'Chrome deve atualizar ícone de instalação');
+ assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=5'),'Imagem de instalação maior deve ser atualizada');
+ const sw=await fetch(origin+'/sw.js');
+ assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v5'),'Cache antigo de imagens precisa ser invalidado');
+
  
  const publicDemo=await req('/api/demo');
  assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'NANA PAY do cliente não deve obter credencial de PDV');
