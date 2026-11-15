@@ -361,6 +361,12 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
+ if(!info.code&&Array.isArray(info.suggest?.options)&&info.suggest.options.length){
+  r.cfop='Confirmar NCM do XML';
+  r.confidence='Produto com múltiplas classificações possíveis';
+  r.note='O produto admite mais de um NCM conforme a descrição e composição. Confirme o código na nota do fabricante e a classificação fiscal antes de avaliar ST e CFOP.';
+  r.pending.push('Selecionar NCM do XML do fabricante no quadro abaixo e refazer a análise.');
+ }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
  return r;
