@@ -57,6 +57,9 @@ function refreshProfileDetails(role,applyDefault){
  $('profileHelp').textContent=data.help;
  if(applyDefault){
   $('goodsOrigin').value=data.origin;
+  // Consumidor final normalmente recebe NF-e de saída emitida pelo fornecedor.
+  // Não altera a natureza já escolhida manualmente.
+  if(role==='consumidor'&&!$('nature').value)$('nature').value='venda_consumo';
   if(role==='consumidor'&&validPartyDoc($('myDoc').value)){
    $('myRole').value='destino';
    populateOwnDocument();
@@ -219,7 +222,6 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(ownership==='desconhecida')r.pending.push('Confirmar se a mercadoria foi adquirida de terceiros ou fabricada pelo remetente.');
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   r.pending.push('Conferir XML anterior: retenção de ST na aquisição foi declarada, mas pode não dispensar ST/DIFAL na operação atual ou no destino.');
-  r.note=(r.note?r.note+' ':'')+'ICMS-ST anterior informado; depende de conferência do XML e da legislação do destino.';
  }
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='nao'){
   r.pending.push('Sem retenção de ST informada na compra anterior; verificar se havia obrigação de recolhimento antes da saída atual.');
@@ -247,6 +249,11 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   }
   r.note='CFOP sugerido para venda normal conforme origem da mercadoria. Se houver ICMS-ST com remetente substituto/substituído, remessa especial ou regime diferenciado, o CFOP pode ser outro.';
   r.pending.push('Confirmar se vendedor é substituto/substituído de ICMS-ST ou possui regime especial.');
+ }else if(isPurchase&&profile==='consumidor'){
+  r.cfop='Não se aplica à compra comum';
+  r.confidence='Nota emitida pelo fornecedor';
+  r.note='Como consumidor final, na compra comum você recebe a NF-e emitida pelo vendedor. Para orientar essa nota, escolha “Venda destinada a uso ou consumo”, com o vendedor como origem.';
+  r.pending.push('Confirme a natureza: se é nota de compra emitida pelo fornecedor, consulte a saída/venda dele.');
  }else if(isPurchase&&from.uf&&to.uf){
   const head=different?'2.':'1.';
   const kind=nature.replace(/^compra_?/,'');
@@ -285,6 +292,9 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }else if(different&&nature==='venda_revenda'){
   r.pending.push('Verificar se há ICMS-ST por NCM/CEST, protocolos e responsabilidade no estado de destino.');
   if(!r.costWarning)r.costWarning='Atenção: se a regra de ICMS-ST do destino atribuir recolhimento ao remetente ou destinatário, poderá haver pagamento adicional ao estado de destino. Ainda não confirmado para esta mercadoria.';
+ }
+ if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
+  r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
