@@ -24,6 +24,7 @@
   ncm=digits(ncm);cest=digits(cest);
   if(!ufs.includes(from)||!ufs.includes(to))return {status:'entrada_invalida',basis:'UF desconhecida',rule:null};
   if(to!=='MG')return {status:'destino_nao_coberto',basis:'Base documental específica de MG; não inferir regras da UF de destino.',rule:null};
+  if(ncm.length!==8||cest.length!==7)return {status:'identificacao_incompleta',basis:'NCM de 8 dígitos e CEST de 7 dígitos exigidos; conferir produto e XML.',rule:null};
   const r=Object.values(chapters).find(x=>x.cest===cest&&x.ncmPrefixes.some(prefix=>ncm.startsWith(prefix)));
   if(!r)return {status:'produto_nao_coberto',basis:'CEST e NCM não correspondem aos grupos documentados; conferir XML/ficha técnica.',rule:null};
   const group=r.cest==='0500100'?'cimento':'argamassa';
