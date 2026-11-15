@@ -232,7 +232,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   if(/^https:\/\/[A-Za-z0-9.-]+(?:\/|$)/.test(url))sources.push({label:'Legislação estadual — '+item.uf,url});
  }
  const r={
-  route,cfop:'Não determinado',confidence:'Não definido',note:'',st:'Exige verificação por NCM/CEST, UF e responsabilidade tributária',
+  route,cfop:'Não determinado',confidence:'Não definido',note:'',st:'Verificar enquadramento do produto, UF e responsabilidade tributária. CEST somente quando legalmente aplicável.',
   difal:'Não definido',costWarning:'',tax:'Sem cálculo de valores',sources,pending:[],
   buyerStatus:buyer,purpose:meta.purpose,production:ownership,date:today,
   stateStatus:stateData?.sourceStatus||'fonte estadual não consultada',
@@ -391,7 +391,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
 function resultHTML(input,from,to,info,fiscal,audit){
  const s=info.suggest||{};
  const ncm=info.code?ncmFmt(info.code):'Não identificado';
- const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' possibilidades':'Não identificado';
+ const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' correspondências possíveis':'Não identificado — pode não ser aplicável';
  const partyLine=p=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj)+' · '+safe(p.uf||'UF não confirmada');
  const details=[];
  if(s.detail)details.push('<p>'+safe(s.detail)+'</p>');
