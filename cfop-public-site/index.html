@@ -84,7 +84,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 @media print{header,nav,form,.actions,#afterActions,.footer-links,footer,.lead{display:none!important}main{max-width:none;padding:0}#results{display:block!important;border:0;box-shadow:none;padding:0}#results details{display:block}#results details>*{display:block}}
 </style>
 <script src="/classificacao.js" defer></script>
-<script src="/consulta-automatica.js?v=20261115d" defer></script>
+<script src="/consulta-automatica.js?v=20261115e" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
 </head><body>
 <header><img src="/icon.svg" alt="Símbolo FORTECOMPANNY"><div><strong>FORTECOMPANNY+ IA</strong><small>Consulta fiscal automática · Brasil</small></div></header>
@@ -103,7 +103,16 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  <p class="notice" id="myDocStatus" role="status" aria-live="polite"></p>
 </details>
 <div class="grid">
- <div class="field full"><label for="nature">1. Natureza da operação</label>
+ <div class="field full">
+  <label for="goodsOrigin">1. A mercadoria foi adquirida de terceiros para revenda ou é de fabricação própria?</label>
+  <select id="goodsOrigin" required>
+    <option value="">Selecione a origem da mercadoria...</option>
+    <option value="terceiros">Adquirida de terceiros para revenda</option>
+    <option value="propria">Fabricação própria do remetente</option>
+    <option value="desconhecida">Não sei / preciso confirmar</option>
+  </select>
+ </div>
+ <div class="field full"><label for="nature">2. Natureza da operação e finalidade</label>
   <select id="nature" required><option value="">Selecione...</option>
    <optgroup label="Compra — empresa de destino">
     <option value="compra_revenda">Compra para revenda</option>
@@ -133,11 +142,11 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  </div>
  <div class="cnpj-direction full">
   <div class="cnpj-line">
-   <div class="field"><label for="fromCnpj">2. CNPJ ou CPF de origem</label>
+   <div class="field"><label for="fromCnpj">3. CNPJ ou CPF de origem</label>
     <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
    </div>
    <button id="swapCnpj" type="button" class="secondary swap-cnpj" title="Trocar remetente e destinatário" aria-label="Inverter CPF ou CNPJ de origem e destino">⇄ Inverter origem/destino</button>
-   <div class="field"><label for="toCnpj">3. CNPJ ou CPF de destino</label>
+   <div class="field"><label for="toCnpj">4. CNPJ ou CPF de destino</label>
     <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
    </div>
   </div>
@@ -153,7 +162,12 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
   </details>
   <p id="swapStatus" class="notice" aria-live="polite"></p>
  </div>
- <div class="field full"><label for="product">4. Produto</label>
+ <details class="settings-group full" id="buyerIESection"><summary>Destinatário contribuinte de ICMS? (quando não identificado)</summary>
+  <div class="field"><label for="buyerTaxStatus">Situação do destinatário</label>
+   <select id="buyerTaxStatus"><option value="unknown">Não sei / consultar automaticamente</option><option value="sim">Contribuinte do ICMS (IE ativa confirmada)</option><option value="nao">Não contribuinte do ICMS</option></select>
+  </div>
+ </details>
+ <div class="field full"><label for="product">5. Produto</label>
   <input id="product" maxlength="90" autocomplete="off" placeholder="Ex.: Argamassa colante AC1 20 kg" required>
  </div>
 </div>
