@@ -293,8 +293,38 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.pending.push('Verificar se há ICMS-ST por NCM/CEST, protocolos e responsabilidade no estado de destino.');
   if(!r.costWarning)r.costWarning='Atenção: se a regra de ICMS-ST do destino atribuir recolhimento ao remetente ou destinatário, poderá haver pagamento adicional ao estado de destino. Ainda não confirmado para esta mercadoria.';
  }
+
+ const mgCimento=from.uf==='GO'&&to.uf==='MG'&&/^2523\d{4}$/.test(info.code||'')&&
+   String(info.suggest?.cest||'').replace(/\D/g,'')==='0500100';
+ if(mgCimento&&(isSale||isPurchase)){
+  r.st='Cimento (CEST 05.001.00) integra ST de MG no Protocolo ICM 11/85, que inclui Goiás. O art. 14 do Anexo VII/MG pode atribuir a retenção ao REMETENTE comercial (não industrial) em vendas para contribuinte mineiro.';
+  sources.push({label:'SEF/MG — Anexo VII, capítulo 5: cimento, protocolo 11/85 e MVA de referência 20%',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
+  sources.push({label:'SEF/MG — Anexo VII, arts. 13–16 e 24: responsabilidade e prazo de ST',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
+  r.pending.push('Confirmar a IE/condição de contribuinte do destinatário em MG, a responsabilidade pela retenção e eventual regime especial do remetente.');
+  r.pending.push('Conferir se o imposto já recolhido na compra anterior se refere à UF de destino; ST retida em GO não comprova quitação da ST de MG.');
+  if(buyer==='sim'&&isSale){
+   r.cfop='Verificar 6.403 / 6.404 e ST';
+   r.confidence='Operação sujeita a análise de ST';
+   r.note='A tabela de CFOP distingue mercadoria adquirida de terceiros, operações com substituto tributário e imposto já retido para a operação. É indispensável conferir a condição do vendedor e o destino da retenção antes de escolher o código.';
+   r.costWarning='CIMENTO GO → MG: há previsão de ICMS-ST interestadual para contribuinte mineiro. O remetente comercial pode ser responsável por recolher o imposto a MG. Pode existir custo adicional e necessidade de guia/prazo específico; não presuma quitação pela retenção anterior em GO.';
+  }else if(buyer==='nao'&&isSale){
+   r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
+   r.confidence='Venda a não contribuinte declarada';
+   r.st='A ST de operações subsequentes depende de destinatário contribuinte e demais condições; para não contribuinte, analisar venda a consumidor final e eventual DIFAL.';
+   r.difal='Possível DIFAL devido a Minas Gerais na venda interestadual a não contribuinte (consumidor final), sujeito à apuração específica.';
+   r.costWarning='CIMENTO GO → MG: avaliar DIFAL a recolher ao destino na venda a não contribuinte. Não marcar ICMS-ST como devido por substituição sem confirmar a operação.';
+  }else if(buyer==='unknown'&&isSale){
+   r.cfop='Confirmar IE do destinatário';
+   r.confidence='CFOP indefinido — ST ou DIFAL';
+   r.note='Para cimento GO → MG, confirmar primeiro se o comprador é contribuinte do ICMS. A resposta define se a análise seguirá ICMS-ST interestadual ou venda a não contribuinte/DIFAL.';
+   r.costWarning='CIMENTO GO → MG: poderá haver ICMS-ST ou DIFAL a recolher ao estado de destino. A obrigação e o responsável dependem da condição do destinatário; confirme a IE antes de emitir.';
+  }else if(isPurchase){
+   r.costWarning='CIMENTO GO → MG: avaliar ICMS-ST na entrada conforme Protocolo ICM 11/85. Verificar se houve retenção válida para MG e a responsabilidade de cada parte.';
+  }
+ }
+
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
-  r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
+  if(!mgCimento)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
@@ -330,7 +360,8 @@ function resultHTML(input,from,to,info,fiscal){
    '<p><b>ST na compra anterior:</b> '+safe(input.priorSt==='sim'?'Retenção declarada; confirmar no XML':input.priorSt==='nao'?'Sem retenção declarada':'Não informado')+'</p>':'')+
   (fiscal.difal!=='Não definido'?'<p><b>DIFAL:</b> '+safe(fiscal.difal)+'</p>':'')+
   '<p><b>Valores:</b> '+safe(fiscal.tax)+'. Sem valores da operação e regras confirmadas não há valor em R$.</p></article>'+
-  (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?'<p class="muted">Inscrição estadual não confirmada: use “Destinatário contribuinte de ICMS?” na consulta para refinar o CFOP/DIFAL.</p>':'')+
+  (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?
+   '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>O CNPJ e o Simples Nacional não comprovam inscrição estadual. Consulte a IE do estado de destino.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, contribuinte</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
   '<details><summary>O que confirmar antes de emitir?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
   '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
   '<details><summary>Classificação e legislação</summary><p>Base nacional cobre 27 UFs; fontes estaduais indexadas não equivalem a 27 conjuntos de regras homologadas. Nesta rota: '+safe(fiscal.certified)+' regra(s) estadual(is) homologada(s) identificada(s).</p>'+
@@ -531,6 +562,14 @@ $('myRole').addEventListener('change',()=>{populateOwnDocument();persistOwnIdent
 $('rememberMe').addEventListener('change',persistOwnIdentity);
 $('searchCompanies').addEventListener('click',searchCompanyByName);
 $('registerCompany').addEventListener('change',()=>{$('registerBox').hidden=!$('registerCompany').checked;clearError()});
+$('results').addEventListener('click',event=>{
+ const choice=event.target.closest?.('[data-tax-status]');
+ if(!choice||!$('results').contains(choice))return;
+ if(choice.dataset.taxStatus!=='sim'&&choice.dataset.taxStatus!=='nao')return;
+ $('buyerTaxStatus').value=choice.dataset.taxStatus;
+ clearPreviousAnalysis();
+ onSubmit({preventDefault(){}},false);
+});
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
