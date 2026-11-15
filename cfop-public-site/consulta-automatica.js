@@ -8,6 +8,22 @@ const COMPANY_KEY='fortecompanny-optional-company-v1';
 const PERSONAL_KEY='fortecompanny-my-document-v1';
 const NAME_SEARCH='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-busca-empresas';
 
+const STATE_RULES='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-regras-nacionais';
+async function stateRules(from,to,info){
+ if(!ufList.has(from.uf)||!ufList.has(to.uf))return null;
+ const url=STATE_RULES+'/route?from='+encodeURIComponent(from.uf)+'&to='+encodeURIComponent(to.uf)+
+  (info.code?'&ncm='+encodeURIComponent(info.code):'')+
+  (info.suggest?.cest?'&cest='+encodeURIComponent(info.suggest.cest):'');
+ try{return await jsonFetch(url,{},9000)}catch(_){return null}
+}
+function taxpayerStatus(company,declared){
+ if(declared==='sim')return 'sim';
+ if(declared==='nao')return 'nao';
+ if(Array.isArray(company.registrations)&&company.registrations.some(i=>i.active===true))return 'sim';
+ return 'unknown';
+}
+
+
 const TERMS='cfop-privacy-2026-11-12-v1';
 const ufList=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '));
 let providerReady=null,runId=0,lastInput=null;
@@ -141,51 +157,93 @@ function formatCompany(c){
  let ie=c.registrations.length?'IE(s) retornada(s): '+c.registrations.map(r=>r.ie+' ('+r.uf+')'+(r.active===true?' ativa':r.active===false?' inativa':' status desconhecido')).join('; '):'Inscrição estadual não confirmada';
  return '<strong>'+safe(c.name||c.cnpj)+'</strong><p>'+safe(c.cnpj)+' · '+safe(uf+city)+'</p><p>Situação cadastral: '+safe(c.situation||'Não confirmada')+'</p><p>'+safe(c.simple)+'</p><p>'+safe(ie)+'</p><small>Fonte: '+safe(c.source)+'</small>';
 }
-function fiscalStatus(nature,from,to,info){
- const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF de origem e/ou destino não confirmada';
- const metadata=natureInfo(nature);
- const date=new Date().toLocaleDateString('pt-BR');
- const result={route,cfop:'Não determinado',confidence:'Não verificado',note:'',
-   st:'Não determinado',tax:'Valores não calculados',sources:[],pending:[],
-   purpose:metadata.purpose,date};
- if(!from.uf||!to.uf)result.pending.push('UF dos estabelecimentos: confirmar endereço fiscal do remetente e destinatário.');
- if(info.code&&!info.official?.entry)result.pending.push('Conferir se o NCM ainda está vigente.');
- if(!info.code)result.pending.push('Confirmar o NCM conforme a composição do produto e XML/ficha técnica.');
- if(info.code&&info.suggest?.cest)result.pending.push('Conferir o NCM/CEST aplicado ao produto da marca; existência do código não comprova a classificação.');
- if(metadata.kind==='venda'&&metadata.purpose==='Revenda pelo destinatário'&&from.uf&&to.uf){
-  result.cfop=(from.uf===to.uf?'5.102':'6.102');
-  result.confidence='Sugestão condicionada';
-  result.note='Venda de mercadoria adquirida de terceiros, sem industrialização pelo vendedor e sem atuação como substituto tributário na própria saída. Se produção própria ou substituto, o CFOP muda.';
-  result.pending.push('Confirmar se o remetente está revendendo produto adquirido de terceiros e não atua como substituto tributário nessa saída.');
-  result.sources.push({label:'Tabela CFOP — Portal Nacional NF-e',url:'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D'});
-  if(from.uf==='GO'&&to.uf==='MG'&&info.code==='32149000'&&info.suggest?.cest==='1000300'){
-    result.st='MG: material listado para ST interna. GO não consta no protocolo interestadual desse segmento; em regra, destinatário mineiro apura a ST na entrada, salvo responsabilidade do remetente/regime especial.';
-    result.note='6.102 como hipótese para a FORTE se estiver revendendo argamassa comprada de terceiros e não for substituta nessa saída. MG pode exigir ST na entrada, sob responsabilidade do destinatário (art. 15 do Anexo VII).';
-    result.pending.push('Confirmar inscrição estadual, condição de contribuinte e eventual regime especial/ST do remetente e do destinatário.');
-    result.sources.push({label:'SEF/MG — Anexo VII, materiais de construção (10.003.00)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
-    result.sources.push({label:'SEF/MG — Anexo VII, art. 15 (destinatário)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
+function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData){
+ const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF ainda não confirmada';
+ const meta=natureInfo(nature),different=!!from.uf&&!!to.uf&&from.uf!==to.uf;
+ const isSale=meta.kind==='venda',isPurchase=meta.kind==='compra';
+ const buyer=taxpayerStatus(to,buyerDeclaration);
+ const today=new Date().toLocaleDateString('pt-BR');
+ const sources=[
+  {label:'Tabela CFOP (Fazenda MG)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/decretos/d42145_2001.html'},
+  {label:'Lei Kandir / LC 190/2022 (DIFAL)',url:'https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm'},
+  {label:'CONFAZ — Convênio ICMS 142/2018 (ST)',url:'https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18'}
+ ];
+ const states=Array.isArray(stateData?.ufs)?stateData.ufs:[];
+ for(const item of states){
+  const url=String(item.portal_tributario||'');
+  if(/^https:\/\/[A-Za-z0-9.-]+(?:\/|$)/.test(url))sources.push({label:'Legislação estadual — '+item.uf,url});
+ }
+ const r={
+  route,cfop:'Não determinado',confidence:'Não definido',note:'',st:'Exige verificação por NCM/CEST, UF e responsabilidade tributária',
+  difal:'Não definido',costWarning:'',tax:'Sem cálculo de valores',sources,pending:[],
+  buyerStatus:buyer,purpose:meta.purpose,production:ownership,date:today,
+  stateStatus:stateData?.sourceStatus||'fonte estadual não consultada',
+  certified:Number(stateData?.verifiedRuleCount||0)
+ };
+ if(!from.uf||!to.uf)r.pending.push('Confirmar UF de origem/destino e local de entrega.');
+ if(ownership==='desconhecida')r.pending.push('Confirmar se a mercadoria foi adquirida de terceiros ou fabricada pelo remetente.');
+ if(!info.code||!info.official?.entry)r.pending.push('Confirmar NCM do produto conforme XML/ficha técnica; pesquisar código não certifica classificação.');
+ if(info.code&&info.suggest?.cest)r.pending.push('Confirmar CEST aplicável à descrição legal e vigência do produto.');
+ if(isSale&&ownership!=='desconhecida'&&from.uf&&to.uf){
+  const root=ownership==='propria'?'101':'102';
+  if(!different){
+   r.cfop='5.'+root;
+   r.confidence='Hipótese de venda comum';
+  }else if(buyer==='unknown'){
+   r.cfop=ownership==='propria'?'6.101 ou 6.107':'6.102 ou 6.108';
+   r.confidence='Alternativas — confirmar contribuinte';
+   r.pending.push('Confirme se o destinatário é contribuinte do ICMS: sem IE ativa verificada não se pode decidir entre venda interestadual comum e venda a não contribuinte.');
+  }else if(buyer==='nao'){
+   r.cfop=ownership==='propria'?'6.107':'6.108';
+   r.confidence='Hipótese para não contribuinte';
   }else{
-    result.st='Incidência e responsável por ICMS-ST não verificados na UF e produto. CFOP pode mudar conforme protocolo/regime especial.';
-    result.pending.push('Verificar protocolos e responsabilidade de ST na UF de destino antes de emitir.');
+   r.cfop='6.'+root;
+   r.confidence='Hipótese para contribuinte';
   }
- }else if(metadata.kind==='compra'&&metadata.purpose==='Revenda pelo destinatário'&&from.uf&&to.uf){
-  result.cfop=from.uf===to.uf?'1.102 / 1.403':'2.102 / 2.403';
-  result.confidence='Alternativas condicionais';
-  result.note='Entrada para comercialização: código 102 na compra comum; código 403 se a entrada estiver sujeita ao regime de ST correspondente. Conferir XML do fornecedor.';
-  result.pending.push('Verificar o XML do fornecedor e a responsabilidade por ICMS-ST para escolher o CFOP de entrada.');
-  result.sources.push({label:'Tabela CFOP — Portal Nacional NF-e',url:'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D'});
- }else if(metadata.kind==='venda'||metadata.kind==='compra'){
-  result.note='A natureza, por si só, não comprova se o produto é de fabricação própria, adquirido de terceiros ou sujeito a ST.';
-  result.pending.push('Verificar condição de contribuinte, fabricação/revenda, ST e descrição fiscal.');
+  r.note='CFOP sugerido para venda normal conforme origem da mercadoria. Se houver ICMS-ST com remetente substituto/substituído, remessa especial ou regime diferenciado, o CFOP pode ser outro.';
+  r.pending.push('Confirmar se vendedor é substituto/substituído de ICMS-ST ou possui regime especial.');
+ }else if(isPurchase&&from.uf&&to.uf){
+  const head=different?'2.':'1.';
+  const kind=nature.replace(/^compra_?/,'');
+  if(kind==='revenda')r.cfop=head+'102 ou '+head+'403';
+  else if(kind==='consumo')r.cfop=head+'556 ou '+head+'407';
+  else if(kind==='ativo')r.cfop=head+'551 ou '+head+'406';
+  else if(kind==='industrializacao')r.cfop=head+'101 ou '+head+'401';
+  else r.cfop='Conferir finalidade';
+  r.confidence='Alternativas conforme ST';
+  r.note='CFOP de entrada no destinatário: confirmar XML recebido e se há substituição tributária. A origem própria/de terceiros do fornecedor não define sozinha o CFOP da entrada.';
+  r.pending.push('Conferir XML e existência de ST na entrada para selecionar entre as alternativas de CFOP.');
  }else{
-  result.note='Operação especial: o documento vinculado ou a natureza específica é indispensável para determinar o CFOP.';
-  result.pending.push('Identificar documento de origem ou motivo fiscal da operação especial.');
+  r.note='Operação especial ou finalidade desconhecida: documento original e natureza específica podem mudar o CFOP.';
+  r.pending.push('Informar motivo/documento fiscal vinculado para determinar CFOP desta operação.');
  }
- if(!info.code||!info.official?.entry){
-  result.pending.push('Classificação fiscal do produto não foi confirmada em fonte oficial.');
+ const finalConsumer=/consumo|ativo/.test(nature)||nature==='venda_consumo';
+ if(different&&finalConsumer&&(isSale||isPurchase)){
+  const liable=buyer==='sim'?'destinatário contribuinte':buyer==='nao'?'remetente na venda para não contribuinte':'a confirmar conforme o enquadramento do destinatário';
+  r.difal='Possível DIFAL devido à UF '+to.uf+'; responsável: '+liable+'. Verificar alíquotas, benefícios, regime e eventual tratamento por ST.';
+  r.costWarning='ATENÇÃO: o DIFAL pode gerar imposto adicional a recolher ao estado de destino ('+to.uf+'). Quem paga: '+liable+'. Valor ainda não calculado.';
+  r.pending.push('Para confirmar DIFAL, validar uso como consumidor final, condição de contribuinte e alíquotas efetivas de origem/destino.');
+ }else if(different&&isSale){
+  r.difal=nature==='venda_revenda'?'Não é operação declarada de consumidor final; verificar ICMS-ST e finalidade real.':'DIFAL somente se operação for destinada a consumidor final, conforme condições legais.';
  }
- result.pending.push('Para calcular valores de ICMS, ST, PIS/COFINS ou IBS/CBS são necessários valores da operação e regras/benefícios aplicáveis ao remetente e ao destino.');
- return result;
+ const mgArgamassa=from.uf==='GO'&&to.uf==='MG'&&info.code==='32149000'&&info.suggest?.cest==='1000300';
+ if(mgArgamassa&&(isSale||isPurchase)){
+  r.st='MG: NCM 3214.90.00 / CEST 10.003.00 consta no Anexo VII para ST. GO não consta entre as UFs do protocolo desse segmento. Para destinatário mineiro contribuinte, art. 15 atribui recolhimento na entrada quando não couber ao remetente.';
+  if(buyer==='sim'){
+   r.costWarning='ATENÇÃO: pode haver ICMS-ST adicional a recolher em Minas Gerais pelo destinatário, se não houver retenção válida pelo remetente. É um custo tributário potencial além do valor da mercadoria; confirmar base, MVA e guia antes de pagar.';
+  }else{
+   r.pending.push('A condição de contribuinte de ICMS do destinatário mineiro não foi confirmada. Isso altera a exigência de ST e/ou DIFAL.');
+   if(buyer==='unknown')r.costWarning='ATENÇÃO: há possibilidade de ICMS-ST ou DIFAL para MG, com pagamento adicional no estado de destino. Confirme se o destinatário é contribuinte antes de definir quem recolhe.';
+  }
+  sources.push({label:'SEF/MG — Anexo VII, item 10.003.00',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
+  sources.push({label:'SEF/MG — Anexo VII, art. 15',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
+ }else if(different&&nature==='venda_revenda'){
+  r.pending.push('Verificar se há ICMS-ST por NCM/CEST, protocolos e responsabilidade no estado de destino.');
+  if(!r.costWarning)r.costWarning='Atenção: se a regra de ICMS-ST do destino atribuir recolhimento ao remetente ou destinatário, poderá haver pagamento adicional ao estado de destino. Ainda não confirmado para esta mercadoria.';
+ }
+ if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
+ r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
+ return r;
 }
 function resultHTML(input,from,to,info,fiscal){
  const s=info.suggest||{};
@@ -195,11 +253,12 @@ function resultHTML(input,from,to,info,fiscal){
  const details=[];
  if(s.detail)details.push('<p>'+safe(s.detail)+'</p>');
  if(info.official?.entry?.descricao)details.push('<p>Descrição da tabela NCM: '+safe(info.official.entry.descricao)+'</p>');
- if(info.results.length)details.push('<p>Códigos encontrados (ainda não classificados): '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(', ')+'</p>');
+ if(info.results.length)details.push('<p>Códigos NCM pesquisados, sujeitos à classificação: '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(', ')+'</p>');
  for(const issue of info.issues)details.push('<p>'+safe(issue)+'</p>');
  const cites=fiscal.sources.map(x=>'<a target="_blank" rel="noopener noreferrer" href="'+safe(x.url)+'">'+safe(x.label)+'</a>').join(' · ');
+ const originText=input.goodsOrigin==='terceiros'?'Mercadoria de terceiros':input.goodsOrigin==='propria'?'Fabricação própria':'Origem da mercadoria não confirmada';
  return '<h2>Resultado da consulta</h2>'+
-  '<p class="muted">'+safe(input.natureText)+' · '+safe(fiscal.route)+'</p>'+
+  '<p class="muted">'+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   '<div class="result-main"><small>CFOP — '+safe(fiscal.confidence)+'</small><div class="result-value">'+safe(fiscal.cfop)+'</div>'+
   (fiscal.note?'<p>'+safe(fiscal.note)+'</p>':'')+
   '</div>'+
@@ -209,14 +268,16 @@ function resultHTML(input,from,to,info,fiscal){
    '<div><small>CEST sugerido</small><strong>'+safe(cest)+'</strong></div>'+
   '</div>'+
   '<div class="participants"><p><b>Origem:</b> '+partyLine(from)+'</p><p><b>Destino:</b> '+partyLine(to)+'</p></div>'+
+  (fiscal.costWarning?'<p class="tax-alert"><strong>Custo tributário adicional possível:</strong> '+safe(fiscal.costWarning)+'</p>':'')+
   '<article class="tax-situation"><h3>Tributação</h3><p><b>ICMS-ST:</b> '+safe(fiscal.st)+'</p>'+
-  '<p><b>Valores dos impostos:</b> '+safe(fiscal.tax)+'. Sem valor da mercadoria, frete e enquadramento confirmado não é possível obter valores reais.</p></article>'+
+  (fiscal.difal!=='Não definido'?'<p><b>DIFAL:</b> '+safe(fiscal.difal)+'</p>':'')+
+  '<p><b>Valores:</b> '+safe(fiscal.tax)+'. Sem valores da operação e regras confirmadas não há valor em R$.</p></article>'+
+  (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?'<p class="muted">Inscrição estadual não confirmada: use “Destinatário contribuinte de ICMS?” na consulta para refinar o CFOP/DIFAL.</p>':'')+
   '<details><summary>O que confirmar antes de emitir?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
   '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
-  '<details><summary>Classificação e fontes oficiais</summary>'+
-   '<p>NCM: '+(info.official?.entry?'código encontrado na tabela oficial':'não verificado')+'. CEST: referência indicativa, não comprova ICMS-ST.</p>'+
-   details.join('')+
-   '<p>'+cites+'</p></details>';
+  '<details><summary>Classificação e legislação</summary><p>Base nacional cobre 27 UFs; fontes estaduais indexadas não equivalem a 27 conjuntos de regras homologadas. Nesta rota: '+safe(fiscal.certified)+' regra(s) estadual(is) homologada(s) identificada(s).</p>'+
+   '<p>NCM: '+(info.official?.entry?'código existente na tabela':'não verificado')+'. CEST sugerido não comprova ICMS-ST.</p>'+
+   details.join('')+'<p>'+cites+'</p></details>';
 }
 function loadSaved(){
  try{const s=JSON.parse(localStorage.getItem(COMPANY_KEY)||'null');if(!s||!validCnpj(s.cnpj))return;
@@ -343,7 +404,8 @@ async function maybeRegister(input){
 async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
- const product=$('product').value.trim(),nature=$('nature').value;
+ const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value;
+ if(!goodsOrigin){showError('Selecione se a mercadoria foi adquirida de terceiros ou é de fabricação própria.');return}
  if(!nature){showError('Selecione a natureza da operação.');return}
  if(!validPartyDoc(from)){showError('Informe um CNPJ ou CPF de origem válido.');return}
  if(!validPartyDoc(to)){showError('Informe um CNPJ ou CPF de destino válido.');return}
@@ -351,7 +413,7 @@ async function onSubmit(event,registerIfAsked=true){
  const id=++runId,btn=$('submit');
  btn.disabled=true;btn.textContent='Pesquisando bases fiscais...';
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
- const input={from,to,product:short(product,90),nature,natureText:$('nature').selectedOptions[0].textContent};
+ const input={from,to,product:short(product,90),nature,goodsOrigin,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent};
  try{
   const parts=await Promise.allSettled([party(from),party(to),productInfo(product)]);
   if(id!==runId)return;
@@ -359,7 +421,9 @@ async function onSubmit(event,registerIfAsked=true){
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
-  const fiscal=fiscalStatus(nature,a,b,info);
+  const rules=await stateRules(a,b,info);
+  if(id!==runId)return;
+  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules);
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal);
   $('afterActions').hidden=false;
@@ -374,7 +438,7 @@ function clearPreviousAnalysis(){
  $('submit').disabled=false;$('submit').textContent='Consultar';
  clearError();
 }
-['nature','fromCnpj','toCnpj','product'].forEach(id=>{
+['goodsOrigin','nature','buyerTaxStatus','fromCnpj','toCnpj','product'].forEach(id=>{
  $(id).addEventListener('input',clearPreviousAnalysis);
 });
 $('nature').addEventListener('change',clearPreviousAnalysis);
@@ -390,7 +454,7 @@ $('swapCnpj').addEventListener('click',()=>{
  }
  clearPreviousAnalysis();
  $('swapStatus').textContent='Origem/destino invertidos. Confira a natureza.';
- if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&$('nature').value&&$('product').value.trim().length>=3){
+ if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&$('goodsOrigin').value&&$('nature').value&&$('product').value.trim().length>=3){
   $('swapStatus').textContent+=' Atualizando...';
   onSubmit({preventDefault(){}},false);
  }
