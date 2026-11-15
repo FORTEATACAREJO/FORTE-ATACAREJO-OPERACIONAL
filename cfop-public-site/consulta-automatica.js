@@ -142,49 +142,81 @@ function formatCompany(c){
  return '<strong>'+safe(c.name||c.cnpj)+'</strong><p>'+safe(c.cnpj)+' · '+safe(uf+city)+'</p><p>Situação cadastral: '+safe(c.situation||'Não confirmada')+'</p><p>'+safe(c.simple)+'</p><p>'+safe(ie)+'</p><small>Fonte: '+safe(c.source)+'</small>';
 }
 function fiscalStatus(nature,from,to,info){
- const key=nature;
  const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF de origem e/ou destino não confirmada';
- const pending=[];
- if(!from.uf||!to.uf)pending.push('A localização de um dos estabelecimentos não foi retornada pela consulta cadastral.');
- if(!info.code)pending.push('O produto precisa de NCM definido pela composição, marca/modelo, ficha técnica ou XML de origem.');
- if(info.code&&!info.official?.entry)pending.push('É necessário confirmar a vigência do NCM na tabela oficial.');
- const metadata=natureInfo(key);
- if((metadata.kind==='venda'||metadata.kind==='compra')&&!metadata.known){
-  pending.push('A finalidade da compra/venda ainda não foi definida na natureza da operação. Escolha revenda, uso/consumo ou outra finalidade para completar essa informação.');
+ const metadata=natureInfo(nature);
+ const date=new Date().toLocaleDateString('pt-BR');
+ const result={route,cfop:'Não determinado',confidence:'Não verificado',note:'',
+   st:'Não determinado',tax:'Valores não calculados',sources:[],pending:[],
+   purpose:metadata.purpose,date};
+ if(!from.uf||!to.uf)result.pending.push('UF dos estabelecimentos: confirmar endereço fiscal do remetente e destinatário.');
+ if(info.code&&!info.official?.entry)result.pending.push('Conferir se o NCM ainda está vigente.');
+ if(!info.code)result.pending.push('Confirmar o NCM conforme a composição do produto e XML/ficha técnica.');
+ if(info.code&&info.suggest?.cest)result.pending.push('Conferir o NCM/CEST aplicado ao produto da marca; existência do código não comprova a classificação.');
+ if(metadata.kind==='venda'&&metadata.purpose==='Revenda pelo destinatário'&&from.uf&&to.uf){
+  result.cfop=(from.uf===to.uf?'5.102':'6.102');
+  result.confidence='Sugestão condicionada';
+  result.note='Venda de mercadoria adquirida de terceiros, sem industrialização pelo vendedor e sem atuação como substituto tributário na própria saída. Se produção própria ou substituto, o CFOP muda.';
+  result.pending.push('Confirmar se o remetente está revendendo produto adquirido de terceiros e não atua como substituto tributário nessa saída.');
+  result.sources.push({label:'Tabela CFOP — Portal Nacional NF-e',url:'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D'});
+  if(from.uf==='GO'&&to.uf==='MG'&&info.code==='32149000'&&info.suggest?.cest==='1000300'){
+    result.st='MG: material listado para ST interna. GO não consta no protocolo interestadual desse segmento; em regra, destinatário mineiro apura a ST na entrada, salvo responsabilidade do remetente/regime especial.';
+    result.note='6.102 como hipótese para a FORTE se estiver revendendo argamassa comprada de terceiros e não for substituta nessa saída. MG pode exigir ST na entrada, sob responsabilidade do destinatário (art. 15 do Anexo VII).';
+    result.pending.push('Confirmar inscrição estadual, condição de contribuinte e eventual regime especial/ST do remetente e do destinatário.');
+    result.sources.push({label:'SEF/MG — Anexo VII, materiais de construção (10.003.00)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_4.html'});
+    result.sources.push({label:'SEF/MG — Anexo VII, art. 15 (destinatário)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms_2023_seco/anexovii2023_2.html'});
+  }else{
+    result.st='Incidência e responsável por ICMS-ST não verificados na UF e produto. CFOP pode mudar conforme protocolo/regime especial.';
+    result.pending.push('Verificar protocolos e responsabilidade de ST na UF de destino antes de emitir.');
+  }
+ }else if(metadata.kind==='compra'&&metadata.purpose==='Revenda pelo destinatário'&&from.uf&&to.uf){
+  result.cfop=from.uf===to.uf?'1.102 / 1.403':'2.102 / 2.403';
+  result.confidence='Alternativas condicionais';
+  result.note='Entrada para comercialização: código 102 na compra comum; código 403 se a entrada estiver sujeita ao regime de ST correspondente. Conferir XML do fornecedor.';
+  result.pending.push('Verificar o XML do fornecedor e a responsabilidade por ICMS-ST para escolher o CFOP de entrada.');
+  result.sources.push({label:'Tabela CFOP — Portal Nacional NF-e',url:'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D'});
+ }else if(metadata.kind==='venda'||metadata.kind==='compra'){
+  result.note='A natureza, por si só, não comprova se o produto é de fabricação própria, adquirido de terceiros ou sujeito a ST.';
+  result.pending.push('Verificar condição de contribuinte, fabricação/revenda, ST e descrição fiscal.');
+ }else{
+  result.note='Operação especial: o documento vinculado ou a natureza específica é indispensável para determinar o CFOP.';
+  result.pending.push('Identificar documento de origem ou motivo fiscal da operação especial.');
  }
- if(metadata.kind==='venda'||metadata.kind==='compra'){
-  pending.push('Conferir origem da mercadoria, condição de contribuinte do ICMS e responsabilidade por eventual ICMS-ST: o CNPJ e a finalidade declarada não comprovam esses enquadramentos.');
+ if(!info.code||!info.official?.entry){
+  result.pending.push('Classificação fiscal do produto não foi confirmada em fonte oficial.');
  }
- if(['devolucao','remessa','transferencia','retorno','consignacao','bonificacao','comodato','conserto','industrializacao','outro'].includes(key))pending.push('A natureza especial exige identificar o motivo e/ou o documento fiscal vinculado antes de definir o CFOP.');
- pending.push('As regras tributárias estaduais ainda não estão homologadas neste motor para atribuir com segurança ICMS, ST, DIFAL, FCP, PIS, COFINS, IPI e IBS/CBS.');
- return {route,pending,purpose:natureInfo(key).purpose,cfop:'Aguardando regra fiscal verificada',tax:'Ainda não calculado',date:new Date().toLocaleDateString('pt-BR')};
+ result.pending.push('Para calcular valores de ICMS, ST, PIS/COFINS ou IBS/CBS são necessários valores da operação e regras/benefícios aplicáveis ao remetente e ao destino.');
+ return result;
 }
 function resultHTML(input,from,to,info,fiscal){
  const s=info.suggest||{};
  const ncm=info.code?ncmFmt(info.code):'Não identificado';
  const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' possibilidades':'Não identificado';
- const partyLine=(p)=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj)+' · '+safe(p.uf||'UF não confirmada');
+ const partyLine=p=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj)+' · '+safe(p.uf||'UF não confirmada');
  const details=[];
  if(s.detail)details.push('<p>'+safe(s.detail)+'</p>');
- if(info.official?.entry?.descricao)details.push('<p>Descrição NCM: '+safe(info.official.entry.descricao)+'</p>');
- if(info.results.length)details.push('<p>Códigos encontrados (não classificados): '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(', ')+'</p>');
+ if(info.official?.entry?.descricao)details.push('<p>Descrição da tabela NCM: '+safe(info.official.entry.descricao)+'</p>');
+ if(info.results.length)details.push('<p>Códigos encontrados (ainda não classificados): '+info.results.map(x=>safe(ncmFmt(x.codigo))).join(', ')+'</p>');
  for(const issue of info.issues)details.push('<p>'+safe(issue)+'</p>');
- return '<h2>Resultado</h2>'+
+ const cites=fiscal.sources.map(x=>'<a target="_blank" rel="noopener noreferrer" href="'+safe(x.url)+'">'+safe(x.label)+'</a>').join(' · ');
+ return '<h2>Resultado da consulta</h2>'+
   '<p class="muted">'+safe(input.natureText)+' · '+safe(fiscal.route)+'</p>'+
-  '<div class="result-main"><small>CFOP</small><div class="result-value">Pendente</div><p class="muted">Tributos não calculados: regras fiscais ainda não homologadas para esta operação.</p></div>'+
+  '<div class="result-main"><small>CFOP — '+safe(fiscal.confidence)+'</small><div class="result-value">'+safe(fiscal.cfop)+'</div>'+
+  (fiscal.note?'<p>'+safe(fiscal.note)+'</p>':'')+
+  '</div>'+
   '<div class="result-compact">'+
    '<div><small>Produto</small><strong>'+safe(short(input.product,55))+'</strong></div>'+
    '<div><small>NCM sugerido</small><strong>'+safe(ncm)+'</strong></div>'+
    '<div><small>CEST sugerido</small><strong>'+safe(cest)+'</strong></div>'+
   '</div>'+
   '<div class="participants"><p><b>Origem:</b> '+partyLine(from)+'</p><p><b>Destino:</b> '+partyLine(to)+'</p></div>'+
-  '<details><summary>O que falta validar?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
+  '<article class="tax-situation"><h3>Tributação</h3><p><b>ICMS-ST:</b> '+safe(fiscal.st)+'</p>'+
+  '<p><b>Valores dos impostos:</b> '+safe(fiscal.tax)+'. Sem valor da mercadoria, frete e enquadramento confirmado não é possível obter valores reais.</p></article>'+
+  '<details><summary>O que confirmar antes de emitir?</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
   '<details><summary>Dados das empresas</summary><div class="result-grid"><article><h3>Origem</h3>'+formatCompany(from)+'</article><article><h3>Destino</h3>'+formatCompany(to)+'</article></div></details>'+
-  '<details><summary>Classificação e fontes</summary>'+
+  '<details><summary>Classificação e fontes oficiais</summary>'+
    '<p>NCM: '+(info.official?.entry?'código encontrado na tabela oficial':'não verificado')+'. CEST: referência indicativa, não comprova ICMS-ST.</p>'+
    details.join('')+
-   '<p><a target="_blank" rel="noopener" href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif">Receita — Classif</a> · <a target="_blank" rel="noopener" href="https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18">CONFAZ — CEST/ST</a></p>'+
-  '</details>';
+   '<p>'+cites+'</p></details>';
 }
 function loadSaved(){
  try{const s=JSON.parse(localStorage.getItem(COMPANY_KEY)||'null');if(!s||!validCnpj(s.cnpj))return;
