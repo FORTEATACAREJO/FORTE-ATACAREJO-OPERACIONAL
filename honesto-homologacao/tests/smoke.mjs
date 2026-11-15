@@ -37,22 +37,25 @@ try{
  assert(landingHtml.includes('function openNanaBrowser()'),'Abrir Chrome/Safari deve ter ação real');
  assert(landingHtml.includes('class="quicktools"'),'Botões devem estar na faixa visível antes da entrada');
  assert(landingHtml.indexOf('id="joinPanel"')<landingHtml.indexOf('id="workspace"'),'Cadastro simples deve vir antes das funções internas');
- assert(landingHtml.includes('/icon-192.png?v=5'),'Cabeçalho deve usar o novo símbolo NANA PAY');
+ assert(landingHtml.includes('/icon-192.png?v=7'),'Cabeçalho deve usar o novo símbolo Nanapay');
  assert(!landingHtml.includes('<section class="hero">'),'Evitar apresentação extensa antes da mesa');
- assert(manifest.name.startsWith('NANA PAY'),'PWA deve ter nome NANA PAY');
- assert.equal(manifest.short_name,'NanaPay','Nome curto do ícone no Android não deve truncar');
- assert(landingHtml.includes('apple-mobile-web-app-title\" content=\"NanaPay'),'Nome curto no iPhone deve combinar com o Android');
- assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=5'),'Chrome deve atualizar ícone de instalação');
- assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=5'),'Imagem de instalação maior deve ser atualizada');
+ assert(manifest.name.startsWith('Nanapay'),'PWA deve ter nome Nanapay');
+ assert.equal(manifest.short_name,'Nanapay','Nome curto deve ser Nanapay');
+ assert.equal(manifest.name,'Nanapay — Sua conta, sob seu controle','Nome completo da marca deve ficar junto');
+ assert.equal(manifest.id,'/nanapay-pwa','PWA nova deve ter identidade de instalação distinta da versão antiga');
+ assert.equal(manifest.start_url,'/?pwa=nanapay','O atalho deve abrir a versão Nanapay');
+ assert(landingHtml.includes('apple-mobile-web-app-title\" content=\"Nanapay'),'Nome curto no iPhone deve combinar com o Android');
+ assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=7'),'Chrome deve atualizar ícone de instalação');
+ assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=7'),'Imagem de instalação maior deve ser atualizada');
  const sw=await fetch(origin+'/sw.js');
- assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v6'),'Cache antigo de imagens precisa ser invalidado');
+ assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v7'),'Cache antigo de imagens precisa ser invalidado');
 
  
  const publicDemo=await req('/api/demo');
- assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'NANA PAY do cliente não deve obter credencial de PDV');
+ assert.equal(publicDemo.status,200);assert(!publicDemo.body.staff,'Nanapay do cliente não deve obter credencial de PDV');
  const simulator=await fetch(origin+'/pdv-simulado');assert.equal(simulator.status,200);
  const simulatorHtml=await simulator.text();
- assert(simulatorHtml.includes('SIMULADOR EXTERNO AO APLICATIVO NANA PAY'));
+ assert(simulatorHtml.includes('SIMULADOR EXTERNO AO APLICATIVO Nanapay'));
  const customer=await fetch(origin+'/');const customerHtml=await customer.text();
  assert(!customerHtml.includes('id="staffTab"'),'Cliente não deve ter aba de PDV');
  assert(!customerHtml.includes('id="staffSection"'),'Cliente não deve operar PDV');
@@ -85,17 +88,17 @@ try{
  assert.equal(waiter.status,201);assert(waiter.body.accessToken);assert.equal(waiter.body.role,'garcom');
  const waiterView=await roleRequest('/api/restaurant/dashboard',waiter.body.accessToken,demo.establishmentId);
  assert.equal(waiterView.status,200);assert.equal(waiterView.body.role,'garcom');
- assert.equal((await roleRequest('/api/restaurant/demo-pdv-access',waiter.body.accessToken,demo.establishmentId)).status,403,'Garçom não pode entrar no PDV técnico pelo NANA PAY');
+ assert.equal((await roleRequest('/api/restaurant/demo-pdv-access',waiter.body.accessToken,demo.establishmentId)).status,403,'Garçom não pode entrar no PDV técnico pelo Nanapay');
  assert.equal(waiterView.body.waiters,undefined,'Garçom não recebe cadastro de outros funcionários');
  assert.equal((await roleRequest('/api/restaurant/settings',waiter.body.accessToken,demo.establishmentId,{name:'Não autorizado',orderingEnabled:false})).status,403,'Garçom não pode alterar restaurante');
  assert.equal((await roleRequest('/api/restaurant/waiters',waiter.body.accessToken,demo.establishmentId,{name:'Outra'})).status,403,'Garçom não cadastra garçons');
- assert.equal((await req('/api/pdv/dispute-status',{token,id:'fake',status:'aprovada'},waiter.body.accessToken)).status,403,'Garçom não pode aprovar devolução via NANA PAY');
+ assert.equal((await req('/api/pdv/dispute-status',{token,id:'fake',status:'aprovada'},waiter.body.accessToken)).status,403,'Garçom não pode aprovar devolução via Nanapay');
  const venue2=(await req('/api/pdv-demo/create',{})).body;
  assert.equal((await roleRequest('/api/restaurant/dashboard',waiter.body.accessToken,venue2.establishmentId)).status,403,'Credencial isolada por restaurante');
- const settings=await roleRequest('/api/restaurant/settings',demo.adminToken,demo.establishmentId,{name:'Restaurante NANA PAY Demo',orderingEnabled:false});
+ const settings=await roleRequest('/api/restaurant/settings',demo.adminToken,demo.establishmentId,{name:'Restaurante Nanapay Demo',orderingEnabled:false});
  assert.equal(settings.status,200);
  assert.equal(settings.body.orderingEnabled,false);
- assert.equal((await req('/api/session/'+token)).body.restaurant,'Restaurante NANA PAY Demo');
+ assert.equal((await req('/api/session/'+token)).body.restaurant,'Restaurante Nanapay Demo');
  assert.equal((await req('/api/session/'+token)).body.orderingEnabled,false);
  const restore=await roleRequest('/api/restaurant/settings',demo.adminToken,demo.establishmentId,{name:'Restaurante Exemplo',orderingEnabled:true});
  assert.equal(restore.status,200);
@@ -161,7 +164,7 @@ try{
  assert.equal((await req('/api/pdv/order-status',{token,id:ordered.orders[0].id,status:'entregue'},staff)).status,200);
  const prevHistory=(await snap()).items.length;
  const requestedMove=await req('/api/client/transfer-request',{token,memberToken,newTable:'15'});
- assert.equal(requestedMove.status,201,'Cliente pede transferência no NANA PAY');
+ assert.equal(requestedMove.status,201,'Cliente pede transferência no Nanapay');
  let moveSnapshot=await snap();assert.equal(moveSnapshot.transfers.length,1);
  assert.equal(moveSnapshot.transfers[0].status,'pendente');
  assertISO(moveSnapshot.transfers[0].requestedAt,'solicitação da troca de mesa');
@@ -257,5 +260,5 @@ try{
  assert.equal((await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'agua',qty:1,note:'teste',requestId:'46ff5b85-4470-41f4-b5cb-01dc6ce6a234'})).status,409);
  const freshAfterSettlement=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'12'});
  assert.notEqual(freshAfterSettlement.body.token,token,'Nova comanda só após quitação anterior');
- console.log('PASS: NANA PAY 3 perfis isolados + PDV técnico conectado + devoluções e histórico com data/hora');
+ console.log('PASS: Nanapay 3 perfis isolados + PDV técnico conectado + devoluções e histórico com data/hora');
 }finally{child.kill('SIGTERM');}
