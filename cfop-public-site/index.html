@@ -26,6 +26,13 @@ p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-h
 #aiManualPrompt[hidden]{display:none}
 #aiCopy{margin-top:10px;width:100%}
 
+
+#exportDetails .actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+#exportDetails .actions button{padding:10px 7px;font-size:13px;min-width:0}
+#exportJsonPreview{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #bfcbd9;line-height:1.5;font-size:12px;padding:12px;font-family:ui-monospace,Consolas,monospace;resize:vertical;background:#fff}
+#exportJsonPreview[hidden]{display:none}
+@media(max-width:450px){#exportDetails .actions{grid-template-columns:1fr}#exportDetails .actions button{min-height:42px}}
+
 .field{display:flex;flex-direction:column;gap:7px}.field label{font-size:14px;font-weight:700;color:#33465b}
 .field input,.field select{appearance:auto;width:100%;background:white;color:#152b42;border:1px solid #c5ceda;border-radius:11px;font:inherit;min-height:48px;padding:11px 13px;font-size:16px}
 .field input:focus,.field select:focus{outline:2px solid #a78543;outline-offset:2px}
@@ -122,6 +129,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 </style>
 <script src="/qualidade-fiscal.js?v=20261115a" defer></script>
 <script src="/classificacao.js" defer></script>
+<script src="/ficha-exportacao.js?v=20261115a" defer></script>
 <script src="/consulta-automatica.js?v=20261115j" defer></script>
 <script src="/minha-ia.js?v=20261115a" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
@@ -251,6 +259,19 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 </section>
 <section id="results" class="card" hidden aria-live="polite"></section>
 <div id="afterActions" class="actions" hidden><button type="button" class="secondary" id="print">Imprimir / salvar PDF</button></div>
+<details class="settings-group" id="exportDetails" hidden>
+ <summary>Exportar ficha fiscal orientativa</summary>
+ <p class="notice">Arquivo JSON estruturado para conferência e futura integração com ERPs. Não é NF-e e não pode ser usado para emissão automática.</p>
+ <label class="opt-row" for="exportPersonalData"><input type="checkbox" id="exportPersonalData"><span>Incluir CPF/CNPJ e nomes das empresas no arquivo gerado neste aparelho (opcional)</span></label>
+ <div class="actions">
+  <button type="button" id="exportGenerate" class="secondary">Gerar ficha</button>
+  <button type="button" id="exportCopy" class="secondary" disabled>Copiar</button>
+  <button type="button" id="exportDownload" class="secondary" disabled>Baixar JSON</button>
+ </div>
+ <p id="exportStatus" role="status" aria-live="polite" class="notice"></p>
+ <textarea id="exportJsonPreview" hidden readonly rows="8" aria-label="Prévia JSON da ficha fiscal orientativa"></textarea>
+</details>
+
 <details class="settings-group" id="aiSettings"><summary>Minha IA — escolher assistente</summary>
  <div class="field"><label for="aiProvider">Qual IA você já utiliza?</label>
   <select id="aiProvider"><option value="">Selecione sua IA</option>
