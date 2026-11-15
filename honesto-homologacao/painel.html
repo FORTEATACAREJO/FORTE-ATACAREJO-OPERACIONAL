@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07402D"><title>NANA PAY | Restaurante</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07402D"><title>Nanapay | Restaurante</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--green:#057b4b;--mint:#e6f8ec;--ink:#102821;--muted:#627770;--line:#dceae1;color:var(--ink);background:#f5f8f6}*{box-sizing:border-box}
 body{margin:0}header{background:#fff;border-bottom:1px solid var(--line);padding:17px 20px;position:sticky;top:0;z-index:1}.head{max-width:1140px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:15px}
@@ -24,7 +24,7 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
 <div id="login">
  <div class="eyebrow">Acesso exclusivo do estabelecimento</div>
  <h1>Seu restaurante, sob controle.</h1>
- <p class="subtitle">Uma plataforma NANA PAY. Administrador e garçom têm acesso próprio, sem abrir a conta do cliente.</p>
+ <p class="subtitle">Uma plataforma Nanapay. Administrador e garçom têm acesso próprio, sem abrir a conta do cliente.</p>
  <div class="split">
  <div class="card"><h2>Escolha seu perfil</h2>
   <div class="role-grid">
@@ -57,24 +57,24 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
   <div>
    <div class="card"><div class="row"><h2>Mesas e comandas</h2><button class="btn soft sm" onclick="refresh()">Atualizar</button></div>
    <div id="tables"></div></div>
-   <div class="card"><h2>Fluxo de devoluções</h2><div class="info">Os pedidos de devolução seguem para o PDV do restaurante. A aprovação, recusa e abatimento do valor nunca são realizados pelo NANA PAY nem pelo painel do garçom.</div></div>
+   <div class="card"><h2>Fluxo de devoluções</h2><div class="info">Os pedidos de devolução seguem para o PDV do restaurante. A aprovação, recusa e abatimento do valor nunca são realizados pelo Nanapay nem pelo painel do garçom.</div></div>
   </div>
   <div>
    <div class="card" id="adminSettings"><h2>Configurações do estabelecimento</h2>
     <form id="settingsForm"><label for="restaurantName">Nome do restaurante</label><input id="restaurantName" required minlength="3" maxlength="80">
-     <label style="display:flex;align-items:center;gap:9px"><input id="enableOrders" type="checkbox" style="width:auto">Permitir solicitações de pedidos pelo NANA PAY</label>
+     <label style="display:flex;align-items:center;gap:9px"><input id="enableOrders" type="checkbox" style="width:auto">Permitir solicitações de pedidos pelo Nanapay</label>
      <button class="btn" type="submit">Salvar configurações</button>
     </form></div>
-   <div class="card" id="adminPOS"><h2>Teste de integração com o PDV</h2><p class="hint">Use o simulador técnico ligado a este mesmo restaurante para testar lançamento, aceite de pedidos e decisões de devolução. Não faz parte das funções do garçom no NANA PAY.</p><button class="btn soft" onclick="openTechnicalPOS()">Abrir PDV técnico conectado</button></div>
-   <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o NANA PAY.</p><div id="qr"></div><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
+   <div class="card" id="adminPOS"><h2>Teste de integração com o PDV</h2><p class="hint">Use o simulador técnico ligado a este mesmo restaurante para testar lançamento, aceite de pedidos e decisões de devolução. Não faz parte das funções do garçom no Nanapay.</p><button class="btn soft" onclick="openTechnicalPOS()">Abrir PDV técnico conectado</button></div>
+   <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o Nanapay.</p><div id="qr"></div><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
    <div class="card" id="adminWaiters"><h2>Garçons autorizados</h2><form id="waiterForm"><label for="waiterName">Cadastrar garçom</label><input id="waiterName" required placeholder="Primeiro nome" minlength="2" maxlength="45"><button class="btn" type="submit">Criar acesso individual</button></form>
     <div id="newWaiterKey" class="info closed" style="margin-top:10px"></div><div id="waiters"></div></div>
-   <div class="card" id="adminBilling"><h2>Licença NANA PAY</h2><div class="row"><strong class="big">R$ 4,99</strong><span>/mês por estabelecimento</span></div><p class="hint">Cartão de crédito escolhido pelo administrador. A cobrança recorrente ainda não está ativada nesta demonstração.</p><span class="pill wait">Cobrança desativada</span></div>
+   <div class="card" id="adminBilling"><h2>Licença Nanapay</h2><div class="row"><strong class="big">R$ 4,99</strong><span>/mês por estabelecimento</span></div><p class="hint">Cartão de crédito escolhido pelo administrador. A cobrança recorrente ainda não está ativada nesta demonstração.</p><span class="pill wait">Cobrança desativada</span></div>
   </div>
  </div>
 </div>
 <p id="alert" role="status"></p></main>
-<footer>NANA PAY · Projeto FORTE ATACAREJO LTDA. · Homologação sem transações reais</footer>
+<footer>Nanapay · Projeto FORTE ATACAREJO LTDA. · Homologação sem transações reais</footer>
 <script src="/vendor/qrcode.js"></script><script>
 let role='admin',session=null,current=null;
 const $=id=>document.getElementById(id);
