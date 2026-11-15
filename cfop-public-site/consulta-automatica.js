@@ -5,6 +5,9 @@ const CAD='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-cadastros'
 const NCM='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-ncm';
 const REGISTER='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/consulta-cfop/api/access';
 const COMPANY_KEY='fortecompanny-optional-company-v1';
+const PERSONAL_KEY='fortecompanny-my-document-v1';
+const NAME_SEARCH='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-busca-empresas';
+
 const TERMS='cfop-privacy-2026-11-12-v1';
 const ufList=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '));
 let providerReady=null,runId=0,lastInput=null;
@@ -32,6 +35,27 @@ function validCnpj(v){
  function digit(str,weights){let sum=0;for(let i=0;i<weights.length;i++)sum+=(str.charCodeAt(i)-48)*weights[i];const rem=sum%11;return rem<2?0:11-rem}
  const a=digit(c.slice(0,12),weights1);return c.slice(12)===String(a)+String(digit(c.slice(0,12)+a,weights2));
 }
+
+function normDoc(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function validCpf(v){
+ const c=String(v||'').replace(/\D/g,'');
+ if(!/^\d{11}$/.test(c)||c.split('').every(x=>x===c[0]))return false;
+ for(let n=9;n<=10;n++){
+  let sum=0;for(let i=0;i<n;i++)sum+=Number(c[i])*(n+1-i);
+  let digit=sum*10%11;if(digit===10)digit=0;
+  if(digit!==Number(c[n]))return false;
+ }
+ return true;
+}
+function validPartyDoc(doc){return validCnpj(doc)||validCpf(doc)}
+function party(doc){
+ if(validCpf(doc)){
+  return Promise.resolve({cnpj:doc,name:'Pessoa física informada pelo usuário',uf:'',city:'',situation:'Não consultado',
+   simple:'CPF não comprova condição de contribuinte',registrations:[],source:'Declaração local — não verificada em base pública',kind:'person',verified:false});
+ }
+ return company(doc);
+}
+
 function safe(s){return String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
 function short(str,n=150){return String(str||'').slice(0,n)}
 function digits(s){return String(s||'').replace(/\D/g,'')}
@@ -173,11 +197,107 @@ function loadSaved(){
   $('registerState').textContent='Empresa salva neste aparelho para facilitar as próximas consultas (cadastro autodeclarado).';
  }catch(e){}
 }
+
+let ownPlacement=null;
+function clearSearchList(){
+ $('companySearchResults').replaceChildren();
+}
+function populateOwnDocument(){
+ const value=normDoc($('myDoc').value);
+ if(!value){$('myDocStatus').textContent='Informe seu CPF/CNPJ se desejar o preenchimento automático. O cadastro é opcional.';return}
+ if(!validPartyDoc(value)){$('myDocStatus').textContent='Confira o CPF/CNPJ: dígitos verificadores inválidos ou documento incompleto.';return}
+ const where=$('myRole').value==='destino'?'toCnpj':'fromCnpj';
+ const other=where==='toCnpj'?'fromCnpj':'toCnpj';
+ if($(other).value && normDoc($(other).value)===value){
+  const temp=$(where).value;
+  $(where).value=value;
+  $(other).value=normDoc(temp)===value?'':temp;
+ }else{
+  const displaced=$(where).value;
+  $(where).value=value;
+  if(displaced&&displaced!==value&&!$(other).value)$(other).value=displaced;
+ }
+ ownPlacement=where;
+ $('companyTarget').value=where==='fromCnpj'?'destino':'origem';
+ $('myDocStatus').textContent=(validCpf(value)?'CPF':'CNPJ')+' preenchido em '+(where==='fromCnpj'?'origem':'destino')+'. O outro participante pode ser localizado pelo nome ou CNPJ.';
+ clearPreviousAnalysis();
+}
+function persistOwnIdentity(){
+ const val=normDoc($('myDoc').value);
+ if(!$('rememberMe').checked){try{localStorage.removeItem(PERSONAL_KEY)}catch(_){ }return}
+ if(!validPartyDoc(val)){
+  $('rememberMe').checked=false;
+  $('myDocStatus').textContent='Documento inválido: não foi guardado neste aparelho.';
+  return;
+ }
+ try{localStorage.setItem(PERSONAL_KEY,JSON.stringify({document:val,role:$('myRole').value}))}
+ catch(_){$('myDocStatus').textContent='O navegador não permitiu guardar o documento neste aparelho.'}
+}
+function recoverOwnIdentity(){
+ let data=null;
+ try{data=JSON.parse(localStorage.getItem(PERSONAL_KEY)||'null')}catch(_){}
+ if(data&&validPartyDoc(data.document)&&['origem','destino'].includes(data.role)){
+  $('myDoc').value=data.document;$('myRole').value=data.role;$('rememberMe').checked=true;
+  populateOwnDocument();
+ }else{
+  // Compatibilidade com cadastro anterior; não marca a nova opção de memória sem autorização.
+  try{
+   const previous=JSON.parse(localStorage.getItem(COMPANY_KEY)||'null');
+   if(previous&&validCnpj(previous.cnpj)){
+    $('myDoc').value=previous.cnpj;$('myRole').value=previous.role==='destino'?'destino':'origem';
+    populateOwnDocument();
+   }
+  }catch(_){}
+ }
+}
+async function searchCompanyByName(){
+ const q=$('companyNameSearch').value.trim(),uf=$('companyUfSearch').value;
+ clearSearchList();
+ if(q.length<3){$('companySearchStatus').textContent='Informe pelo menos 3 caracteres da razão social ou nome fantasia.';return}
+ const btn=$('searchCompanies');btn.disabled=true;
+ $('companySearchStatus').textContent='Procurando empresas na base pública de pesquisa por nome...';
+ try{
+  const url=NAME_SEARCH+'/search?q='+encodeURIComponent(q)+(uf?'&uf='+encodeURIComponent(uf):'');
+  const response=await jsonFetch(url,{},9500);
+  const items=Array.isArray(response.items)?response.items.filter(x=>x&&validCnpj(x.cnpj)).slice(0,15):[];
+  if(!items.length){
+   $('companySearchStatus').textContent='Nenhuma empresa encontrada nessa busca. Tente outro nome ou informe o CNPJ diretamente. Não será escolhido nenhum CNPJ sem confirmação.';
+   return;
+  }
+  $('companySearchStatus').textContent=items.length+' resultado(s) — '+(response.source||'Dados públicos em intermediário')+'. Escolha o estabelecimento correto. A validação cadastral será feita após a escolha.';
+  for(const candidate of items){
+   const btnSelect=document.createElement('button');
+   btnSelect.type='button';
+   const label=document.createElement('span');
+   label.textContent=String(candidate.name||candidate.tradeName||'Empresa')+' — '+candidate.cnpj;
+   const detail=document.createElement('small');
+   detail.textContent=[candidate.tradeName,candidate.city,candidate.uf].filter(Boolean).join(' · ');
+   btnSelect.append(label,detail);
+   btnSelect.addEventListener('click',async()=>{
+    const chosen=$('companyTarget').value==='origem'?'fromCnpj':'toCnpj';
+    $(chosen).value=candidate.cnpj;
+    clearPreviousAnalysis();
+    $('companySearchStatus').textContent='CNPJ escolhido e preenchido: '+candidate.cnpj+'. Conferindo os dados cadastrais...';
+    try{
+     const found=await company(candidate.cnpj);
+     $('companySearchStatus').textContent='CNPJ selecionado: '+candidate.cnpj+' — '+(found.name||candidate.name)+' / '+(found.uf||candidate.uf||'UF não confirmada')+'. Fonte cadastral: '+found.source+'. Clique em Pesquisar e montar ficha fiscal para análise da operação.';
+    }catch(_){
+     $('companySearchStatus').textContent='CNPJ selecionado: '+candidate.cnpj+'. A confirmação cadastral está indisponível; a ficha fiscal indicará as pendências.';
+    }
+   });
+   $('companySearchResults').appendChild(btnSelect);
+  }
+ }catch(e){
+  $('companySearchStatus').textContent='A fonte pública de pesquisa por nome está indisponível ou atingiu seu limite gratuito. Informe o CNPJ diretamente; nenhuma empresa foi selecionada automaticamente.';
+ }finally{btn.disabled=false}
+}
+
 function showError(message){$('message').textContent=message;$('message').hidden=false}
 function clearError(){$('message').hidden=true;$('message').textContent=''}
 async function maybeRegister(input){
  if(!$('registerCompany').checked)return;
  const cnpj=input[$('registerRole').value==='destino'?'to':'from'];
+ if(!validCnpj(cnpj)){$('registerState').textContent='O cadastro empresarial exige CNPJ. Um CPF pode ser lembrado apenas no próprio aparelho.';return}
  if(!$('registerAccept').checked){$('registerState').textContent='Cadastro não realizado: aceite os termos para registrar sua empresa.';return}
  const name=$('registerName').value.trim();
  if(name&&name.length<2){$('registerState').textContent='Informe um nome com pelo menos 2 caracteres ou deixe vazio.';return}
@@ -192,18 +312,18 @@ async function maybeRegister(input){
 }
 async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
- const from=normCnpj($('fromCnpj').value),to=normCnpj($('toCnpj').value);
+ const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
  const product=$('product').value.trim(),nature=$('nature').value;
  if(!nature){showError('Selecione a natureza da operação.');return}
- if(!validCnpj(from)){showError('Informe um CNPJ de origem válido.');return}
- if(!validCnpj(to)){showError('Informe um CNPJ de destino válido.');return}
+ if(!validPartyDoc(from)){showError('Informe um CNPJ ou CPF de origem válido.');return}
+ if(!validPartyDoc(to)){showError('Informe um CNPJ ou CPF de destino válido.');return}
  if(product.length<3){showError('Informe um produto com ao menos três caracteres.');return}
  const id=++runId,btn=$('submit');
  btn.disabled=true;btn.textContent='Pesquisando bases fiscais...';
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
  const input={from,to,product:short(product,90),nature,natureText:$('nature').selectedOptions[0].textContent};
  try{
-  const parts=await Promise.allSettled([company(from),from===to?company(from):company(to),productInfo(product)]);
+  const parts=await Promise.allSettled([party(from),party(to),productInfo(product)]);
   if(id!==runId)return;
   const unavailable=doc=>({cnpj:doc,name:'Cadastro indisponível',uf:'',city:'',situation:'',simple:'Não confirmado',registrations:[],source:'Sem resposta',kind:'unavailable'});
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
@@ -234,13 +354,21 @@ $('swapCnpj').addEventListener('click',()=>{
  if($('registerCompany').checked){
   $('registerRole').value=$('registerRole').value==='origem'?'destino':'origem';
  }
+ if(validPartyDoc($('myDoc').value)){
+  $('myRole').value=$('myRole').value==='origem'?'destino':'origem';
+  persistOwnIdentity();
+ }
  clearPreviousAnalysis();
  $('swapStatus').textContent='Origem e destino invertidos. A natureza e a finalidade foram mantidas; revise se a nova operação tem outra finalidade.';
- if(validCnpj($('fromCnpj').value)&&validCnpj($('toCnpj').value)&&$('nature').value&&$('product').value.trim().length>=3){
+ if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&$('nature').value&&$('product').value.trim().length>=3){
   $('swapStatus').textContent+=' Recalculando a consulta para o novo sentido...';
   onSubmit({preventDefault(){}},false);
  }
 });
+$('myDoc').addEventListener('change',()=>{populateOwnDocument();persistOwnIdentity()});
+$('myRole').addEventListener('change',()=>{populateOwnDocument();persistOwnIdentity()});
+$('rememberMe').addEventListener('change',persistOwnIdentity);
+$('searchCompanies').addEventListener('click',searchCompanyByName);
 $('registerCompany').addEventListener('change',()=>{$('registerBox').hidden=!$('registerCompany').checked;clearError()});
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
@@ -249,4 +377,5 @@ $('clear').addEventListener('click',()=>{
 $('print').addEventListener('click',()=>window.print());
 $('removeSaved').addEventListener('click',()=>{try{localStorage.removeItem(COMPANY_KEY)}catch(e){}$('registerState').textContent='Preferência local excluída; o registro já enviado ao servidor não é apagado por este botão.'});
 loadSaved();
+recoverOwnIdentity();
 })();
