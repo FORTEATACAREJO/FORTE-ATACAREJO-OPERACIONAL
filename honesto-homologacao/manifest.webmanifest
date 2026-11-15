@@ -1,7 +1,7 @@
 {
-  "name": "NANA PAY — Sua conta sob seu controle",
+  "name": "NANA PAY — Sua conta, sob seu controle",
   "short_name": "NANA PAY",
-  "description": "Confira a conta e acompanhe o cardápio do restaurante. Pedidos quando autorizados.",
+  "description": "Confira sua conta em tempo real pelo QR Code do restaurante; consulte o cardápio e compartilhe a mesa.",
   "lang": "pt-BR",
   "id": "/",
   "start_url": "/",
@@ -9,32 +9,33 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#073a2b",
+  "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-192.png",
+      "src": "/icon-192.png?v=5",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.png?v=5",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg?v=5",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
     {
-      "name": "Abrir NANA PAY",
+      "name": "Minha conta",
+      "short_name": "Conta",
       "url": "/",
-      "description": "Acessar o aplicativo"
+      "description": "Abrir a conta do restaurante"
     }
   ]
 }
