@@ -285,6 +285,19 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   from:from.uf,to:to.uf,ncm:info.code,cest:info.suggest?.cest
  })||null;
  const mgAgreement=mgEvidence?.status==='st_ambito_interestadual_por_acordo';
+ const mgInternal=mgEvidence?.status==='st_ambito_interno'&&['0500100','1000200','1000300'].includes(mgEvidence?.base?.cest);
+ if(mgInternal&&(isSale||isPurchase)){
+  r.mgLegalEvidence=mgEvidence;
+  r.st='MG: a mercadoria está relacionada na ST interna (Anexo VII). Confirmar o regime e a responsabilidade no caso específico.';
+  for(const src of mgEvidence.sources)sources.push({label:src.title,url:src.url});
+  r.pending.push('Conferir a NF-e de aquisição: retenção de ST para MG, condição de substituído ou substituto e eventuais exceções.');
+  if(isSale){
+   r.cfop=ownership==='terceiros'&&profile==='revenda'&&priorSt==='sim'?
+    '5.405 (hipótese, ST anterior em MG a comprovar)':'CFOP de ST interna a confirmar';
+   r.confidence='Orientação condicional à ST interna de MG';
+   r.note='Cimento/argamassa com ST interna pode exigir CFOP diferente de 5.102. O código depende de retenção anterior para MG e de quem é o responsável.';
+  }
+ }
  const mgCimento=different&&mgEvidence?.base?.cest==='0500100';
  const mgArgamassa=different&&['1000200','1000300'].includes(mgEvidence?.base?.cest);
  if(mgCimento||mgArgamassa){
