@@ -181,8 +181,11 @@ async function productInfo(label,selectedNcm){
  let official=null,cests=[],issues=[],results=[];
  if(selected&&selected.length!==8)issues.push('O NCM informado deve ter exatamente oito dígitos.');
  // Não carregar CEST de sugestão cuja NCM diverge do código confirmado pelo usuário.
- if(suggest&&suggest.cest&&suggest.ncm&&code&&suggest.ncm!==code){
-  suggest={...suggest,cest:'',detail:(suggest.detail||'')+' • A sugestão de CEST não foi aplicada ao NCM informado.'};
+ if(suggest?.cest&&code){
+  const compatible=(suggest.ncm&&suggest.ncm===code)||
+    (suggest.ncmGroup&&code.startsWith(suggest.ncmGroup))||
+    (Array.isArray(suggest.options)&&suggest.options.some(x=>x.ncm===code));
+  if(!compatible)suggest={...suggest,cest:'',detail:(suggest.detail||'')+' • CEST sugerido não foi aplicado porque o NCM informado não foi vinculado ao catálogo do produto.'};
  }
  if(code){
   try{
