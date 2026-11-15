@@ -197,15 +197,30 @@ async function productInfo(label,selectedNcm){
    cests=Array.isArray(c.items)?c.items:[];
   }catch(e){issues.push('Consulta CEST indisponível; não é possível concluir sua aplicabilidade.')}
  }else{
-  const norm=label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]+/g,' ').trim();
+  // Busca nacional sem catálogo fechado; preservar acentos para consulta à NCM.
+  const norm=label.normalize('NFC').replace(/[^\p{L}\p{N}\s-]+/gu,' ').replace(/\s+/g,' ').trim();
   const words=norm.split(/\s+/).filter(x=>x.length>=4&&!['para','com','tipo','marca','produto','modelo'].includes(x.toLowerCase()));
   const attempts=[norm.slice(0,70),words[0]||''].filter((q,i,all)=>q.length>=3&&all.indexOf(q)===i).slice(0,2);
+  let familyPrefix='';
   for(const term of attempts){
    try{
-    const v=await jsonFetch(NCM+'/search?q='+encodeURIComponent(term),{},9500);
-    results=(v.items||[]).filter(i=>i&&Number(i.nivel)===8&&/^\d{8}$/.test(String(i.codigo||''))).slice(0,12);
+    const v=await jsonFetch(NCM+'/search?q='+encodeURIComponent(term),{},9000);
+    const items=Array.isArray(v.items)?v.items:[];
+    results=items.filter(i=>i&&Number(i.nivel)===8&&/^\d{8}$/.test(String(i.codigo||''))).slice(0,12);
     if(results.length)break;
+    const group=items.find(i=>/^\d{2,7}$/.test(String(i.codigo||''))&&Number(i.nivel)>=2&&Number(i.nivel)<8);
+    if(group&&!familyPrefix)familyPrefix=String(group.codigo);
    }catch(e){issues.push('A busca por descrição na tabela NCM está indisponível.');break;}
+  }
+  // Descrições como "arroz" podem aparecer apenas no grupo-pai da NCM.
+  // Expandir a família e MOSTRAR opções, jamais atribuir código automaticamente.
+  if(!results.length&&familyPrefix){
+   try{
+    const v=await jsonFetch(NCM+'/family?prefix='+encodeURIComponent(familyPrefix),{},9000);
+    results=(v.items||[]).filter(i=>i&&Number(i.nivel)===8&&/^\d{8}$/.test(String(i.codigo||''))).slice(0,12);
+    if(results.length)issues.push('Códigos exibidos pertencem a uma família NCM encontrada pela descrição; conferir as notas do capítulo no Classif antes da escolha.');
+    if(v.hasMore)issues.push('A família NCM contém mais códigos do que os exibidos; consulte a árvore completa no Sistema Classif.');
+   }catch(e){issues.push('A expansão da família NCM não respondeu; consulte a árvore oficial no Classif.')}
   }
  }
  if(!code&&!results.length&&!(suggest?.options?.length))
