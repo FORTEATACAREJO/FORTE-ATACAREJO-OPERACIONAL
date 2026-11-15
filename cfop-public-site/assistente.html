@@ -569,6 +569,20 @@ $('ncm').addEventListener('input',()=>{officialNcm=null;showNcmStatus('Código a
 $('product').addEventListener('input',()=>{officialNcm=null});
 ncmGet('version',{}).then(data=>{$('ncmVersion').textContent='Fonte: Receita Federal/Siscomex — '+(data.snapshot?.referencia||'versão não informada')+' • '+(data.snapshot?.quantidade||'?')+' registros; sem API paga.'}).catch(()=>{$('ncmVersion').textContent='Consulta à tabela oficial temporariamente indisponível.'});
 let suggestedNcm="",suggestedCest="";
+
+let autoNcmTimer=null,lastAutoNcmChecked="";
+function checkSuggestedNcmAutomatically(value){
+ const code=String(value||"").replace(/\D/g,"");
+ if(autoNcmTimer)clearTimeout(autoNcmTimer);
+ if(code.length!==8){lastAutoNcmChecked="";return}
+ if(lastAutoNcmChecked===code)return;
+ autoNcmTimer=setTimeout(()=>{
+  if($('ncm').value.replace(/\D/g,'')!==code)return;
+  lastAutoNcmChecked=code;
+  verifyNcmCode(code,false); // Confere existência, não certifica o enquadramento do produto.
+ },650);
+}
+
 function renderProductSuggestion(){
  if(!window.FORTE_CLASSIFICACAO)return;
  const product=$('product').value.trim();
@@ -591,13 +605,14 @@ function renderProductSuggestion(){
  if(x.cest && x.ncm && (!$('cest').value||$('cest').value===suggestedCest)){$('cest').value=x.cest;suggestedCest=x.cest}
  if(!x.ncm && $('ncm').value===suggestedNcm && suggestedNcm){$('ncm').value="";suggestedNcm=""}
  if(!x.cest && $('cest').value===suggestedCest && suggestedCest){$('cest').value="";suggestedCest=""}
+ checkSuggestedNcmAutomatically(x.ncm||$('ncm').value);
 }
 $('product').addEventListener('input',renderProductSuggestion);
 $('ncm').addEventListener('change',function(){suggestedNcm="";renderProductSuggestion()});
 $('catalogOptions').addEventListener('change',function(){
  const x=window.FORTE_CLASSIFICACAO.suggest($('product').value);const found=(x&&x.options||[]).find(o=>o.ncm===$('catalogOptions').value);
  if(found){$('ncm').value=found.ncm;$('cest').value=found.cest;suggestedNcm=found.ncm;suggestedCest=found.cest;
- $('catalogHint').textContent="Opção selecionada: "+found.name+". Verifique a composição e o XML; CEST não comprova ST."; }
+ $('catalogHint').textContent="Opção selecionada: "+found.name+". Verifique a composição e o XML; CEST não comprova ST."; checkSuggestedNcmAutomatically(found.ncm); }
 });
 const d=new Date();$('operationDate').value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 function showFiscalConditions(){
