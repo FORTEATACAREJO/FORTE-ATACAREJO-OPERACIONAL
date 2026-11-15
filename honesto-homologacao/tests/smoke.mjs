@@ -37,7 +37,7 @@ try{
  assert(landingHtml.includes('function openNanaBrowser()'),'Abrir Chrome/Safari deve ter ação real');
  assert(landingHtml.includes('class="quicktools"'),'Botões devem estar na faixa visível antes da entrada');
  assert(landingHtml.indexOf('id="joinPanel"')<landingHtml.indexOf('id="workspace"'),'Cadastro simples deve vir antes das funções internas');
- assert(landingHtml.includes('/icon-192.png?v=7'),'Cabeçalho deve usar o novo símbolo Nanapay');
+ assert(landingHtml.includes('/icon-192.png?v=8'),'Cabeçalho deve usar o novo símbolo Nanapay');
  assert(!landingHtml.includes('<section class="hero">'),'Evitar apresentação extensa antes da mesa');
  assert(manifest.name.startsWith('Nanapay'),'PWA deve ter nome Nanapay');
  assert.equal(manifest.short_name,'Nanapay','Nome curto deve ser Nanapay');
@@ -45,10 +45,17 @@ try{
  assert.equal(manifest.id,'/nanapay-pwa','PWA nova deve ter identidade de instalação distinta da versão antiga');
  assert.equal(manifest.start_url,'/?pwa=nanapay','O atalho deve abrir a versão Nanapay');
  assert(landingHtml.includes('apple-mobile-web-app-title\" content=\"Nanapay'),'Nome curto no iPhone deve combinar com o Android');
- assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=7'),'Chrome deve atualizar ícone de instalação');
- assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=7'),'Imagem de instalação maior deve ser atualizada');
+ assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=8'),'Chrome deve atualizar ícone de instalação');
+ assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=8'),'Imagem de instalação maior deve ser atualizada');
+ const orbitLogo=await fetch(origin+'/icon.svg');
+ assert.equal(orbitLogo.status,200);
+ const orbitSvg=await orbitLogo.text();
+ assert(orbitSvg.includes('data:image/webp;base64,'),'Ícone SVG precisa preservar a terceira imagem aprovada');
+ assert(orbitSvg.includes('em orbita'),'Descrição da marca deve indicar N esmeralda em órbita');
+ assert(!manifest.icons.some(i=>i.src.includes('?v=7')),'Não pode reutilizar referências do ícone anterior');
+ 
  const sw=await fetch(origin+'/sw.js');
- assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v7'),'Cache antigo de imagens precisa ser invalidado');
+ assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v8'),'Cache antigo de imagens precisa ser invalidado');
 
  
  const publicDemo=await req('/api/demo');
