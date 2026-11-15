@@ -162,7 +162,7 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  const joined=!!memberToken&&!!visitorId&&d.people.some(p=>p.id===visitorId);
  $('joinPanel').classList.toggle('hidden',joined);
  $('workspace').classList.toggle('hidden',!joined);
- $('installStrip').classList.remove('hidden');
+ $('installStrip').classList.add('hidden');
  $('joinRestaurant').textContent=d.restaurant;if(!$('joinTable').value)$('joinTable').value=d.originalTable.replace(/^Mesa /,'');
  const myTable=d.personalTable||d.table;
  $('table').textContent=myTable;
@@ -235,10 +235,28 @@ async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.
   await connect();note('Bem-vindo(a), '+name+'! Mesa '+table+' confirmada.');}
  catch(ex){note(ex.message,true)}
 }
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('installBtn').textContent='Instalar grátis'});
-async function installHonesto(){if(installPrompt){try{await installPrompt.prompt();await installPrompt.userChoice;installPrompt=null}catch(e){note('Use o menu do navegador para instalar o NANA PAY.')}}else{
- const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);note(ios?'No Safari, toque em Compartilhar e em Adicionar à Tela de Início.':'No Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial.')}
+function nanaPublicUrl(){const url=new URL('/',location.origin);if(establishmentId)url.searchParams.set('est',establishmentId);return url.toString()}
+function nanaIsIos(){return /iPhone|iPad|iPod/i.test(navigator.userAgent)}
+function hideNanaBrowserHelp(){$('browserHelp').classList.add('hidden')}
+function nanaBrowserInfo(text){$('browserInstructions').textContent=text;$('browserHelp').classList.remove('hidden');$('browserHelp').scrollIntoView({behavior:'smooth',block:'nearest'})}
+async function copyNanaUrl(){const url=nanaPublicUrl();try{await navigator.clipboard.writeText(url);note('Endereço do NANA PAY copiado.')}catch{window.prompt('Copie este endereço do NANA PAY:',url)}}
+async function shareNana(){const url=nanaPublicUrl();try{if(navigator.share){await navigator.share({title:'NANA PAY',text:'Acompanhe a conta em tempo real.',url});return}await copyNanaUrl()}catch(e){if(e?.name!=='AbortError')await copyNanaUrl()}}
+async function openNanaBrowser(){const url=nanaPublicUrl();if(nanaIsIos()){nanaBrowserInfo('No iPhone/iPad: copie o endereço e abra no Safari. Para instalar, toque no botão Compartilhar do Safari e em Adicionar à Tela de Início.');return;}
+ if(/Android/i.test(navigator.userAgent)){
+  nanaBrowserInfo('No Android: use ⋮ → Abrir no Chrome. Se não aparecer, copie o endereço e abra no Chrome. Depois use ⋮ → Instalar aplicativo ou Adicionar à tela inicial.');
+  try{const dest=new URL(url);window.location.href='intent://'+dest.host+dest.pathname+dest.search+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end'}catch{}
+  return;
+ }
+ window.open(url,'_blank','noopener');
 }
+async function installNana(){
+ if(installPrompt){try{const promptEvent=installPrompt;installPrompt=null;promptEvent.prompt();const choice=await promptEvent.userChoice;if(choice.outcome==='accepted')note('Instalação autorizada pelo navegador.');else nanaBrowserInfo('Abra o menu do navegador e escolha Instalar aplicativo ou Adicionar à tela inicial.')}catch{nanaBrowserInfo('Use o menu do navegador para instalar o NANA PAY.')}return}
+ if(nanaIsIos()){nanaBrowserInfo('Safari no iPhone: toque Compartilhar (quadrado com seta) → Adicionar à Tela de Início. Se estiver em outro aplicativo, copie o endereço e abra primeiro no Safari.');return}
+ nanaBrowserInfo('Chrome no Android: toque ⋮ → Instalar aplicativo ou Adicionar à tela inicial. Se estiver no navegador interno de outro aplicativo, use Chrome / Safari acima.');
+}
+function installHonesto(){return installNana()}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
+window.addEventListener('appinstalled',()=>{installPrompt=null;note('NANA PAY instalado!')});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 function toggleTableChange(){if(!memberToken||!visitorId)return;
  const panel=$('moveFormPanel');panel.classList.toggle('hidden');
