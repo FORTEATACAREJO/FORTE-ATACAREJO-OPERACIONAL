@@ -373,6 +373,7 @@ $('registerCompany').addEventListener('change',()=>{$('registerBox').hidden=!$('
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
+ $('companySearchResults').replaceChildren();recoverOwnIdentity();
 });
 $('print').addEventListener('click',()=>window.print());
 $('removeSaved').addEventListener('click',()=>{try{localStorage.removeItem(COMPANY_KEY)}catch(e){}$('registerState').textContent='Preferência local excluída; o registro já enviado ao servidor não é apagado por este botão.'});
