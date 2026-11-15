@@ -47,3 +47,15 @@ Integração condicionada a autenticação do ERP, consentimento do estabelecime
 - Não marcar uma UF homologada apenas porque o portal oficial respondeu HTTP 200.
 - Não transformar resposta de IA em código fiscal definitivo.
 - Não emitir NF-e nesta fase.
+
+
+## Ficha fiscal orientativa JSON — versão de testes (implementada)
+
+- Arquivo gerado **somente no navegador**, após consulta concluída. Não há envio de JSON ao Supabase, Render, SEFAZ ou provedores de IA.
+- Opção **incluir identificadores e nomes das empresas** desligada por padrão; sem autorização, o JSON exporta apenas a UF e a informação de IE, sem documentos/razões sociais. Descrição de produto também tem documentos sensíveis mascarados.
+- `formato: FORTECOMPANNY_ORIENTACAO_FISCAL`, `schema_version: 1.0.0`, `tipo: consulta_orientativa_nao_homologada`, `nfe.emitida: false`, `validacao.can_use_for_automatic_issuing: false`.
+- Conteúdo: natureza e finalidade, UF, origem declarada do item, CFOP como **sugestão**, NCM como código existente sem homologar o produto, CEST indicativo, situações de ICMS-ST/DIFAL, referência a possíveis custos adicionais, fontes legais, alertas, dados ainda não comprovados.
+- Não inclui cálculo real de impostos, documentos XML, nem libera integração automática com emissores. Alterar a consulta invalida a prévia exportada.
+- Próxima fase de integração com ERPs: esquema autenticado e versionado com aprovação específica para uso em cada emissor, controles de privacidade, vigência e trilha de auditoria. Não usar a versão atual como documento fiscal ou autorização de emissão.
+
+**Validação do código:** cenários de anonimização padrão, consentimento explícito, esquema orientativo, cópia local, geração de JSON e invalidação após alteração da consulta. Testes de regressão registrados em `tests/ficha-exportacao.test.mjs`.
