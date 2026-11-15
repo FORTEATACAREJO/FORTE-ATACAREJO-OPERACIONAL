@@ -25,6 +25,21 @@ p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-h
 .full{grid-column:1/-1}
 .own-identity,.lookup-card{padding:15px;border:1px solid #dbe3ee;border-radius:12px;background:#f8fafc;margin-bottom:16px}
 .own-identity h3{margin-bottom:12px}
+.own-identity,.lookup-card,.settings-group,.privacy-mini{border:1px solid #dbe3ee;border-radius:12px;background:#f8fafc;padding:10px 13px;margin:10px 0}
+.own-identity[open],.lookup-card[open],.settings-group[open],.privacy-mini[open]{padding-bottom:16px}
+.own-identity summary,.lookup-card summary,.settings-group summary,.privacy-mini summary{cursor:pointer;font-size:14px;font-weight:700;color:#254059;line-height:1.4;padding:4px 0}
+.own-identity summary+*,.lookup-card summary+*,.settings-group summary+*{margin-top:12px}
+#swapStatus:empty,#myDocStatus:empty,#companySearchStatus:empty{display:none}
+#results .result-main{background:#f7fafc;border:1px solid #dce4ed;border-radius:12px;padding:13px;margin:10px 0}
+#results .result-main .result-value{font-size:20px;font-weight:800;color:#102640}
+#results .result-compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:13px 0}
+#results .result-compact>div{border:1px solid #dbe3ee;border-radius:10px;padding:10px}
+#results .result-compact strong{display:block;margin-top:4px;font-size:16px}
+#results .participants{font-size:13px;line-height:1.5;padding:10px 0}
+#results .participants>p{margin:5px 0}
+#results details{margin:12px 0}
+@media(max-width:660px){#results .result-compact{grid-template-columns:repeat(2,minmax(0,1fr))}#results .result-compact>div:first-child{grid-column:1/-1}}
+
 .lookup-card{margin:18px 0 0;background:#f7f9fc}
 .lookup-card .lookup-row{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:12px;margin-top:12px}
 .candidate-list{display:grid;gap:8px;margin-top:10px}
@@ -69,27 +84,26 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 @media print{header,nav,form,.actions,#afterActions,.footer-links,footer,.lead{display:none!important}main{max-width:none;padding:0}#results{display:block!important;border:0;box-shadow:none;padding:0}#results details{display:block}#results details>*{display:block}}
 </style>
 <script src="/classificacao.js" defer></script>
-<script src="/consulta-automatica.js?v=20261115c" defer></script>
+<script src="/consulta-automatica.js?v=20261115d" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
 </head><body>
 <header><img src="/icon.svg" alt="Símbolo FORTECOMPANNY"><div><strong>FORTECOMPANNY+ IA</strong><small>Consulta fiscal automática · Brasil</small></div></header>
 <main>
-<h1>Informe a operação. Nós pesquisamos o restante.</h1>
-<p class="lead">Consulta pública sem cadastro obrigatório. O sistema pesquisa os CNPJs, identifica as UFs e procura NCM/CEST do produto. Resultados fiscais dependentes de regras ainda não homologadas aparecem claramente identificados.</p>
+<h1>Consulta fiscal</h1>
+<p class="lead">Operação, origem, destino e produto. Sem cadastro obrigatório.</p>
 <section class="card">
-<h2>Nova consulta</h2>
+<h2>Dados da operação</h2>
 <form id="consultation" novalidate>
-<div class="own-identity">
- <h3>Minha identificação (opcional)</h3>
+<details class="own-identity"><summary>Meu CPF/CNPJ — salvar no aparelho</summary>
  <div class="grid">
   <div class="field"><label for="myDoc">Meu CPF ou CNPJ</label><input id="myDoc" maxlength="22" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="CPF ou CNPJ"></div>
   <div class="field"><label for="myRole">Minha posição na operação</label><select id="myRole"><option value="origem">Origem — remetente</option><option value="destino">Destino — destinatário</option></select></div>
  </div>
  <label class="opt-row" for="rememberMe"><input type="checkbox" id="rememberMe"><span>Lembrar meu CPF/CNPJ neste aparelho (opcional). <small>Sem cadastro ou envio ao servidor para guardar essa preferência.</small></span></label>
- <p class="notice" id="myDocStatus" role="status" aria-live="polite">Ao informar sua identificação, ela preencherá automaticamente o lado escolhido. Para CPF, o cadastro público de CNPJ não será consultado.</p>
-</div>
+ <p class="notice" id="myDocStatus" role="status" aria-live="polite"></p>
+</details>
 <div class="grid">
- <div class="field full"><label for="nature">1. Natureza da operação (inclui a finalidade quando conhecida)</label>
+ <div class="field full"><label for="nature">1. Natureza da operação</label>
   <select id="nature" required><option value="">Selecione...</option>
    <optgroup label="Compra — empresa de destino">
     <option value="compra_revenda">Compra para revenda</option>
@@ -116,41 +130,35 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
     <option value="outro">Outra natureza</option>
    </optgroup>
   </select>
-  <small>A finalidade escolhida vale para o destinatário e não é deduzida apenas pelo CNPJ. Não é necessário escolher abas separadas.</small>
  </div>
  <div class="cnpj-direction full">
   <div class="cnpj-line">
    <div class="field"><label for="fromCnpj">2. CNPJ ou CPF de origem</label>
     <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
-    <small>Quem envia a mercadoria</small>
    </div>
    <button id="swapCnpj" type="button" class="secondary swap-cnpj" title="Trocar remetente e destinatário" aria-label="Inverter CPF ou CNPJ de origem e destino">⇄ Inverter origem/destino</button>
    <div class="field"><label for="toCnpj">3. CNPJ ou CPF de destino</label>
     <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
-    <small>Quem recebe ou compra a mercadoria</small>
    </div>
   </div>
-  <div class="lookup-card">
-    <div class="field"><label for="companyNameSearch">Pesquisar a outra empresa pelo nome (opcional)</label><input id="companyNameSearch" maxlength="60" autocomplete="off" placeholder="Razão social ou nome fantasia"></div>
+  <details class="lookup-card"><summary>Não sei o CNPJ — buscar pelo nome</summary>
+    <div class="field"><label for="companyNameSearch">Razão social ou nome fantasia</label><input id="companyNameSearch" maxlength="60" autocomplete="off" placeholder="Razão social ou nome fantasia"></div>
     <div class="lookup-row">
       <div class="field"><label for="companyUfSearch">UF para filtrar</label><select id="companyUfSearch"><option value="">Brasil inteiro</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div>
       <div class="field"><label for="companyTarget">Preencher no campo</label><select id="companyTarget"><option value="destino">CNPJ de destino</option><option value="origem">CNPJ de origem</option></select></div>
       <button id="searchCompanies" type="button" class="secondary">Pesquisar empresa</button>
     </div>
-    <div id="companySearchStatus" role="status" class="notice" aria-live="polite">A pesquisa pelo nome usa um índice intermediário de dados abertos da Receita Federal. Selecione o estabelecimento correto para confirmar o CNPJ.</div>
+    <div id="companySearchStatus" role="status" class="notice" aria-live="polite"></div>
     <div id="companySearchResults" class="candidate-list" aria-live="polite"></div>
-  </div>
-  <p id="swapStatus" class="notice" aria-live="polite">Origem é quem envia; destino é quem recebe. Em compras e vendas, o destino é o adquirente. Em transferências, remessas e devoluções, a natureza específica é preservada. Inverter muda o sentido e refaz a consulta.</p>
+  </details>
+  <p id="swapStatus" class="notice" aria-live="polite"></p>
  </div>
  <div class="field full"><label for="product">4. Produto</label>
   <input id="product" maxlength="90" autocomplete="off" placeholder="Ex.: Argamassa colante AC1 20 kg" required>
-  <small>Quanto mais específica a descrição, mais confiável será a sugestão de classificação.</small>
  </div>
 </div>
-<label class="opt-row" for="registerCompany">
- <input type="checkbox" id="registerCompany">
- <span><strong>Quero cadastrar minha empresa (opcional)</strong><small style="display:block">Se não marcar, a consulta funciona normalmente, sem login e sem cadastro.</small></span>
-</label>
+<details class="settings-group" id="registrationDetails"><summary>Cadastrar empresa (opcional)</summary>
+<label class="opt-row" for="registerCompany"><input type="checkbox" id="registerCompany"><span>Quero registrar meu CNPJ</span></label>
 <div class="opt-box" id="registerBox" hidden>
  <div class="grid">
   <div class="field"><label for="registerRole">Qual dos dois CNPJs é da sua empresa?</label>
@@ -160,21 +168,18 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  </div>
  <label class="opt-row" for="registerAccept"><input id="registerAccept" type="checkbox">
  <span>Li e aceito os <a href="/privacidade.html" target="_blank" rel="noopener">termos de uso e privacidade</a> para registrar o CNPJ consultante. O cadastro não confirma que represento legalmente a empresa.</span></label>
- <p class="notice">O cadastro opcional registra CNPJ, nome informado e aceite no serviço FORTECOMPANNY, sem criar autenticação. A opção de vincular pesquisas comerciais permanece desativada.</p>
  <p id="registerState" role="status" aria-live="polite"></p>
- <button id="removeSaved" class="secondary" type="button">Não preencher minha empresa automaticamente neste aparelho</button>
+ <button id="removeSaved" class="secondary" type="button">Esquecer cadastro neste aparelho</button>
 </div>
-<p class="notice">Ao consultar, os CNPJs empresariais informados serão enviados aos serviços de pesquisa cadastral, inclusive à BrasilAPI/Minha Receita quando o conector principal estiver indisponível. CPF de pessoa física não será pesquisado em bases de CNPJ; a busca por nome exige um toque explícito no botão e utiliza a fonte intermediária informada. As fontes oficiais podem não fornecer inscrição estadual, regime tributário ou movimentação física da mercadoria. Nenhuma consulta fiscal é uma NF-e.</p>
+</details>
+<details class="privacy-mini"><summary>Privacidade e limites da consulta</summary><p class="notice">CNPJs informados são consultados em serviços cadastrais. CPF não é consultado nas APIs de CNPJ; só fica salvo no aparelho se você escolher. O resultado não é uma NF-e. <a href="/privacidade.html">Termos completos</a>.</p></details>
 <div id="message" role="alert" hidden></div>
-<div class="actions"><button class="primary" id="submit" type="submit">Pesquisar e montar ficha fiscal</button><button class="secondary" id="clear" type="button">Limpar</button></div>
+<div class="actions"><button class="primary" id="submit" type="submit">Consultar</button><button class="secondary" id="clear" type="button">Limpar</button></div>
 </form>
 </section>
 <section id="results" class="card" hidden aria-live="polite"></section>
 <div id="afterActions" class="actions" hidden><button type="button" class="secondary" id="print">Imprimir / salvar PDF</button></div>
-<div class="footer-links">
- <a href="/consulta-nfe.html">Consulta detalhada com múltiplos produtos e XML</a>
- <a href="/privacidade.html">Termos e privacidade</a>
-</div>
+<div class="footer-links"><a href="/consulta-nfe.html">Consulta avançada com XML</a> · <a href="/privacidade.html">Privacidade</a></div>
 </main>
-<footer>FORTECOMPANNY+ IA · Consulta nacional experimental · Cálculos legais ainda em homologação</footer>
+<footer>FORTECOMPANNY+ IA · Consulta indicativa</footer>
 </body></html>
