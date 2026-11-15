@@ -7,6 +7,7 @@
  const $=id=>document.getElementById(id);
  let current=null;
  const clean=(v,max=300)=>String(v??'').trim().slice(0,max);
+ const redact=v=>clean(v,300).replace(/\b(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11}|\d{14})\b/g,'[documento omitido]');
  const safeISO=()=>new Date().toISOString();
  const digits=v=>String(v||'').replace(/\D/g,'');
  const allowUF=v=>/^(AC|AL|AM|AP|BA|CE|DF|ES|GO|MA|MG|MS|MT|PA|PB|PE|PI|PR|RJ|RN|RO|RR|RS|SC|SE|SP|TO)$/.test(String(v||''))?v:null;
@@ -31,9 +32,9 @@
   if(!current)throw Error('Execute a consulta fiscal antes de gerar a ficha.');
   const {input,from,to,info,fiscal,audit,rules}=current;
   const item={
-   description:clean(input.product,90)||null,
+   description:redact(input.product).slice(0,90)||null,
    ncm: /^\d{8}$/.test(digits(info.code))?digits(info.code):null,
-   ncm_status:info.official?.entry?.nivel===8?'codigo_encontrado_classificacao_a_confirmar':'nao_confirmado',
+   ncm_status:Number(info.official?.entry?.nivel)===8?'codigo_encontrado_classificacao_a_confirmar':'nao_confirmado',
    cest: /^\d{7}$/.test(digits(info.suggest?.cest))?digits(info.suggest.cest):null,
    cest_status:'sugestao_documental_nao_comprova_st'
   };
@@ -134,7 +135,7 @@
    $('exportStatus').textContent='Download local solicitado. O arquivo é apenas orientação fiscal, não uma NF-e.';
   }finally{
    anchor.remove();
-   URL.revokeObjectURL(url);
+   setTimeout(()=>URL.revokeObjectURL(url),15000);
   }
  }
  $('exportGenerate').addEventListener('click',renderPreview);
