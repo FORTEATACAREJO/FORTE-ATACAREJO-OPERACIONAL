@@ -40,10 +40,12 @@ try{
  assert(landingHtml.includes('/icon-192.png?v=5'),'Cabeçalho deve usar o novo símbolo NANA PAY');
  assert(!landingHtml.includes('<section class="hero">'),'Evitar apresentação extensa antes da mesa');
  assert(manifest.name.startsWith('NANA PAY'),'PWA deve ter nome NANA PAY');
+ assert.equal(manifest.short_name,'NanaPay','Nome curto do ícone no Android não deve truncar');
+ assert(landingHtml.includes('apple-mobile-web-app-title\" content=\"NanaPay'),'Nome curto no iPhone deve combinar com o Android');
  assert(manifest.icons.find(i=>i.sizes==='192x192')?.src.includes('v=5'),'Chrome deve atualizar ícone de instalação');
  assert(manifest.icons.find(i=>i.sizes==='512x512')?.src.includes('v=5'),'Imagem de instalação maior deve ser atualizada');
  const sw=await fetch(origin+'/sw.js');
- assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v5'),'Cache antigo de imagens precisa ser invalidado');
+ assert.equal(sw.status,200);assert((await sw.text()).includes('nanapay-shell-v6'),'Cache antigo de imagens precisa ser invalidado');
 
  
  const publicDemo=await req('/api/demo');
