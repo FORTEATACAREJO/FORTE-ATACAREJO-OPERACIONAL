@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#102640">
-<meta name="description" content="FORTECOMPANNY+ IA: consulta fiscal automática por natureza de operação, CNPJs e produto. Acesso público sem cadastro obrigatório.">
+<meta name="description" content="FORTECOMPANNY+ IA: orientação fiscal para produtos de todos os setores brasileiros, com consulta NCM nacional, CEST e regras por operação. Sem emissão de NF-e.">
 <meta name="application-name" content="FORTECOMPANNY+ IA">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FORTECOMPANNY+ IA">
@@ -137,9 +137,9 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 </style>
 <script src="/qualidade-fiscal.js?v=20261115a" defer></script>
 <script src="/st-mg-evidencias.js?v=20261115b" defer></script>
-<script src="/classificacao.js?v=20261115b" defer></script>
+<script src="/classificacao.js?v=20261115c" defer></script>
 <script src="/ficha-exportacao.js?v=20261115a" defer></script>
-<script src="/consulta-automatica.js?v=20261115m" defer></script>
+<script src="/consulta-automatica.js?v=20261115n" defer></script>
 <script src="/minha-ia.js?v=20261115a" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
 </head><body>
@@ -242,9 +242,17 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
    <select id="buyerTaxStatus"><option value="unknown">Não sei / consultar automaticamente</option><option value="sim">Sim, contribuinte (confirmar inscrição estadual)</option><option value="nao">Não contribuinte do ICMS</option></select>
   </div>
  </details>
- <div class="field full"><label for="product">6. Produto</label>
-  <input id="product" maxlength="90" autocomplete="off" placeholder="Ex.: Argamassa colante AC1 20 kg" required>
+ <div class="field full"><label for="product">6. Qual produto?</label>
+  <input id="product" maxlength="90" autocomplete="off" placeholder="Ex.: arroz, tênis, computador, remédio, cimento ou máquina" required>
+  <small>Atende mercadorias de todos os segmentos. Se o nome não identificar a classificação, o sistema pesquisará candidatos NCM.</small>
  </div>
+ <details class="settings-group full" id="ncmDetails">
+  <summary>Já tenho o NCM no XML ou ficha técnica (opcional)</summary>
+  <div class="field"><label for="declaredNcm">NCM informado no documento do produto</label>
+   <input id="declaredNcm" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="Oito dígitos, por exemplo 10063021">
+  </div>
+  <p class="notice">A existência de um NCM na tabela não comprova seu enquadramento para o produto específico. CEST não é exigido para todas as mercadorias.</p>
+ </details>
 </div>
 <details class="settings-group" id="registrationDetails"><summary>Cadastrar empresa (opcional)</summary>
 <label class="opt-row" for="registerCompany"><input type="checkbox" id="registerCompany"><span>Quero registrar meu CNPJ</span></label>
