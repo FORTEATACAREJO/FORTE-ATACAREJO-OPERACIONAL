@@ -23,6 +23,12 @@ p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-h
 .field input:focus,.field select:focus{outline:2px solid #a78543;outline-offset:2px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .full{grid-column:1/-1}
+.cnpj-line{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center}
+.swap-cnpj{white-space:nowrap;align-self:center;margin-top:0;padding:10px 14px}
+.cnpj-direction{min-width:0}
+.cnpj-direction .notice{margin:8px 0 0}
+@media(max-width:660px){.cnpj-line{grid-template-columns:1fr;gap:10px}.swap-cnpj{justify-self:center;width:100%;min-height:42px}}
+
 button{font:inherit;font-weight:750;cursor:pointer;border-radius:11px;min-height:45px;padding:12px 16px}
 button:focus-visible,a:focus-visible{outline:3px solid #1d80d1;outline-offset:3px}
 button:disabled{cursor:wait;opacity:.6}
@@ -54,7 +60,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 @media print{header,nav,form,.actions,#afterActions,.footer-links,footer,.lead{display:none!important}main{max-width:none;padding:0}#results{display:block!important;border:0;box-shadow:none;padding:0}#results details{display:block}#results details>*{display:block}}
 </style>
 <script src="/classificacao.js" defer></script>
-<script src="/consulta-automatica.js?v=20261115a" defer></script>
+<script src="/consulta-automatica.js?v=20261115b" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
 </head><body>
 <header><img src="/icon.svg" alt="Símbolo FORTECOMPANNY"><div><strong>FORTECOMPANNY+ IA</strong><small>Consulta fiscal automática · Brasil</small></div></header>
@@ -65,29 +71,48 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 <h2>Nova consulta</h2>
 <form id="consultation" novalidate>
 <div class="grid">
- <div class="field full"><label for="nature">1. Natureza da operação</label>
+ <div class="field full"><label for="nature">1. Natureza da operação (inclui a finalidade quando conhecida)</label>
   <select id="nature" required><option value="">Selecione...</option>
-   <option value="venda">Venda de mercadorias</option>
-   <option value="compra">Compra de mercadorias</option>
-   <option value="devolucao">Devolução de mercadorias</option>
-   <option value="transferencia">Transferência entre estabelecimentos</option>
-   <option value="remessa">Remessa de mercadorias</option>
-   <option value="retorno">Retorno de mercadorias</option>
-   <option value="bonificacao">Bonificação</option>
-   <option value="consignacao">Consignação</option>
-   <option value="conserto">Remessa para conserto</option>
-   <option value="comodato">Comodato</option>
-   <option value="industrializacao">Industrialização</option>
-   <option value="outro">Outra natureza</option>
+   <optgroup label="Compra — empresa de destino">
+    <option value="compra_revenda">Compra para revenda</option>
+    <option value="compra_consumo">Compra para uso ou consumo</option>
+    <option value="compra_ativo">Compra para ativo imobilizado</option>
+    <option value="compra_industrializacao">Compra para industrialização</option>
+    <option value="compra">Compra — finalidade ainda não identificada</option>
+   </optgroup>
+   <optgroup label="Venda — empresa de origem">
+    <option value="venda_revenda">Venda destinada à revenda</option>
+    <option value="venda_consumo">Venda destinada a uso ou consumo</option>
+    <option value="venda">Venda — finalidade ainda não identificada</option>
+   </optgroup>
+   <optgroup label="Outras naturezas">
+    <option value="devolucao">Devolução de mercadorias</option>
+    <option value="transferencia">Transferência entre estabelecimentos</option>
+    <option value="remessa">Remessa de mercadorias</option>
+    <option value="retorno">Retorno de mercadorias</option>
+    <option value="bonificacao">Bonificação</option>
+    <option value="consignacao">Consignação</option>
+    <option value="conserto">Remessa para conserto</option>
+    <option value="comodato">Comodato</option>
+    <option value="industrializacao">Remessa para industrialização</option>
+    <option value="outro">Outra natureza</option>
+   </optgroup>
   </select>
+  <small>A finalidade escolhida vale para o destinatário e não é deduzida apenas pelo CNPJ. Não é necessário escolher abas separadas.</small>
  </div>
- <div class="field"><label for="fromCnpj">2. CNPJ de origem</label>
-  <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="00.000.000/0001-00" required>
-  <small>Estabelecimento de onde sai a mercadoria</small>
- </div>
- <div class="field"><label for="toCnpj">3. CNPJ de destino</label>
-  <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="00.000.000/0001-00" required>
-  <small>Estabelecimento que recebe a mercadoria</small>
+ <div class="cnpj-direction full">
+  <div class="cnpj-line">
+   <div class="field"><label for="fromCnpj">2. CNPJ de origem</label>
+    <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="00.000.000/0001-00" required>
+    <small>Quem envia a mercadoria</small>
+   </div>
+   <button id="swapCnpj" type="button" class="secondary swap-cnpj" title="Trocar remetente e destinatário" aria-label="Inverter CNPJs de origem e destino">⇄ Inverter CNPJs</button>
+   <div class="field"><label for="toCnpj">3. CNPJ de destino</label>
+    <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="00.000.000/0001-00" required>
+    <small>Quem recebe ou compra a mercadoria</small>
+   </div>
+  </div>
+  <p id="swapStatus" class="notice" aria-live="polite">O comprador é identificado pelo destino; o vendedor/remetente, pela origem. Inverter muda o sentido da operação e exige nova consulta.</p>
  </div>
  <div class="field full"><label for="product">4. Produto</label>
   <input id="product" maxlength="90" autocomplete="off" placeholder="Ex.: Argamassa colante AC1 20 kg" required>
