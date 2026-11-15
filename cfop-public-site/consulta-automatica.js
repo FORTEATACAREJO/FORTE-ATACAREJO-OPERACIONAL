@@ -39,6 +39,41 @@ const natureMetadata=Object.freeze({
  venda_consumo:{kind:'venda',purpose:'Uso ou consumo do destinatário',known:true},
  venda:{kind:'venda',purpose:'Ainda não identificada',known:false}
 });
+
+const profiles={
+ revenda:{label:'Revenda',origin:'terceiros',help:'Revenda normalmente vende mercadoria adquirida de fornecedores. Confirme o XML e se houve ST na entrada.'},
+ industria:{label:'Indústria',origin:'propria',help:'Se você fabricou a mercadoria, marque fabricação própria. A indústria também pode vender itens comprados de terceiros: altere a origem quando for o caso.'},
+ consumidor:{label:'Consumidor final',origin:'desconhecida',help:'Consumidor final informa o uso da mercadoria. A fabricação própria ou aquisição de terceiros se refere ao REMETENTE, não ao comprador.'}
+};
+function selectedProfile(){
+ if($('profileRevenda').checked)return 'revenda';
+ if($('profileIndustria').checked)return 'industria';
+ if($('profileConsumidor').checked)return 'consumidor';
+ return '';
+}
+function refreshProfileDetails(role,applyDefault){
+ const data=profiles[role];
+ if(!data){$('priorStContainer').hidden=true;return}
+ $('profileHelp').textContent=data.help;
+ if(applyDefault){
+  $('goodsOrigin').value=data.origin;
+  if(role==='consumidor'&&validPartyDoc($('myDoc').value)){
+   $('myRole').value='destino';
+   populateOwnDocument();
+   persistOwnIdentity();
+  }
+ }
+ const thirdParty=$('goodsOrigin').value==='terceiros';
+ const canAskRetention=role==='revenda'&&thirdParty;
+ $('priorStContainer').hidden=!canAskRetention;
+ if(!canAskRetention)$('priorSt').value='unknown';
+ $('goodsOriginHelp').textContent=thirdParty?
+  'O fornecedor pode ser indústria, importador ou distribuidor; confirme origem fiscal e ICMS-ST no XML.':
+  $('goodsOrigin').value==='propria'?
+   'Fabricação própria se refere ao estabelecimento remetente da NF-e.':
+   'Se você é o destinatário, confirme se o remetente fabricou ou adquiriu a mercadoria.';
+}
+
 function natureInfo(value){
  return natureMetadata[value]||{kind:'especial',purpose:'Conforme natureza especial e documentos vinculados',known:false};
 }
@@ -157,7 +192,7 @@ function formatCompany(c){
  let ie=c.registrations.length?'IE(s) retornada(s): '+c.registrations.map(r=>r.ie+' ('+r.uf+')'+(r.active===true?' ativa':r.active===false?' inativa':' status desconhecido')).join('; '):'Inscrição estadual não confirmada';
  return '<strong>'+safe(c.name||c.cnpj)+'</strong><p>'+safe(c.cnpj)+' · '+safe(uf+city)+'</p><p>Situação cadastral: '+safe(c.situation||'Não confirmada')+'</p><p>'+safe(c.simple)+'</p><p>'+safe(ie)+'</p><small>Fonte: '+safe(c.source)+'</small>';
 }
-function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData){
+function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,profile,priorSt){
  const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF ainda não confirmada';
  const meta=natureInfo(nature),different=!!from.uf&&!!to.uf&&from.uf!==to.uf;
  const isSale=meta.kind==='venda',isPurchase=meta.kind==='compra';
@@ -182,6 +217,16 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData){
  };
  if(!from.uf||!to.uf)r.pending.push('Confirmar UF de origem/destino e local de entrega.');
  if(ownership==='desconhecida')r.pending.push('Confirmar se a mercadoria foi adquirida de terceiros ou fabricada pelo remetente.');
+ if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
+  r.pending.push('Conferir XML anterior: retenção de ST na aquisição foi declarada, mas pode não dispensar ST/DIFAL na operação atual ou no destino.');
+  r.note=(r.note?r.note+' ':'')+'ICMS-ST anterior informado; depende de conferência do XML e da legislação do destino.';
+ }
+ if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='nao'){
+  r.pending.push('Sem retenção de ST informada na compra anterior; verificar se havia obrigação de recolhimento antes da saída atual.');
+ }
+ if(profile==='consumidor'&&meta.kind==='venda'){
+  r.pending.push('Você indicou perfil consumidor final e operação de venda. Confirme quem é o emitente e a finalidade.');
+ }
  if(!info.code||!info.official?.entry)r.pending.push('Confirmar NCM do produto conforme XML/ficha técnica; pesquisar código não certifica classificação.');
  if(info.code&&info.suggest?.cest)r.pending.push('Confirmar CEST aplicável à descrição legal e vigência do produto.');
  if(isSale&&ownership!=='desconhecida'&&from.uf&&to.uf){
@@ -257,8 +302,9 @@ function resultHTML(input,from,to,info,fiscal){
  for(const issue of info.issues)details.push('<p>'+safe(issue)+'</p>');
  const cites=fiscal.sources.map(x=>'<a target="_blank" rel="noopener noreferrer" href="'+safe(x.url)+'">'+safe(x.label)+'</a>').join(' · ');
  const originText=input.goodsOrigin==='terceiros'?'Mercadoria de terceiros':input.goodsOrigin==='propria'?'Fabricação própria':'Origem da mercadoria não confirmada';
+ const profileText=profiles[input.profile]?.label||'Não informado';
  return '<h2>Resultado da consulta</h2>'+
-  '<p class="muted">'+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
+  '<p class="muted">Perfil: '+safe(profileText)+' · '+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   '<div class="result-main"><small>CFOP — '+safe(fiscal.confidence)+'</small><div class="result-value">'+safe(fiscal.cfop)+'</div>'+
   (fiscal.note?'<p>'+safe(fiscal.note)+'</p>':'')+
   '</div>'+
@@ -270,6 +316,8 @@ function resultHTML(input,from,to,info,fiscal){
   '<div class="participants"><p><b>Origem:</b> '+partyLine(from)+'</p><p><b>Destino:</b> '+partyLine(to)+'</p></div>'+
   (fiscal.costWarning?'<p class="tax-alert"><strong>Custo tributário adicional possível:</strong> '+safe(fiscal.costWarning)+'</p>':'')+
   '<article class="tax-situation"><h3>Tributação</h3><p><b>ICMS-ST:</b> '+safe(fiscal.st)+'</p>'+
+  (input.profile==='revenda'&&input.goodsOrigin==='terceiros'?
+   '<p><b>ST na compra anterior:</b> '+safe(input.priorSt==='sim'?'Retenção declarada; confirmar no XML':input.priorSt==='nao'?'Sem retenção declarada':'Não informado')+'</p>':'')+
   (fiscal.difal!=='Não definido'?'<p><b>DIFAL:</b> '+safe(fiscal.difal)+'</p>':'')+
   '<p><b>Valores:</b> '+safe(fiscal.tax)+'. Sem valores da operação e regras confirmadas não há valor em R$.</p></article>'+
   (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?'<p class="muted">Inscrição estadual não confirmada: use “Destinatário contribuinte de ICMS?” na consulta para refinar o CFOP/DIFAL.</p>':'')+
@@ -403,8 +451,10 @@ async function maybeRegister(input){
 }
 async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
+ const profile=selectedProfile();
+ if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
- const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value;
+ const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value,priorSt=$('priorSt').value;
  if(!goodsOrigin){showError('Selecione se a mercadoria foi adquirida de terceiros ou é de fabricação própria.');return}
  if(!nature){showError('Selecione a natureza da operação.');return}
  if(!validPartyDoc(from)){showError('Informe um CNPJ ou CPF de origem válido.');return}
@@ -413,7 +463,7 @@ async function onSubmit(event,registerIfAsked=true){
  const id=++runId,btn=$('submit');
  btn.disabled=true;btn.textContent='Pesquisando bases fiscais...';
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
- const input={from,to,product:short(product,90),nature,goodsOrigin,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent};
+ const input={from,to,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent};
  try{
   const parts=await Promise.allSettled([party(from),party(to),productInfo(product)]);
   if(id!==runId)return;
@@ -423,7 +473,7 @@ async function onSubmit(event,registerIfAsked=true){
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
   const rules=await stateRules(a,b,info);
   if(id!==runId)return;
-  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules);
+  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt);
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal);
   $('afterActions').hidden=false;
@@ -438,10 +488,17 @@ function clearPreviousAnalysis(){
  $('submit').disabled=false;$('submit').textContent='Consultar';
  clearError();
 }
-['goodsOrigin','nature','buyerTaxStatus','fromCnpj','toCnpj','product'].forEach(id=>{
+['goodsOrigin','priorSt','nature','buyerTaxStatus','fromCnpj','toCnpj','product'].forEach(id=>{
  $(id).addEventListener('input',clearPreviousAnalysis);
 });
 $('nature').addEventListener('change',clearPreviousAnalysis);
+['profileRevenda','profileIndustria','profileConsumidor'].forEach(id=>{
+ $(id).addEventListener('change',()=>{
+  refreshProfileDetails(selectedProfile(),true);
+  clearPreviousAnalysis();
+ });
+});
+$('goodsOrigin').addEventListener('change',()=>refreshProfileDetails(selectedProfile(),false));
 $('swapCnpj').addEventListener('click',()=>{
  const from=$('fromCnpj').value,to=$('toCnpj').value;
  $('fromCnpj').value=to;$('toCnpj').value=from;
@@ -454,7 +511,7 @@ $('swapCnpj').addEventListener('click',()=>{
  }
  clearPreviousAnalysis();
  $('swapStatus').textContent='Origem/destino invertidos. Confira a natureza.';
- if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&$('goodsOrigin').value&&$('nature').value&&$('product').value.trim().length>=3){
+ if(validPartyDoc($('fromCnpj').value)&&validPartyDoc($('toCnpj').value)&&selectedProfile()&&$('goodsOrigin').value&&$('nature').value&&$('product').value.trim().length>=3){
   $('swapStatus').textContent+=' Atualizando...';
   onSubmit({preventDefault(){}},false);
  }
@@ -467,7 +524,7 @@ $('registerCompany').addEventListener('change',()=>{$('registerBox').hidden=!$('
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
- $('companySearchResults').replaceChildren();recoverOwnIdentity();
+ $('companySearchResults').replaceChildren();recoverOwnIdentity();refreshProfileDetails(selectedProfile(),false);
 });
 $('print').addEventListener('click',()=>window.print());
 $('removeSaved').addEventListener('click',()=>{try{localStorage.removeItem(COMPANY_KEY)}catch(e){}$('registerState').textContent='Preferência local excluída; o registro já enviado ao servidor não é apagado por este botão.'});
