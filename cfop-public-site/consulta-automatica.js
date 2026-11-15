@@ -303,9 +303,9 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.pending.push('Confirmar a IE/condição de contribuinte do destinatário em MG, a responsabilidade pela retenção e eventual regime especial do remetente.');
   r.pending.push('Conferir se o imposto já recolhido na compra anterior se refere à UF de destino; ST retida em GO não comprova quitação da ST de MG.');
   if(buyer==='sim'&&isSale){
-   r.cfop='Verificar 6.403 / 6.404 e ST';
+   r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
    r.confidence='Operação sujeita a análise de ST';
-   r.note='A tabela de CFOP distingue mercadoria adquirida de terceiros, operações com substituto tributário e imposto já retido para a operação. É indispensável conferir a condição do vendedor e o destino da retenção antes de escolher o código.';
+   r.note='Hipótese condicionada à responsabilidade do remetente por ICMS-ST de MG. 6.401 para produção própria ou 6.403 para mercadoria de terceiros, na condição de substituto. 6.404 exige verificar a hipótese específica de imposto previamente retido para a operação; ST anterior de GO não basta.';
    r.costWarning='CIMENTO GO → MG: há previsão de ICMS-ST interestadual para contribuinte mineiro. O remetente comercial pode ser responsável por recolher o imposto a MG. Pode existir custo adicional e necessidade de guia/prazo específico; não presuma quitação pela retenção anterior em GO.';
   }else if(buyer==='nao'&&isSale){
    r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
@@ -346,7 +346,7 @@ function resultHTML(input,from,to,info,fiscal){
  return '<h2>Resultado da consulta</h2>'+
   '<p class="muted">Perfil: '+safe(profileText)+' · '+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?
-   '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>O CNPJ e o Simples Nacional não comprovam inscrição estadual. Consulte a IE do estado de destino.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, contribuinte</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
+   '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>Confira a IE do destinatário na <a target="_blank" rel="noopener noreferrer" href="'+(to.uf==='MG'?'https://www.mg.gov.br/servico/realizar-consulta-publica-ao-cadastro-de-contribuintes-do-icms-sintegra':'https://www.sintegra.gov.br/links.html')+'">consulta pública do SINTEGRA</a>. CNPJ e Simples não comprovam IE.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, IE ativa conferida</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
   '<div class="result-main"><small>CFOP — '+safe(fiscal.confidence)+'</small><div class="result-value">'+safe(fiscal.cfop)+'</div>'+
   (fiscal.note?'<p>'+safe(fiscal.note)+'</p>':'')+
   '</div>'+
