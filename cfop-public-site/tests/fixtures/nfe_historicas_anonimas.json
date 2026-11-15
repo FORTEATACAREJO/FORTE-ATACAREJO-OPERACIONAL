@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "classification": "historical_authorized_nfe_xml_observations_not_legal_homologation",
+  "privacy": "No invoice key, business/person identity, product brand, values, quantities, addresses or invoice numbers retained",
+  "source": "Private XML files supplied in user library; raw documents must not be committed",
+  "cases": [
+    {
+      "case_id": "cimento_mg_go_A",
+      "year": 2026,
+      "model": "55",
+      "authorization_status": "100",
+      "origin_uf": "MG",
+      "destination_uf": "GO",
+      "ncm": "25232910",
+      "cest": "0500100",
+      "cfop": "6401",
+      "icms_cst": "10",
+      "st_amount_positive": true,
+      "group": "cimento"
+    },
+    {
+      "case_id": "cimento_mg_go_B",
+      "year": 2026,
+      "model": "55",
+      "authorization_status": "100",
+      "origin_uf": "MG",
+      "destination_uf": "GO",
+      "ncm": "25232910",
+      "cest": "0500100",
+      "cfop": "6401",
+      "icms_cst": "10",
+      "st_amount_positive": true,
+      "group": "cimento"
+    },
+    {
+      "case_id": "cimento_mg_go_C",
+      "year": 2026,
+      "model": "55",
+      "authorization_status": "100",
+      "origin_uf": "MG",
+      "destination_uf": "GO",
+      "ncm": "25232910",
+      "cest": "0500100",
+      "cfop": "6401",
+      "icms_cst": "10",
+      "st_amount_positive": true,
+      "group": "cimento"
+    },
+    {
+      "case_id": "argamassa_go_go_A",
+      "year": 2024,
+      "model": "55",
+      "authorization_status": "100",
+      "origin_uf": "GO",
+      "destination_uf": "GO",
+      "ncm": "32149000",
+      "cest": "1000300",
+      "cfop": "5102",
+      "icms_cst": "00",
+      "st_amount_positive": false,
+      "group": "argamassa"
+    }
+  ],
+  "cautions": [
+    "Historically authorized NF-e reflects reported tax treatment, not proof that the tax classification is legally correct.",
+    "Never extrapolate CFOP or ST responsibility from a different origin/destination direction.",
+    "Presence of CEST does not in isolation prove an ICMS-ST amount is due.",
+    "No invoice identification or tax base in this fixture; no reverse lookup to original invoice."
+  ]
+}
