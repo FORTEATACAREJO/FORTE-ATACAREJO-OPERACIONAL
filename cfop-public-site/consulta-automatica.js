@@ -29,7 +29,7 @@ function taxpayerStatus(company,declared){
 
 const TERMS='cfop-privacy-2026-11-12-v1';
 const ufList=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '));
-let providerReady=null,runId=0,lastInput=null,confirmedNcm='';
+let providerReady=null,runId=0,lastInput=null,confirmedNcm='',lastNcmOptions=new Set();
 // A natureza descreve tanto o sentido documental quanto a finalidade declarada
 // do destinatário. Inverter CNPJs NÃO presume mudança de finalidade.
 const natureMetadata=Object.freeze({
@@ -172,25 +172,42 @@ function productHint(label,selectedNcm){
  return api&&api.suggest?api.suggest(label,selectedNcm):null;
 }
 async function productInfo(label,selectedNcm){
- const suggest=productHint(label,selectedNcm);
- let code=suggest&&/^\d{8}$/.test(suggest.ncm||'')?suggest.ncm:'';
+ // Catálogo de NCM cobre todos os setores; exemplos curados nunca limitam a pesquisa.
+ const suggested=productHint(label,selectedNcm);
+ const selected=String(selectedNcm||'').replace(/\D/g,'');
+ let suggest=suggested||null;
+ let code=/^\d{8}$/.test(selected)?selected:
+   (suggest&&/^\d{8}$/.test(suggest.ncm||'')?suggest.ncm:'');
  let official=null,cests=[],issues=[],results=[];
+ if(selected&&selected.length!==8)issues.push('O NCM informado deve ter exatamente oito dígitos.');
+ // Não carregar CEST de sugestão cuja NCM diverge do código confirmado pelo usuário.
+ if(suggest&&suggest.cest&&suggest.ncm&&code&&suggest.ncm!==code){
+  suggest={...suggest,cest:'',detail:(suggest.detail||'')+' • A sugestão de CEST não foi aplicada ao NCM informado.'};
+ }
  if(code){
-  try{official=await jsonFetch(NCM+'/code?code='+encodeURIComponent(code),{},9000);
-   if(!official?.entry||Number(official.entry.nivel)!==8)issues.push('Não foi possível validar o código NCM na tabela oficial.');
-  }catch(e){issues.push('A conferência da tabela oficial NCM não respondeu.')}
-  try{const c=await jsonFetch(NCM+'/cest-by-ncm?ncm='+encodeURIComponent(code),{},9000);cests=Array.isArray(c.items)?c.items:[]}
-  catch(e){issues.push('A pesquisa de correspondências CEST não respondeu.')}
+  try{
+   official=await jsonFetch(NCM+'/code?code='+encodeURIComponent(code),{},9000);
+   if(!official?.entry||Number(official.entry.nivel)!==8)issues.push('Não foi possível validar a existência deste código na NCM vigente.');
+  }catch(e){issues.push('Não foi possível verificar o código na tabela NCM; confira a fonte oficial.')}
+  try{
+   const c=await jsonFetch(NCM+'/cest-by-ncm?ncm='+encodeURIComponent(code),{},9000);
+   cests=Array.isArray(c.items)?c.items:[];
+  }catch(e){issues.push('Consulta CEST indisponível; não é possível concluir sua aplicabilidade.')}
  }else{
   const norm=label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]+/g,' ').trim();
-  const term=norm.split(/\s+/).find(w=>w.length>=4)||norm.slice(0,35);
-  if(term.length>=3){
-   try{const v=await jsonFetch(NCM+'/search?q='+encodeURIComponent(term),{},9500);
-    results=(v.items||[]).filter(i=>i&&Number(i.nivel)===8).slice(0,8);
-   }catch(e){issues.push('A busca por descrição na NCM oficial ficou indisponível.')}
+  const words=norm.split(/\s+/).filter(x=>x.length>=4&&!['para','com','tipo','marca','produto','modelo'].includes(x.toLowerCase()));
+  const attempts=[norm.slice(0,70),words[0]||''].filter((q,i,all)=>q.length>=3&&all.indexOf(q)===i).slice(0,2);
+  for(const term of attempts){
+   try{
+    const v=await jsonFetch(NCM+'/search?q='+encodeURIComponent(term),{},9500);
+    results=(v.items||[]).filter(i=>i&&Number(i.nivel)===8&&/^\d{8}$/.test(String(i.codigo||''))).slice(0,12);
+    if(results.length)break;
+   }catch(e){issues.push('A busca por descrição na tabela NCM está indisponível.');break;}
   }
  }
- return {label,suggest,code,official,cests,issues,results};
+ if(!code&&!results.length&&!(suggest?.options?.length))
+  issues.push('Nenhum NCM selecionado. Informe o NCM do XML/ficha técnica ou pesquise a classificação no Sistema Classif da Receita Federal.');
+ return {label,suggest,code,official,cests,issues,results,ncmSource:/^\d{8}$/.test(selected)?'informado_pelo_usuario':suggest?.ncm?'sugestao_catalogo':'nao_informado'};
 }
 function formatCompany(c){
  const uf=c.uf||'UF não confirmada';
@@ -361,11 +378,11 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
- if(!info.code&&Array.isArray(info.suggest?.options)&&info.suggest.options.length){
-  r.cfop='Confirmar NCM do XML';
-  r.confidence='Produto com múltiplas classificações possíveis';
-  r.note='O produto admite mais de um NCM conforme a descrição e composição. Confirme o código na nota do fabricante e a classificação fiscal antes de avaliar ST e CFOP.';
-  r.pending.push('Selecionar NCM do XML do fabricante no quadro abaixo e refazer a análise.');
+ if(!info.code){
+  r.cfop='Confirmar NCM do produto';
+  r.confidence='Classificação do produto pendente';
+  r.note='Não é possível concluir a orientação de impostos e CFOP sem confirmar a classificação fiscal, independentemente do setor.';
+  r.pending.push('Conferir o NCM do produto no XML/ficha técnica e no Sistema Classif da Receita; escolher uma das possibilidades apenas após essa conferência.');
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
@@ -383,11 +400,17 @@ function resultHTML(input,from,to,info,fiscal,audit){
  for(const issue of info.issues)details.push('<p>'+safe(issue)+'</p>');
  const cites=fiscal.sources.map(x=>'<a target="_blank" rel="noopener noreferrer" href="'+safe(x.url)+'">'+safe(x.label)+'</a>').join(' · ');
  const originText=input.goodsOrigin==='terceiros'?'Mercadoria de terceiros':input.goodsOrigin==='propria'?'Fabricação própria':'Origem da mercadoria não confirmada';
- const ncmQuestion=!info.code&&Array.isArray(s.options)&&s.options.length?
-  '<div class="ncm-choices"><strong>Qual NCM consta no XML do fabricante?</strong><p>O nome do cimento não permite escolher o NCM com segurança. Selecione somente após conferir o documento.</p><div class="ncm-buttons">'+
-  s.options.filter(o=>/^\d{8}$/.test(o.ncm)).map(o=>
-   '<button type="button" data-confirm-ncm="'+safe(o.ncm)+'">'+safe(o.name)+'</button>').join('')+
-  '</div></div>':'';
+ const ncmOptions=[
+  ...((Array.isArray(s.options)?s.options:[]).map(o=>({ncm:o.ncm,name:o.name,source:'Referência do catálogo'}))),
+  ...((Array.isArray(info.results)?info.results:[]).map(o=>({ncm:o.codigo,name:o.descricao,source:'Tabela NCM — descrição oficial'})))
+ ].filter(o=>/^\d{8}$/.test(String(o.ncm||'')));
+ const uniqueNcm=[...new Map(ncmOptions.map(o=>[o.ncm,o])).values()].slice(0,12);
+ const ncmQuestion=!info.code?
+  '<div class="ncm-choices"><strong>Confirme o NCM do produto</strong><p>Confira o XML do fabricante ou o <a target="_blank" rel="noopener noreferrer" href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif">Sistema Classif da Receita</a>. As opções abaixo são possibilidades, não classificação automática.</p>'+
+  (uniqueNcm.length?'<div class="ncm-buttons">'+uniqueNcm.map(o=>
+   '<button type="button" data-confirm-ncm="'+safe(o.ncm)+'">'+safe(ncmFmt(o.ncm))+' — '+safe(short(String(o.name||'').replace(/<[^>]*>/g,''),135))+'</button>').join('')+'</div>':
+   '<p>Nenhuma correspondência específica foi encontrada. Use o campo opcional de NCM conforme o documento do produto.</p>')+
+  '</div>':'';
 
  const profileText=profiles[input.profile]?.label||'Não informado';
  const review=audit||{title:'Ficha orientativa — não homologada para emissão',reason:'Consulta fiscal ainda não homologada',issues:[]};
@@ -552,6 +575,8 @@ async function onSubmit(event,registerIfAsked=true){
  if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
  const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value,priorSt=$('priorSt').value;
+ const declaredNcm=$('declaredNcm').value.replace(/\D/g,'');
+ if($('declaredNcm').value.trim()&&declaredNcm.length!==8){showError('O NCM opcional deve ter oito dígitos. Confira no XML do fabricante.');return;}
  if(!goodsOrigin){showError('Selecione se a mercadoria foi adquirida de terceiros ou é de fabricação própria.');return}
  if(!nature){showError('Selecione a natureza da operação.');return}
  if(!validPartyDoc(from)){showError('Informe um CNPJ ou CPF de origem válido.');return}
@@ -562,12 +587,13 @@ async function onSubmit(event,registerIfAsked=true){
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
  const input={from,to,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent};
  try{
-  const parts=await Promise.allSettled([party(from),party(to),productInfo(product,confirmedNcm)]);
+  const parts=await Promise.allSettled([party(from),party(to),productInfo(product,declaredNcm||confirmedNcm)]);
   if(id!==runId)return;
   const unavailable=doc=>({cnpj:doc,name:'Cadastro indisponível',uf:'',city:'',situation:'',simple:'Não confirmado',registrations:[],source:'Sem resposta',kind:'unavailable'});
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
+  lastNcmOptions=new Set([...(info.suggest?.options||[]).map(x=>x.ncm),...(info.results||[]).map(x=>x.codigo)].filter(v=>/^\d{8}$/.test(String(v||''))));
   const rules=await stateRules(a,b,info,nature);
   if(id!==runId)return;
   const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt);
@@ -588,11 +614,12 @@ function clearPreviousAnalysis(){
  $('submit').disabled=false;$('submit').textContent='Consultar';
  clearError();
 }
-['goodsOrigin','priorSt','nature','buyerTaxStatus','fromCnpj','toCnpj','product'].forEach(id=>{
+['goodsOrigin','priorSt','nature','buyerTaxStatus','fromCnpj','toCnpj','product','declaredNcm'].forEach(id=>{
  $(id).addEventListener('input',clearPreviousAnalysis);
 });
 $('nature').addEventListener('change',clearPreviousAnalysis);
-$('product').addEventListener('input',()=>{confirmedNcm='';});
+$('product').addEventListener('input',()=>{confirmedNcm='';lastNcmOptions=new Set();$('declaredNcm').value='';});
+$('declaredNcm').addEventListener('input',()=>{confirmedNcm='';lastNcmOptions=new Set();});
 ['profileRevenda','profileIndustria','profileConsumidor'].forEach(id=>{
  $(id).addEventListener('change',()=>{
   refreshProfileDetails(selectedProfile(),true);
@@ -626,9 +653,9 @@ $('results').addEventListener('click',event=>{
  const ncmChoice=event.target.closest?.('[data-confirm-ncm]');
  if(ncmChoice&&$('results').contains(ncmChoice)){
   const ncm=ncmChoice.dataset.confirmNcm;
-  const options=productHint($('product').value)?.options||[];
-  if(!options.some(o=>o.ncm===ncm))return;
+  if(!lastNcmOptions.has(ncm))return;
   confirmedNcm=ncm;
+  $('declaredNcm').value=ncm;
   clearPreviousAnalysis();
   onSubmit({preventDefault(){}},false);
   return;
@@ -643,7 +670,7 @@ $('results').addEventListener('click',event=>{
 $('consultation').addEventListener('submit',onSubmit);
 $('clear').addEventListener('click',()=>{
  window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
- confirmedNcm='';
+ confirmedNcm='';lastNcmOptions=new Set();
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
  $('companySearchResults').replaceChildren();recoverOwnIdentity();refreshProfileDetails(selectedProfile(),false);
 });
