@@ -1,0 +1,47 @@
+name: NANA PAY - atualizar icones de instalacao
+on:
+  push:
+    branches:
+      - homolog/honesto-demo-isolada-20261113
+    paths:
+      - "honesto-homologacao/icon.svg"
+      - ".github/workflows/nana-pay-icons.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  create-png-icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Preparar conversor SVG para PNG
+        run: |
+          python3 -m pip install --user --disable-pip-version-check "cairosvg==2.7.1"
+      - name: Gerar icones PNG a partir da marca aprovada
+        run: |
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          import cairosvg
+          root=Path("honesto-homologacao")
+          vector=root/"icon.svg"
+          for size in (192,512):
+              b=cairosvg.svg2png(url=str(vector),output_width=size,output_height=size)
+              target=root/"assets"/f"icon-{size}.png.base64"
+              target.parent.mkdir(parents=True,exist_ok=True)
+              target.write_text(base64.b64encode(b).decode("ascii")+"\n",encoding="ascii")
+              print(size,"pixels:",len(b),"bytes")
+          PY
+      - name: Versionar icones para Chrome e Safari
+        run: |
+          git config user.name "NANA PAY GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add honesto-homologacao/assets/icon-192.png.base64 honesto-homologacao/assets/icon-512.png.base64
+          if git diff --cached --quiet; then
+            echo "Icones ja sincronizados."
+          else
+            git commit -m "brand(nana-pay): atualiza PNG 192 e 512 com o simbolo N"
+            git push
+          fi
