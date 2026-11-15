@@ -346,6 +346,18 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.costWarning='Se houver responsabilidade por ST no estado de destino, poderá haver recolhimento adicional. Ainda não verificado nesta consulta.';
  }
 
+ // Para destino sem norma aprovada, não usar CFOP simples como resposta isolada
+ // quando o cimento pode ter ST: XMLs autorizados MG→GO exibem tanto NCM/CEST
+ // quanto CFOP 6.401 e ST, sem comprovar a regra vigente de todas as rotas.
+ const otherDestCement=different&&to.uf!=='MG'&&buyer==='sim'&&isSale&&r.certified===0&&
+   /^2523\d{4}$/.test(info.code||'')&&String(info.suggest?.cest||'').replace(/\D/g,'')==='0500100';
+ if(otherDestCement){
+  r.cfop=ownership==='propria'?'6.101 ou 6.401 (conforme ST do destino)':
+    ownership==='terceiros'?'6.102 ou 6.403 (conforme ST do destino)':'CFOP pendente de origem/ST';
+  r.confidence='Alternativas — ST do destino não homologada';
+  r.note='Acordos, responsabilidade e exceções do estado de destino não estão homologados nesta rota. A orientação exige conferência documental antes de parametrizar.';
+  r.pending.push('Conferir o RICMS e os acordos aplicáveis na UF de destino para definir CFOP e responsável pela ST.');
+ }
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
