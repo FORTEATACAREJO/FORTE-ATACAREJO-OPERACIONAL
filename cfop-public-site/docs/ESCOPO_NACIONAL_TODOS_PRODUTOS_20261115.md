@@ -61,3 +61,12 @@ A base existente do Supabase exclusivo contém, em 15/11/2026:
 - Receita Federal — consultas/elementos de classificação: https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/consultas
 - Convênio ICMS 142/2018 (CEST/ST): https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18
 - Portal da NF-e — tabelas CFOP, NCM, IBS e CBS: https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D
+
+
+### Expansão de grupos NCM (implementada)
+
+Quando a busca por descrição retorna apenas o capítulo, posição ou subposição da NCM, a consulta tenta recuperar os **códigos completos de oito dígitos da família** no endpoint oficial local `cfop-ncm/family`. Os itens são apresentados como candidatos, não escolhidos automaticamente. Se houver mais códigos do que o limite mostrado, o usuário deve consultar a árvore completa da Receita Federal.
+
+A pesquisa preserva acentos de palavras em português. `tests/produtos_todos_setores.test.mjs` inclui cenário "arroz" cuja descrição inicial é de grupo NCM e exige expansão antes de oferecer candidatos.
+
+**Não alegar que a existência de código de oito dígitos confirma que aquele código classifica o produto real.** Se o usuário não souber caracterizar o produto, o sistema informa pendência e link do Classif em vez de inventar.
