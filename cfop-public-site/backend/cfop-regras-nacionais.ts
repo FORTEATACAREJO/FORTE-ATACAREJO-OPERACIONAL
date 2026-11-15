@@ -26,11 +26,15 @@ Deno.serve(async (req:Request)=>{
  const to=(route.searchParams.get('to')||'').toUpperCase();
  const ncm=digits(route.searchParams.get('ncm')||'');
  const cest=digits(route.searchParams.get('cest')||'');
+ const natureza=(route.searchParams.get('natureza')||'').slice(0,60).trim();
+ const finalidade=(route.searchParams.get('finalidade')||'').slice(0,60).trim();
+ const regime=(route.searchParams.get('regime')||'').slice(0,60).trim();
  const date=(route.searchParams.get('date')||new Date().toISOString().slice(0,10));
  if(!isStatus&&(!validUfs.has(from)||!validUfs.has(to)))return answer({error:'invalid_uf'},400,origin);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return answer({error:'invalid_date'},400,origin);
  if(ncm&&ncm.length!==8)return answer({error:'invalid_ncm'},400,origin);
  if(cest&&cest.length!==7)return answer({error:'invalid_cest'},400,origin);
+ if([natureza,finalidade,regime].some(v=>v&&!/^[a-zA-Z0-9_ -]+$/.test(v)))return answer({error:'invalid_scope'},400,origin);
  const backend=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
  if(!backend||!key)return answer({error:'configuration_unavailable'},503,origin);
  const hdr={apikey:key,Authorization:'Bearer '+key,Accept:'application/json'};
@@ -51,13 +55,22 @@ Deno.serve(async (req:Request)=>{
   }
   const states=await get('cfop_uf_nacionais',{select:'uf,nome,portal_tributario,situacao_regras',uf:'in.('+from+','+to+')',limit:'2'});
   const all=await get('cfop_regras_tributarias_uf',{
-   select:'uf_origem,uf_destino,tributo,ncm,cest,finalidade,natureza,regime,regra_json,fonte_url,ato_normativo,artigo,inicio_vigencia,fim_vigencia,situacao,homologado_em',
+   select:'uf_origem,uf_destino,tributo,ncm,cest,finalidade,natureza,regime,regra_json,fonte_url,ato_normativo,artigo,publicada_em,inicio_vigencia,fim_vigencia,situacao,aprovado_por,homologado_em',
    uf_origem:'eq.'+from,uf_destino:'eq.'+to,situacao:'eq.homologada',limit:'100'
   });
-  const verified=all.filter(x=>x.homologado_em&&(!x.inicio_vigencia||String(x.inicio_vigencia)<=date)&&(!x.fim_vigencia||String(x.fim_vigencia)>=date)&&(!x.ncm||digits(String(x.ncm))===ncm)&&(!x.cest||digits(String(x.cest))===cest));
-  return answer({from,to,date,ufs:states,verifiedRules:verified,verifiedRuleCount:verified.length,
+  // Uma tabela de links e uma marcação de status não equivalem a homologação fiscal.
+  // Regras só passam no filtro quando possuem aprovação, fonte, vigência e escopo coincidente.
+  const verified=all.filter(x=>Boolean(x.homologado_em&&x.aprovado_por&&x.fonte_url&&x.inicio_vigencia&&x.ato_normativo)&&
+    String(x.inicio_vigencia)<=date&&(!x.fim_vigencia||String(x.fim_vigencia)>=date)&&
+    (!x.ncm||(ncm&&digits(String(x.ncm))===ncm))&&
+    (!x.cest||(cest&&digits(String(x.cest))===cest))&&
+    (!x.natureza||(natureza&&String(x.natureza)===natureza))&&
+    (!x.finalidade||(finalidade&&String(x.finalidade)===finalidade))&&
+    (!x.regime||(regime&&String(x.regime)===regime))
+  );
+  return answer({from,to,date,scope:{natureza,finalidade,regime},ufs:states,verifiedRules:verified,verifiedRuleCount:verified.length,
     sourceStatus:verified.length?'contains_homologated_rules':'only_state_portal_indexed',
-    note:verified.length?'Regras selecionadas segundo rota, produto e vigência. Finalidade/regime/responsabilidade devem ser conferidos.':'27 portais oficiais indexados; nenhum cálculo estadual específico autorizado sem regra homologada.',
+    note:verified.length?'Regras com fonte, aprovação e vigência compatíveis com os parâmetros informados; não homologam a NF-e completa.':'Há 27 portais tributários indexados; a rota consultada não possui regra estadual aprovada com escopo compatível.',
     baseFederal:[
      {title:'Lei Complementar 87/1996 (LC 190/2022 — DIFAL)',url:'https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm'},
      {title:'Convênio ICMS 142/2018 — ST e CEST',url:'https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18'}
