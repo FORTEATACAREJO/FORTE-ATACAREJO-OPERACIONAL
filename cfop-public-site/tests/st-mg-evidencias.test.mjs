@@ -46,6 +46,6 @@ test('outras UFs de destino não são inferidas a partir de MG',()=>{
  assert.equal(evaluate({from:'GO',to:'SP',ncm:'25232990',cest:'0500100'}).status,'destino_nao_coberto');
 });
 test('NCM parcial/CEST ausente não dá enquadramento automático',()=>{
- assert.equal(check('GO','2523','0500100').status,'st_ambito_interestadual_por_acordo'); // Prefixo NCM de cimento, uso apenas classificatório
+ assert.equal(check('GO','2523','0500100').status,'identificacao_incompleta'); // Não extrapolar NCM incompleto
  assert.equal(check('GO','25232990','').status,'produto_nao_coberto');
 });
