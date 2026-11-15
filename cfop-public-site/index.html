@@ -18,6 +18,14 @@ main{max-width:960px;margin:22px auto;padding:0 16px 36px}
 h1{font-size:clamp(23px,3.7vw,34px);margin:0 0 9px;line-height:1.2;letter-spacing:-.45px}h2{font-size:19px;line-height:1.3;margin:0 0 13px}h3{font-size:15px;margin:0 0 10px}
 p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-height:1.5}
 .lead{font-size:14px;color:#526780;margin:0 0 22px}.card{background:white;border:1px solid #dbe3ee;border-radius:16px;padding:24px;margin:16px 0;box-shadow:0 10px 30px #142d4b08}
+
+#aiActions{margin-top:8px}
+#aiOpen{background:#e8eef8;color:#173452;border:1px solid #b5c8dc;flex:1}
+#aiStatus{font-size:12px;color:#526780;margin:8px 0 0;line-height:1.55}
+#aiManualPrompt{display:block;box-sizing:border-box;width:100%;margin-top:12px;background:#fff;border:1px solid #bccad9;border-radius:10px;padding:12px;font-family:inherit;font-size:13px;line-height:1.45;resize:vertical}
+#aiManualPrompt[hidden]{display:none}
+#aiCopy{margin-top:10px;width:100%}
+
 .field{display:flex;flex-direction:column;gap:7px}.field label{font-size:14px;font-weight:700;color:#33465b}
 .field input,.field select{appearance:auto;width:100%;background:white;color:#152b42;border:1px solid #c5ceda;border-radius:11px;font:inherit;min-height:48px;padding:11px 13px;font-size:16px}
 .field input:focus,.field select:focus{outline:2px solid #a78543;outline-offset:2px}
@@ -115,12 +123,13 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 <script src="/qualidade-fiscal.js?v=20261115a" defer></script>
 <script src="/classificacao.js" defer></script>
 <script src="/consulta-automatica.js?v=20261115j" defer></script>
+<script src="/minha-ia.js?v=20261115a" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
 </head><body>
 <header><img src="/icon.svg" alt="Símbolo FORTECOMPANNY"><div><strong>FORTECOMPANNY+ IA</strong><small>Consulta fiscal automática · Brasil</small></div></header>
 <main>
-<h1>Consulta fiscal</h1>
-<p class="lead">Operação, origem, destino e produto. Sem cadastro obrigatório. <strong>Versão em validação fiscal.</strong></p>
+<h1>Orientação para nota fiscal</h1>
+<p class="lead">Confira os dados necessários para parametrizar uma nota fiscal. <strong>Não emite NF-e.</strong> Em validação.</p>
 <section class="card">
 <h2>Dados da operação</h2>
 <form id="consultation" novalidate>
@@ -242,7 +251,23 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 </section>
 <section id="results" class="card" hidden aria-live="polite"></section>
 <div id="afterActions" class="actions" hidden><button type="button" class="secondary" id="print">Imprimir / salvar PDF</button></div>
-<div class="footer-links"><a href="/consulta-nfe.html">Consulta avançada com XML</a> · <a href="/privacidade.html">Privacidade</a></div>
+<details class="settings-group" id="aiSettings"><summary>Minha IA — escolher assistente</summary>
+ <div class="field"><label for="aiProvider">Qual IA você já utiliza?</label>
+  <select id="aiProvider"><option value="">Selecione sua IA</option>
+   <option value="chatgpt">ChatGPT</option>
+   <option value="gemini">Google Gemini</option>
+   <option value="claude">Claude</option>
+   <option value="copilot">Microsoft Copilot</option>
+   <option value="outro">Outra IA — copiar pergunta</option>
+  </select>
+ </div>
+ <p class="notice">O FORTECOMPANNY apenas prepara uma pergunta fiscal sem CPF/CNPJ nem nomes das empresas e abre a IA escolhida. Você cola e decide se deseja enviá-la. Não é necessário informar senha ou chave de API.</p>
+ <button id="aiCopy" type="button" class="secondary">Copiar pergunta fiscal</button>
+ <textarea id="aiManualPrompt" hidden readonly rows="7" aria-label="Pergunta para copiar manualmente"></textarea>
+</details>
+<div id="aiActions" class="actions"><button id="aiOpen" type="button">Perguntar à minha IA</button></div>
+ <p id="aiStatus" role="status" aria-live="polite"></p>
+ <div class="footer-links"><a href="/consulta-nfe.html">Consulta avançada com XML</a> · <a href="/privacidade.html">Privacidade</a></div>
 </main>
-<footer>FORTECOMPANNY+ IA · Consulta indicativa</footer>
+<footer>FORTECOMPANNY+ IA · Orientação fiscal em validação — não emite NF-e</footer>
 </body></html>
