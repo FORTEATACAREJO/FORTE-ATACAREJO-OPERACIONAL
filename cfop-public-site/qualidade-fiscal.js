@@ -24,7 +24,7 @@
   const status={
    "Cadastro/UF":route?'Conferido parcialmente':'Não confirmado',
    "NCM do produto":officialNCM?'Código existente; enquadramento pendente':'Pendente',
-   "CEST do produto":cestFound?'Correspondência indicativa':'Não confirmado',
+   "CEST do produto":cestFound?'Correspondência indicativa':'Não identificado — pode não ser aplicável',
    "CFOP de saída/entrada":cfopSingle?'Hipótese única; revisar':'Condicional',
    "Regra estadual da operação":completeFiscalRules?'Regra registrada; revisar escopo':'Sem regra homologada aplicável',
    "Valores da nota":'Não informados'
@@ -32,8 +32,9 @@
   if(!route)add("UF","Confirmar a UF efetiva do estabelecimento e o local da operação.");
   if(input.goodsOrigin==='desconhecida'||!input.goodsOrigin)add("ORIGEM","Confirmar aquisição de terceiros ou produção própria do remetente.");
   if(!officialNCM)add("NCM_CODIGO","Confirmar NCM vigente na base oficial.");
-  add("NCM_PRODUTO","Conferir NCM e CEST no XML de compra, rótulo ou ficha técnica do produto da marca.");
-  if(!cestFound&&cest)add("CEST","Conferir a correspondência do CEST ao produto e segmento.");
+  add("NCM_PRODUTO","Confirmar o enquadramento NCM pelo produto real, composição, aplicação, XML ou ficha técnica. Consultar o Sistema Classif da Receita se necessário.");
+  if(!cestFound&&cest)add("CEST","Conferir CEST candidato contra a descrição legal, NCM e segmento; CEST não é obrigatório para todas as mercadorias.");
+  if(!cest&&Array.isArray(product.cests)&&product.cests.length)add("CEST_CANDIDATO","Há CESTs possíveis relacionados ao NCM, mas nenhum foi confirmado pela descrição do produto. Isso não prova que exista ICMS-ST devido.");
   if(!buyerTaxProof){
    add("IE","Inscrição estadual do destinatário não foi comprovada por consulta estadual: verificar IE ativa ou condição de não contribuinte.");
    if(choiceBuyer==="sim"||choiceBuyer==="nao")add("IE_DECLARADA","A condição de contribuinte foi informada pelo usuário, não verificada pelo órgão estadual.");
