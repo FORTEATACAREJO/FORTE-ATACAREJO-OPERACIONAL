@@ -173,6 +173,13 @@ function init(){
   btn.addEventListener('click',()=>selectMode(btn.dataset.journey));
  });
  $('journeyPurpose').addEventListener('change',applyPurpose);
+ $('journeyAskIA').addEventListener('click',()=>{
+  if(!$('journeyQuestion').value.trim()){
+   $('journeyHelp').textContent='Escreva sua dúvida antes de levar à Minha IA.';
+   $('journeyQuestion').focus();return;
+  }
+  $('aiOpen').click();
+ });
  $('myCompanySave').addEventListener('click',saveCompany);
  $('myCompanyForget').addEventListener('click',forgetCompany);
  $('exampleMachine').addEventListener('click',exampleMachine);
@@ -181,6 +188,15 @@ function init(){
  $('myCompanySpecial').addEventListener('change',applyCompanyDefaults);
  $('myCompanyActivity').addEventListener('change',applyCompanyDefaults);
  $('journeyQuestion').addEventListener('input',clearCurrentOutput);
+ $('clear').addEventListener('click',()=>{
+  // Restaura apenas perfil explicitamente salvo; nova consulta inicia sem finalidade anterior.
+  $('journeyMode').value='';
+  $('journeyPurposeBlock').hidden=true;
+  $('journeyQuestionBlock').hidden=true;
+  document.querySelectorAll('[data-journey]').forEach(btn=>btn.setAttribute('aria-pressed','false'));
+  $('journeyHelp').textContent='Escolha comprar, vender, outra operação ou tirar uma dúvida.';
+  restoreCompany();
+ });
  restoreCompany();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
