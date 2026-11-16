@@ -214,7 +214,7 @@ export default function EmployeesV654({ data, onChange, currentUser, onClose, on
     setBusy(false);
   }
   async function manageEmployee(employee,action){
-    if(!confirm(`${action==='DELETE'?'EXCLUIR':action==='ACTIVATE'?'ATIVAR':'DESATIVAR'} ${employee.nome} no Forte Vendas? O histórico será preservado.`))return;
+    if(!confirm(`${action==='DELETE'?'EXCLUIR':action==='ACTIVATE'?'ATIVAR':'DESATIVAR'} ${employee.nome} no FORTE-OP? O histórico será preservado.`))return;
     setBusy(true);try{
       const {data:result,error}=await supabase.rpc('fc_manage_employee',{p_id:employee.id,p_action:action,p_patch:{}});
       if(error||!result?.ok)throw new Error(error?.message||'O servidor não confirmou a alteração.');
@@ -225,7 +225,7 @@ export default function EmployeesV654({ data, onChange, currentUser, onClose, on
 
 
   return <div className="modalBackdrop"><section className="modal employeeModal">
-    <div className="modalHead"><div><h2>FUNCIONÁRIOS E PERMISSÕES</h2><p>PERFIL E PERMISSÕES DO FORTE VENDAS. O FINANCEIRO MANTÉM APROVAÇÃO INDEPENDENTE.</p></div><button className="ghost dark" onClick={onClose}>FECHAR</button></div>
+    <div className="modalHead"><div><h2>FUNCIONÁRIOS E PERMISSÕES</h2><p>PERFIL E PERMISSÕES DO FORTE-OP. O FINANCEIRO MANTÉM APROVAÇÃO INDEPENDENTE.</p></div><button className="ghost dark" onClick={onClose}>FECHAR</button></div>
     <div className="employeeForm"><label className="field">PRIMEIRO NOME<input value={quickInvite.nome} onChange={(e)=>setQuickInvite((old)=>({...old,nome:e.target.value}))} placeholder="EX.: JULIANA"/></label><label className="field">CPF<input inputMode="numeric" maxLength={11} value={quickInvite.cpf} onChange={e=>setQuickInvite(old=>({...old,cpf:onlyDigits(e.target.value)}))} required/></label><label className="field">E-MAIL<input type="email" value={quickInvite.email} onChange={e=>setQuickInvite(old=>({...old,email:e.target.value}))}/></label><label className="field">WHATSAPP COM DDD<input value={quickInvite.whatsapp} onChange={(e)=>setQuickInvite((old)=>({...old,whatsapp:e.target.value}))} placeholder="EX.: 64 99999-9999"/></label><button type="button" disabled={busy} onClick={sendQuickInvite}>ENVIAR CONVITE PELO WHATSAPP</button><div className="note">O FUNCIONÁRIO COMPLETA OS DADOS, CRIA A SENHA E AGUARDA A APROVAÇÃO DO ADMIN OU MASTER.</div></div>
     <div className="employeeWorkflow">{form.id?<b>EDITAR CADASTRO EXISTENTE — SEM NOVO CONVITE</b>:<><b>1. ANEXAR DOCUMENTO</b><span>2. IA PREENCHE</span><span>3. ADMIN CONFERE PERMISSÕES</span><span>4. CONVITE POR E-MAIL</span></>}</div>
     <div className="employeeForm">
