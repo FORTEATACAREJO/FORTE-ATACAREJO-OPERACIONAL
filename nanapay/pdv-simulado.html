@@ -44,9 +44,9 @@ const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).
 const stamp=t=>t?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'medium'}).format(new Date(t)):'';
 let token='',staff='',est='',sse=null;
 function alertMessage(v,error=false){$('notice').textContent=v;$('notice').style.color=error?'#ad3828':'#176b33'}
-async function api(path,body,needStaff=false){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'x-honesto-staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});const data=await r.json();if(!r.ok)throw Error(data.error||'Falha do PDV');return data}
+async function api(path,body,needStaff=false){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'x-nanapay-staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});const data=await r.json();if(!r.ok)throw Error(data.error||'Falha do PDV');return data}
 async function action(path,body,message){try{await api(path,body,true);alertMessage(message);await refresh()}catch(e){alertMessage(e.message,true)}}
-async function start(){try{const d=await api('/api/pdv-demo/create',{});token=d.token;staff=d.staff;est=d.establishmentId;sessionStorage.setItem('honesto-pdv-demo',JSON.stringify({token,staff,est}));
+async function start(){try{const d=await api('/api/pdv-demo/create',{});token=d.token;staff=d.staff;est=d.establishmentId;sessionStorage.setItem('nanapay-pdv-demo',JSON.stringify({token,staff,est}));
 connect()}catch(e){alertMessage(e.message,true)}}
 async function connect(){if(sse)sse.close();
  $('work').classList.remove('hidden');$('connection').classList.remove('hidden');
@@ -69,5 +69,5 @@ async function move(id,status){await action('/api/pdv/transfer-status',{id,statu
 $('new').addEventListener('click',start);
 $('productForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('prodName').value,qty:Number($('qty').value),price:$('price').value},'Produto lançado pelo PDV')});
 $('payForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/payment',{amount:$('amount').value,method:$('method').value},'Pagamento presencial registrado no PDV')});
-try{const d=JSON.parse(sessionStorage.getItem('honesto-pdv-demo')||'null');if(d?.token&&d?.staff&&d?.est){token=d.token;staff=d.staff;est=d.est;connect().catch(()=>{})}}catch{}
+try{const d=JSON.parse(sessionStorage.getItem('nanapay-pdv-demo')||'null');if(d?.token&&d?.staff&&d?.est){token=d.token;staff=d.staff;est=d.est;connect().catch(()=>{})}}catch{}
 </script></body></html>
