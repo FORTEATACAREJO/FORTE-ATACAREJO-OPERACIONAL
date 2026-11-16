@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const code=readFileSync(new URL('../jornada-operacao.js',import.meta.url),'utf8');
-const ids='guidedStart journeyMode journeyPurposeBlock journeyPurpose journeyPurposeLabel journeyQuestionBlock journeyQuestion journeyHelp journeyAskIA exampleMachine myCompanyAlias myCompanyUF myCompanyRegime myCompanySpecial myCompanyActivity myCompanySave myCompanyForget myCompanyStatus fromUFManual toUFManual fromDocLabel toDocLabel goodsOrigin buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileEmpresa profileConsumidor myDoc myRole rememberMe taxRegime specialRegime results afterActions clear'.split(' ');
+const ids='guidedStart journeyMode journeyPurposeBlock journeyPurpose journeyPurposeLabel purchaseChecks purchaseSellerType purchaseInvoiceStatus assetUse assetUseBlock journeyQuestionBlock journeyQuestion journeyHelp journeyAskIA exampleMachine myCompanyAlias myCompanyUF myCompanyRegime myCompanySpecial myCompanyActivity myCompanySave myCompanyForget myCompanyStatus fromUFManual toUFManual fromDocLabel toDocLabel goodsOrigin buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileEmpresa profileConsumidor myDoc myRole rememberMe taxRegime specialRegime results afterActions clear'.split(' ');
 function rig(store=new Map()){
  const E=()=>({value:'',checked:false,hidden:false,disabled:false,textContent:'',innerHTML:'',options:[],handlers:{},
   addEventListener(k,fn){(this.handlers[k]??=[]).push(fn)},
@@ -79,4 +79,23 @@ test('esquecer perfil não apaga automaticamente a preferência separada de CPF/
  x.e.myCompanyForget.click();
  assert.equal(x.store.has('other-identity'),true);
  assert.equal(x.store.size,1);
+});
+
+test('a compra abre perguntas de fornecedor e documento, e somente o ativo abre pergunta de patrimônio',()=>{
+ const x=rig();x.window.FORTE_JORNADA.selectMode('compra');
+ assert.equal(x.e.purchaseChecks.hidden,false);
+ x.e.journeyPurpose.value='revenda';x.window.FORTE_JORNADA.applyPurpose();
+ assert.equal(x.e.assetUseBlock.hidden,true);
+ x.e.journeyPurpose.value='ativo';x.window.FORTE_JORNADA.applyPurpose();
+ assert.equal(x.e.assetUseBlock.hidden,false);
+ x.e.purchaseSellerType.value='pessoa_fisica';
+ x.e.purchaseInvoiceStatus.value='nao_emitida';
+ x.e.assetUse.value='sim';
+ const intent=x.window.FORTE_JORNADA.getIntent();
+ assert.equal(intent.sellerType,'pessoa_fisica');
+ assert.equal(intent.invoiceStatus,'nao_emitida');
+ assert.equal(intent.assetUse,'sim');
+ x.window.FORTE_JORNADA.selectMode('venda');
+ assert.equal(x.e.purchaseChecks.hidden,true);
+ assert.equal(x.window.FORTE_JORNADA.getIntent().sellerType,null);
 });
