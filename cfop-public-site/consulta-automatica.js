@@ -9,14 +9,16 @@ const PERSONAL_KEY='fortecompanny-my-document-v1';
 const NAME_SEARCH='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-busca-empresas';
 
 const STATE_RULES='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-regras-nacionais';
-async function stateRules(from,to,info,nature){
+async function stateRules(from,to,info,nature,context){
  const finalidade=/revenda/.test(nature)?'revenda':/consumo/.test(nature)?'uso_consumo':/ativo/.test(nature)?'ativo_imobilizado':/industrializacao/.test(nature)?'industrializacao':'';
  if(!ufList.has(from.uf)||!ufList.has(to.uf))return null;
  const url=STATE_RULES+'/route?from='+encodeURIComponent(from.uf)+'&to='+encodeURIComponent(to.uf)+
   (info.code?'&ncm='+encodeURIComponent(info.code):'')+
   (info.suggest?.cest?'&cest='+encodeURIComponent(info.suggest.cest):'')+
   '&natureza='+encodeURIComponent(nature||'')+
-  (finalidade?'&finalidade='+encodeURIComponent(finalidade):'');
+  (finalidade?'&finalidade='+encodeURIComponent(finalidade):'')+
+  (context?.operationDate?'&date='+encodeURIComponent(context.operationDate):'')+
+  (context?.taxRegime&&context.taxRegime!=='nao_sei'?'&regime='+encodeURIComponent(context.taxRegime):'');
  try{return await jsonFetch(url,{},9000)}catch(_){return null}
 }
 function taxpayerStatus(company,declared){
@@ -233,12 +235,12 @@ function formatCompany(c){
  let ie=c.registrations.length?'IE(s) retornada(s): '+c.registrations.map(r=>r.ie+' ('+r.uf+')'+(r.active===true?' ativa':r.active===false?' inativa':' status desconhecido')).join('; '):'Inscrição estadual não confirmada';
  return '<strong>'+safe(c.name||c.cnpj)+'</strong><p>'+safe(c.cnpj)+' · '+safe(uf+city)+'</p><p>Situação cadastral: '+safe(c.situation||'Não confirmada')+'</p><p>'+safe(c.simple)+'</p><p>'+safe(ie)+'</p><small>Fonte: '+safe(c.source)+'</small>';
 }
-function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,profile,priorSt){
+function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,profile,priorSt,context,contextAudit){
  const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF ainda não confirmada';
  const meta=natureInfo(nature),different=!!from.uf&&!!to.uf&&from.uf!==to.uf;
  const isSale=meta.kind==='venda',isPurchase=meta.kind==='compra';
  const buyer=taxpayerStatus(to,buyerDeclaration);
- const today=new Date().toLocaleDateString('pt-BR');
+ const today=context?.operationDate?context.operationDate.split('-').reverse().join('/'):new Date().toLocaleDateString('pt-BR');
  const sources=[
   {label:'Tabela CFOP (Fazenda MG)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/decretos/d42145_2001.html'},
   {label:'Lei Kandir / LC 190/2022 (DIFAL)',url:'https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm'},
@@ -404,6 +406,29 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
+ if(contextAudit){
+  r.taxScenario={regime:context?.taxRegime||'nao_sei',special:context?.specialRegime||'nao_sei',
+   unusual:context?.unusual||'nao_sei',reviewRequired:contextAudit.needsReview};
+  for(const issue of contextAudit.issues)r.pending.push(issue);
+  if(context.specialRegime==='sim'){
+   r.pending.push('O regime especial foi informado pelo usuário; ainda não há validação do ato concessivo nem autorização para aplicar o benefício automaticamente.');
+   r.confidence='Hipótese sujeita ao ato de regime especial';
+   r.note=(r.note?r.note+' ':'')+'Há regime especial declarado. Confira alcance, vigência e eventuais exceções antes de usar os códigos sugeridos.';
+   if(context.specialScope!=='nao'||context.specialValidity!=='nao'){
+    r.cfop='CFOP a conferir conforme regime especial';
+   }
+  }else if(context.specialRegime==='nao_sei'||context.taxRegime==='nao_sei'||context.unusual==='nao_sei'){
+   r.confidence='Hipótese sujeita à confirmação do cenário fiscal';
+   r.note=(r.note?r.note+' ':'')+'Regime ou particularidade ainda não comprovado. Não utilizar como parametrização definitiva.';
+  }
+  if(context.unusual==='sim'){
+   r.pending.push('Existe uma condição tributária especial declarada pelo usuário. Confirmar norma e efeito concreto sobre CFOP, CST, ST/DIFAL e demais tributos.');
+   r.confidence='Hipótese condicionada ao tratamento especial declarado';
+   if(context.unusualKind==='isencao'||context.unusualKind==='monofasico'||context.unusualKind==='importacao'||context.unusualKind==='exportacao'||context.unusualKind==='zfm')
+    r.note=(r.note?r.note+' ':'')+'O tratamento específico pode alterar tributos e códigos; o NCM isolado não determina a operação.';
+   if(context.specialRegime!=='sim')r.cfop='CFOP a confirmar para operação especial';
+  }
+ }
  return r;
 }
 function resultHTML(input,from,to,info,fiscal,audit){
@@ -430,6 +455,11 @@ function resultHTML(input,from,to,info,fiscal,audit){
    '<p>Nenhuma correspondência específica foi encontrada. Use o campo opcional de NCM conforme o documento do produto.</p>')+
   '</div>':'';
 
+ const scenarioSummary= input.triage?
+  '<p class="muted"><b>Cenário fiscal declarado:</b> '+safe(input.triageAssessment?.taxRegimeLabel||'Não informado')+
+  ' · '+safe(input.triageAssessment?.label||'Pendente')+
+  ' · data: '+safe(input.triage.operationDate||'hoje')+'</p>':'';
+
  const profileText=profiles[input.profile]?.label||'Não informado';
  const review=audit||{title:'Ficha orientativa — não homologada para emissão',reason:'Consulta fiscal ainda não homologada',issues:[]};
  const auditBox='<section class="fiscal-audit" aria-label="Status da parametrização">'+
@@ -437,7 +467,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
    '<details><summary>Verificar antes de usar na NF-e ('+review.issues.length+')</summary><ul>'+
    review.issues.map(x=>'<li>'+safe(x.text)+'</li>').join('')+
    '</ul></details></section>';
- return '<h2>Resultado da consulta</h2>'+auditBox+
+ return '<h2>Resultado da consulta</h2>'+auditBox+scenarioSummary+
   '<p class="muted">Perfil: '+safe(profileText)+' · '+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?
    '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>Confira a IE do destinatário na <a target="_blank" rel="noopener noreferrer" href="'+(to.uf==='MG'?'https://www.mg.gov.br/servico/realizar-consulta-publica-ao-cadastro-de-contribuintes-do-icms-sintegra':'https://www.sintegra.gov.br/links.html')+'">consulta pública do SINTEGRA</a>. CNPJ e Simples não comprovam IE.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, IE ativa conferida</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
@@ -589,6 +619,11 @@ async function maybeRegister(input){
 async function onSubmit(event,registerIfAsked=true){
  event.preventDefault();clearError();
  window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
+ const scenario=window.FORTE_TRIAGEM_FISCAL?.read();
+ if(!scenario){showError('Triagem fiscal indisponível: atualize o aplicativo antes de consultar.');return}
+ const validation=window.FORTE_TRIAGEM_FISCAL.validate(scenario);
+ if(!validation.ok){showError(validation.message);$('triageFiscal').scrollIntoView?.({block:'start',behavior:'smooth'});return}
+ const scenarioCheck=window.FORTE_TRIAGEM_FISCAL.assess(scenario);
  const profile=selectedProfile();
  if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
@@ -603,7 +638,7 @@ async function onSubmit(event,registerIfAsked=true){
  const id=++runId,btn=$('submit');
  btn.disabled=true;btn.textContent='Pesquisando bases fiscais...';
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
- const input={from,to,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent};
+ const input={from,to,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent,triage:scenario,triageAssessment:scenarioCheck};
  try{
   const parts=await Promise.allSettled([party(from),party(to),productInfo(product,declaredNcm||confirmedNcm)]);
   if(id!==runId)return;
@@ -612,9 +647,9 @@ async function onSubmit(event,registerIfAsked=true){
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
   lastNcmOptions=new Set([...(info.suggest?.options||[]).map(x=>x.ncm),...(info.results||[]).map(x=>x.codigo)].filter(v=>/^\d{8}$/.test(String(v||''))));
-  const rules=await stateRules(a,b,info,nature);
+  const rules=await stateRules(a,b,info,nature,scenario);
   if(id!==runId)return;
-  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt);
+  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt,scenario,scenarioCheck);
   const audit=window.FORTE_QUALIDADE_FISCAL?.assess({from:a,to:b,product:info,fiscal,stateData:rules,input})||null;
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal,audit);
@@ -632,6 +667,10 @@ function clearPreviousAnalysis(){
  $('submit').disabled=false;$('submit').textContent='Consultar';
  clearError();
 }
+['taxRegime','specialRegime','specialKind','specialScope','specialValidity','specialAct','unusualOperation','unusualKind','operationDate'].forEach(id=>{
+ $(id).addEventListener('input',clearPreviousAnalysis);
+ $(id).addEventListener('change',clearPreviousAnalysis);
+});
 ['goodsOrigin','priorSt','nature','buyerTaxStatus','fromCnpj','toCnpj','product','declaredNcm'].forEach(id=>{
  $(id).addEventListener('input',clearPreviousAnalysis);
 });
@@ -690,7 +729,7 @@ $('clear').addEventListener('click',()=>{
  window.FORTE_FICHA_EXPORTACAO?.clearSnapshot();
  confirmedNcm='';lastNcmOptions=new Set();
  ++runId;$('consultation').reset();$('registerBox').hidden=true;$('results').hidden=true;$('afterActions').hidden=true;clearError();$('registerState').textContent='';
- $('companySearchResults').replaceChildren();recoverOwnIdentity();refreshProfileDetails(selectedProfile(),false);
+ $('companySearchResults').replaceChildren();recoverOwnIdentity();refreshProfileDetails(selectedProfile(),false);window.FORTE_TRIAGEM_FISCAL?.refresh();
 });
 $('print').addEventListener('click',()=>window.print());
 $('removeSaved').addEventListener('click',()=>{try{localStorage.removeItem(COMPANY_KEY)}catch(e){}$('registerState').textContent='Preferência local excluída; o registro já enviado ao servidor não é apagado por este botão.'});
