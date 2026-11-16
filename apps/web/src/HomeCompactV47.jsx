@@ -8,7 +8,6 @@ export const CENTRAL_FORTE_URL = 'https://site-forte-atacarejo.onrender.com/cent
 export default function HomeCompactV47({navigation,canSell,canBuy,canAccess,onNavigate,onSale,onPurchase,onBudget,onLoad,unread=0,data={}}){
  const allowed = (screen,action='visualizar') => canAccess ? canAccess(screen,action) : navigation.main.some(item=>item.id===screen||item.screens?.includes(screen));
  const shortcuts = [
-  {label:'Central Forte',description:'Acessar os sistemas',icon:'grid',href:CENTRAL_FORTE_URL,tone:'central'},
   ...(allowed('whatsapp')?[{label:'WhatsApp',description:'Mensagens e respostas',icon:'chat',onClick:()=>onNavigate('whatsapp'),tone:'whatsapp',badge:unread}]:[]),
   ...(canSell&&allowed('balcao','editar')?[{label:'Venda balcão',description:'Caixa e venda rápida',icon:'money',onClick:()=>onNavigate('balcao')},...(onBudget?[{label:'Novo orçamento',description:'Preparar cotação',icon:'file',onClick:onBudget}]:[])]:[]),
   ...(canSell&&allowed('comprasFornecedor','editar')?[{label:'Nova venda',description:'Pedido do cliente',icon:'plus',onClick:onSale}]:[]),
