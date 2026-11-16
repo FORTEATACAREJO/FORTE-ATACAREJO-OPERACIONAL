@@ -661,7 +661,7 @@ async function onSubmit(event,registerIfAsked=true){
  if(!validation.ok){showError(validation.message);$('triageFiscal').scrollIntoView?.({block:'start',behavior:'smooth'});return}
  const scenarioCheck=window.FORTE_TRIAGEM_FISCAL.assess(scenario);
  const profile=selectedProfile();
- if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
+ if(!profile){showError('Selecione o tipo de usuário: comércio, indústria, empresa/serviços ou pessoa física.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
  const fromUfManual=$('fromUFManual').value,toUfManual=$('toUFManual').value;
  const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value,priorSt=$('priorSt').value;
