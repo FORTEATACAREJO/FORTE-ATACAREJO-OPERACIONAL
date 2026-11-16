@@ -39,7 +39,7 @@ test('read-only and unapproved users do not gain creation shortcuts or panel sum
   const dom=await fixture(role);const d=dom.window.document;
   try{
    assert.deepEqual([...d.querySelectorAll('.home-shortcuts button b')].map(x=>x.textContent),role==='reader'?['WhatsApp','Pallets']:[]);
-   assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?8:0);
+   assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?9:0);
    assert.equal(d.querySelectorAll('.home-summary button').length,role==='reader'?2:0);
    assert.equal(d.querySelectorAll('.home-shortcuts a').length,1);
   }finally{dom.window.close();}
