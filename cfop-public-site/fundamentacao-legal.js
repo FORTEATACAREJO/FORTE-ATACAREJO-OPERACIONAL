@@ -4,16 +4,14 @@
  */
 (function(root){
  'use strict';
- const ufs=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP SE SP TO'.split(' '));
+ const ufs=new Set('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' '));
  const clean=x=>String(x??'').trim();
  const isDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(clean(x))&&!Number.isNaN(Date.parse(x+'T00:00:00Z'));
  const official=url=>{
-  try{
-   const u=new URL(clean(url));
-   const h=u.hostname.toLowerCase();
-   return u.protocol==='https:'&&!u.username&&!u.password&&
-     (h.endsWith('.gov.br')||h==='gov.br'||h.endsWith('.leg.br')||h==='leg.br');
-  }catch(_){return false}
+  const match=/^https:\/\/([^\/@?#:]+)(?::443)?(?:\/|[?#]|$)/i.exec(clean(url));
+  if(!match)return false;
+  const h=match[1].toLowerCase();
+  return h.endsWith('.gov.br')||h==='gov.br'||h.endsWith('.leg.br')||h==='leg.br';
  };
  function reviewRule(rule={},op={}){
   const problems=[];
