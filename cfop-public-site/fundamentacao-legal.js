@@ -17,16 +17,20 @@
   const problems=[];
   const add=x=>{if(!problems.includes(x))problems.push(x)};
   const normalize=x=>clean(x).toUpperCase();
+  const details=rule?.regra_json&&typeof rule.regra_json==='object'?rule.regra_json:{};
+  const review=rule?.revisao_legal||details.revisao_legal||{};
+  const start=rule.inicio_vigencia||rule.vigencia_inicio||details.inicio_vigencia||details.vigencia_inicio;
+  const end=rule.fim_vigencia||rule.vigencia_fim||details.fim_vigencia||details.vigencia_fim;
   const date=clean(op.date);
   if(!rule||typeof rule!=='object')return {ready:false,problems:['Regra jurídica ausente'],basisType:'legislacao',xmlRequired:false};
   if(clean(rule.situacao)!=='homologada'||!rule.homologado_em)add('Regra ainda não marcada como homologada após revisão jurídica.');
   if(!official(rule.fonte_url))add('Fonte normativa oficial HTTPS não demonstrada.');
   if(!clean(rule.ato_normativo)||!clean(rule.artigo))add('Ato, dispositivo e fundamento legal específico não identificados.');
-  if(!isDate(rule.vigencia_inicio))add('Início de vigência do ato normativo não informado.');
-  if(rule.vigencia_fim&&!isDate(rule.vigencia_fim))add('Fim de vigência inválido.');
+  if(!isDate(start))add('Início de vigência do ato normativo não informado.');
+  if(end&&!isDate(end))add('Fim de vigência inválido.');
   if(!isDate(date))add('Data da operação não foi identificada para testar vigência.');
-  if(isDate(rule.vigencia_inicio)&&isDate(date)&&date<rule.vigencia_inicio)add('Operação anterior à vigência do ato.');
-  if(isDate(rule.vigencia_fim)&&isDate(date)&&date>rule.vigencia_fim)add('Operação posterior ao fim de vigência do ato.');
+  if(isDate(start)&&isDate(date)&&date<start)add('Operação anterior à vigência do ato.');
+  if(isDate(end)&&isDate(date)&&date>end)add('Operação posterior ao fim de vigência do ato.');
   if(!ufs.has(normalize(rule.uf_origem))||!ufs.has(normalize(rule.uf_destino)))add('Origens/destinos da norma sem escopo de UF.');
   if(normalize(rule.uf_origem)!==normalize(op.fromUF)||normalize(rule.uf_destino)!==normalize(op.toUF))
    add('A norma não corresponde à rota de origem e destino analisada.');
@@ -38,11 +42,11 @@
   if(!/^\d{8}$/.test(ncm))add('Classificação de mercadoria com NCM completo ainda não identificada.');
   if(rule.ncm&&clean(rule.ncm).replace(/\D/g,'')!==ncm)add('O NCM analisado não corresponde à regra.');
   if(rule.cest&&clean(rule.cest).replace(/\D/g,'')!==cest)add('O CEST legal não corresponde à regra (se aplicável).');
-  if(rule.revisao_legal?.produto_enquadrado!==true)add('Enquadramento técnico do produto na norma ainda não revisado.');
-  if(rule.revisao_legal?.excecoes_analisadas!==true)add('Exceções, benefícios e hipóteses especiais ainda não revisados.');
-  if(rule.revisao_legal?.aprovada!==true||!clean(rule.revisao_legal?.revisor)||!isDate(rule.revisao_legal?.data))
+  if(review?.produto_enquadrado!==true)add('Enquadramento técnico do produto na norma ainda não revisado.');
+  if(review?.excecoes_analisadas!==true)add('Exceções, benefícios e hipóteses especiais ainda não revisados.');
+  if(review?.aprovada!==true||!clean(rule.aprovado_por||review?.revisor)||!isDate(review?.data||clean(rule.homologado_em).slice(0,10)))
    add('Revisão jurídica documentada e aprovada ainda não registrada.');
-  if(op.specialRegime==='sim'&&rule.revisao_legal?.ato_especial_verificado!==true)
+  if(op.specialRegime==='sim'&&review?.ato_especial_verificado!==true)
    add('Regime especial declarado e seu ato concessivo não foram verificados.');
   return Object.freeze({
    ready:problems.length===0,
