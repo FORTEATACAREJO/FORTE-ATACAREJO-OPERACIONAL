@@ -15,6 +15,10 @@ const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||10000);
 const store=new Map();
 const restaurants=new Map();
+const restaurantCodes=new Map();
+const codeAlphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function newRestaurantCode(){let code;do{code=Array.from({length:8},()=>codeAlphabet[crypto.randomInt(codeAlphabet.length)]).join('')}while(restaurantCodes.has(code));return code;}
+function resolveRestaurant(value){return restaurants.get(String(value||''))||restaurants.get(restaurantCodes.get(String(value||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase()))||null;}
 const streams=new Map();
 const mk=()=>crypto.randomBytes(24).toString('base64url');
 const rand=()=>crypto.randomUUID();
@@ -32,14 +36,14 @@ function validTable(raw){
  return value.toUpperCase();
 }
 function newDemo(tableNo='12',seed=true,venue=null){
- const established=venue||{id:mk(),name:'Restaurante Exemplo',staffToken:mk(),adminToken:mk(),waiters:new Map(),createdAt:now(),lastActivity:Date.now(),orderingEnabled:true,tables:new Map()};
- if(!venue)restaurants.set(established.id,established);
+ const established=venue||{id:mk(),code:newRestaurantCode(),name:'Restaurante Exemplo',staffToken:mk(),adminToken:mk(),waiters:new Map(),createdAt:now(),lastActivity:Date.now(),orderingEnabled:true,tables:new Map()};
+ if(!venue){restaurants.set(established.id,established);restaurantCodes.set(established.code,established.id);}
  const number=validTable(tableNo),table='Mesa '+number;
  const s={id:rand(),viewToken:mk(),staffToken:established.staffToken,establishmentId:established.id,name:established.name,tableNumber:number,table,createdAt:now(),expires:Date.now()+3*3600_000,closed:false,settledAt:null,mode:'restante',count:seed?4:1,
  people:(seed?['Ana','Bruno','Carla','Diego']:[]).map((name)=>({id:rand(),name,present:true,service:false,table})),items:[],payments:[],disputes:[],events:[],transfers:[],
 
  // In the public demonstration this represents the restaurant POS menu and its optional receive-orders feature.
- orderingEnabled:established.orderingEnabled,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
+ orderingEnabled:established.orderingEnabled,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],waiterCalls:[],memberTokens:new Map()};
  const add=(name,qty,price,person)=>{const i={id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now(),cancelledAt:null};s.items.push(i);recordEvent(s,'item','Lançado: '+qty+' × '+name,qty*price,i.id);};
  if(seed){add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);}
  established.tables.set(number,s.viewToken);established.lastActivity=Date.now();store.set(s.viewToken,s);return s;
@@ -58,7 +62,7 @@ function snapshot(s){
  const peopleToSplit=s.mode==='todos'?s.people:s.people.filter(p=>p.present);
  const candidate=peopleToSplit.slice(0,s.count).map(p=>p.id);
  while(candidate.length<s.count)candidate.push('Convidado '+(candidate.length+1));
- return {table:s.table,originalTable:s.table,establishmentId:s.establishmentId,restaurant:s.name,createdAt:s.createdAt,closed:s.closed,settledAt:s.settledAt,transfers:s.transfers,timeline:[...s.events].sort((a,b)=>a.at.localeCompare(b.at)),people:s.people,items:s.items,payments:s.payments,disputes:s.disputes,orders:s.orders,menu:s.menu,orderingEnabled:s.orderingEnabled,mode:s.mode,count:s.count,subtotal,service,paid,balance,shares,individually,rateio:splitAmount(Math.max(0,balance),candidate),at:now(),expires:s.expires};
+ return {table:s.table,originalTable:s.table,establishmentId:s.establishmentId,restaurant:s.name,createdAt:s.createdAt,closed:s.closed,settledAt:s.settledAt,transfers:s.transfers,timeline:[...s.events].sort((a,b)=>a.at.localeCompare(b.at)),people:s.people,items:s.items,payments:s.payments,disputes:s.disputes,orders:s.orders,waiterCalls:s.waiterCalls,menu:s.menu,orderingEnabled:s.orderingEnabled,mode:s.mode,count:s.count,subtotal,service,paid,balance,shares,individually,rateio:splitAmount(Math.max(0,balance),candidate),at:now(),expires:s.expires};
 }
 function getSession(token){const s=store.get(token);if(!s||Date.now()>s.expires)throw Object.assign(new Error('Sessão não encontrada ou expirada'),{http:404});return s;}
 function broadcast(s){for(const res of streams.get(s.viewToken)||[]){try{res.write('event: change\ndata: {}\n\n')}catch{}}}
@@ -68,7 +72,11 @@ function body(req){return new Promise((resolve,reject)=>{let data='';req.on('dat
 function staff(req,s){if(req.headers['x-nanapay-staff']!==s.staffToken)throw Object.assign(new Error('Ação exclusiva do caixa na demonstração'),{http:403});}
 function venueForId(id){const v=restaurants.get(String(id||''));if(!v)throw Object.assign(new Error('Restaurante de demonstração não encontrado ou expirado'),{http:404});return v;}
 function roleFor(req,venue){const header=String(req.headers.authorization||'');const token=header.startsWith('Bearer ')?header.slice(7):'';if(!token)throw Object.assign(new Error('Acesso exclusivo do restaurante. Informe sua credencial de demonstração.'),{http:401});if(token===venue.adminToken)return {role:'admin',name:'Administrador',id:'admin'};for(const [id,w] of venue.waiters)if(w.token===token)return {role:'garcom',name:w.name,id};throw Object.assign(new Error('Acesso não autorizado para este estabelecimento'),{http:403});}
-function venueStatus(venue){const tables=[...venue.tables].map(([number,t])=>{const s=store.get(t);if(!s||Date.now()>s.expires||s.closed)return null;const snap=snapshot(s);return {table:s.table,number,openedAt:s.createdAt,people:s.people.filter(p=>p.present).length,balance:snap.balance,ordersPending:s.orders.filter(o=>o.status==='solicitado').length,returnsPending:s.disputes.filter(d=>d.status==='pendente').length,tableMovesPending:s.transfers.filter(t=>t.status==='pendente').length,lastUpdate:(s.events.at(-1)?.at||s.createdAt)};}).filter(Boolean);return {establishmentId:venue.id,name:venue.name,orderingEnabled:venue.orderingEnabled,createdAt:venue.createdAt,tables,billing:{monthlyCents:499,currency:'BRL',status:'not_configured',method:'credit_card',realChargesEnabled:false}};}
+function venueStatus(venue){const tables=[...venue.tables].map(([number,t])=>{const s=store.get(t);if(!s||Date.now()>s.expires||s.closed)return null;const snap=snapshot(s);return {table:s.table,number,openedAt:s.createdAt,people:s.people.filter(p=>p.present).length,balance:snap.balance,ordersPending:s.orders.filter(o=>o.status==='solicitado').length,
+  requestedOrders:s.orders.filter(o=>o.status==='solicitado').map(o=>({id:o.id,qty:o.qty,name:o.name,at:o.createdAt,client:s.people.find(p=>p.id===o.person)?.name||'Cliente',note:o.note,table:o.table})),
+  callsPending:s.waiterCalls.filter(c=>c.status!=='atendido').length,
+  waiterCalls:s.waiterCalls.filter(c=>c.status!=='atendido').map(c=>({id:c.id,status:c.status,table:c.table,client:s.people.find(p=>p.id===c.person)?.name||'Cliente',at:c.createdAt})),
+  returnsPending:s.disputes.filter(d=>d.status==='pendente').length,tableMovesPending:s.transfers.filter(t=>t.status==='pendente').length,lastUpdate:(s.events.at(-1)?.at||s.createdAt)};}).filter(Boolean);return {establishmentId:venue.id,restaurantCode:venue.code,name:venue.name,orderingEnabled:venue.orderingEnabled,createdAt:venue.createdAt,tables,billing:{monthlyCents:499,currency:'BRL',status:'not_configured',method:'credit_card',realChargesEnabled:false}};}
 function existingPerson(s,id){if(!id)return null;const p=s.people.find(x=>x.id===id);if(!p)throw new Error('Participante inválido');return p;}
 const server=http.createServer(async(req,res)=>{
  try{
@@ -95,10 +103,17 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='GET'&&u.pathname==='/'){
    const b=fs.readFileSync(path.join(__dirname,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});return res.end(b);
   }
-  if(req.method==='GET'&&u.pathname==='/api/demo'){const s=newDemo();return reply(res,200,{token:s.viewToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});}
+  if(req.method==='GET'&&u.pathname==='/api/restaurant/resolve'){
+   const code=String(u.searchParams.get('code')||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+   if(!/^[A-Z2-9]{8}$/.test(code))throw Object.assign(new Error('Código do restaurante inválido'),{http:400});
+   const venue=resolveRestaurant(code);
+   if(!venue)throw Object.assign(new Error('Restaurante não encontrado. Confira o código com o garçom.'),{http:404});
+   return reply(res,200,{establishmentId:venue.id,restaurantCode:venue.code,name:venue.name,orderingEnabled:venue.orderingEnabled});
+  }
+  if(req.method==='GET'&&u.pathname==='/api/demo'){const s=newDemo();return reply(res,200,{token:s.viewToken,restaurantCode:restaurants.get(s.establishmentId).code,establishmentId:s.establishmentId,table:s.table,expires:s.expires});}
   if(req.method==='POST'&&u.pathname==='/api/pdv-demo/create'){
    // Exclusively a demonstration bootstrap; NEVER use a public credential bootstrap in production.
-   const s=newDemo();return reply(res,201,{token:s.viewToken,staff:s.staffToken,adminToken:restaurants.get(s.establishmentId).adminToken,establishmentId:s.establishmentId,table:s.table,expires:s.expires});
+   const s=newDemo();return reply(res,201,{token:s.viewToken,staff:s.staffToken,adminToken:restaurants.get(s.establishmentId).adminToken,restaurantCode:restaurants.get(s.establishmentId).code,establishmentId:s.establishmentId,table:s.table,expires:s.expires});
   }
   if(u.pathname.startsWith('/api/restaurant/')){
    const venue=venueForId(req.headers['x-nana-establishment']);
@@ -115,6 +130,17 @@ const server=http.createServer(async(req,res)=>{
     return reply(res,200,{...venueStatus(venue),role:user.role,user:{name:user.name,id:user.id},waiters:user.role==='admin'?[...venue.waiters].map(([id,w])=>({id,name:w.name,createdAt:w.createdAt})):undefined});
    }
    if(req.method==='POST'){
+    if(u.pathname==='/api/restaurant/waiter-call/status'){
+     const x=await body(req),id=String(x.id||''),status=String(x.status||'');
+     if(!['a_caminho','atendido'].includes(status))throw new Error('Status da chamada inválido');
+     let session=null,call=null;
+     for(const key of venue.tables.values()){const active=store.get(key);const candidate=active?.waiterCalls?.find(c=>c.id===id);if(candidate){session=active;call=candidate;break}}
+     if(!call)throw Object.assign(new Error('Chamada não encontrada neste restaurante'),{http:404});
+     if(call.status===status)return reply(res,200,{ok:true,duplicate:true,status});
+     if(call.status==='atendido'||(call.status==='a_caminho'&&status!=='atendido'))throw Object.assign(new Error('Chamada já tratada'),{http:409});
+     call.status=status;call.updatedAt=now();recordEvent(session,'garcom',status==='a_caminho'?'Garçom a caminho de '+call.table:'Chamada atendida em '+call.table,null,call.id);broadcast(session);
+     return reply(res,200,{ok:true,status,table:call.table});
+    }
     if(user.role!=='admin')throw Object.assign(new Error('Somente o administrador pode alterar as configurações'),{http:403});
     const x=await body(req);
     if(u.pathname==='/api/restaurant/settings'){
@@ -141,7 +167,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&u.pathname==='/api/table/enter'){
    const x=await body(req);
-   const venue=restaurants.get(String(x.establishmentId||''));
+   const venue=resolveRestaurant(x.establishmentId||x.restaurantCode);
    if(!venue)throw Object.assign(new Error('Estabelecimento de demonstração não encontrado ou expirado'),{http:404});
    const number=validTable(x.table),old=venue.tables.get(number);
    let s=old?store.get(old):null;
@@ -181,20 +207,36 @@ const server=http.createServer(async(req,res)=>{
    if(expectedPerson&&expectedPerson!==id)throw Object.assign(new Error('Não é possível agir por outra pessoa'),{http:403});
    return id;
   };
+  if(u.pathname==='/api/client/waiter-call'){
+   const memberId=verifyMember(null,true),requestId=String(x.requestId||'');
+   if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Identificador de chamada inválido');
+   const prior=s.waiterCalls.find(c=>c.requestId===requestId);
+   if(prior){if(prior.person!==memberId)throw Object.assign(new Error('Chamada pertence a outro cliente'),{http:409});return reply(res,200,{ok:true,duplicate:true,callId:prior.id,status:prior.status});}
+   const active=s.waiterCalls.find(c=>c.person===memberId&&c.status!=='atendido');
+   if(active)return reply(res,200,{ok:true,duplicate:true,callId:active.id,status:active.status});
+   if(s.waiterCalls.length>=60)throw Object.assign(new Error('Limite de chamadas de teste atingido'),{http:429});
+   const person=existingPerson(s,memberId);
+   const call={id:rand(),requestId,person:memberId,table:person.table||s.table,status:'pendente',createdAt:now(),updatedAt:now()};
+   s.waiterCalls.push(call);recordEvent(s,'garcom','Garçom solicitado em '+call.table+' por '+person.name,null,call.id);broadcast(s);
+   return reply(res,201,{ok:true,callId:call.id,status:'pendente',table:call.table});
+  }
   if(u.pathname==='/api/client/order'){
    // A request is NOT an invoiceable item until the simulated POS confirms it.
    if(!s.orderingEnabled)throw Object.assign(new Error('Este restaurante não habilitou pedidos pelo Nanapay'),{http:403});
    const memberId=verifyMember(x.person,true);
    const person=existingPerson(s,memberId);
    if(!person||!person.present)throw new Error('Participante não encontrado na mesa');
-   const product=s.menu.find(m=>m.id===x.menuId),qty=Number(x.qty);
+   const sourceItemId=x.sourceItemId===undefined?null:String(x.sourceItemId||'');
+   const sourceItem=sourceItemId?s.items.find(i=>i.id===sourceItemId&&i.active):null;
+   if(sourceItemId&&!sourceItem)throw Object.assign(new Error('Produto anterior não encontrado na comanda'),{http:404});
+   const product=sourceItem?{id:null,name:sourceItem.name,unit:sourceItem.unit}:s.menu.find(m=>m.id===x.menuId),qty=Number(x.qty);
    const note=String(x.note||'').trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,180);
    const requestId=String(x.requestId||'');
    if(!product||!Number.isInteger(qty)||qty<1||qty>10||!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Pedido inválido');
    const previous=s.orders.find(o=>o.requestId===requestId);
-   if(previous){if(previous.person!==person.id||previous.menuId!==product.id||previous.qty!==qty||previous.note!==note)throw Object.assign(new Error('ID de solicitação já utilizado em outro pedido'),{http:409});return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});}
+   if(previous){if(previous.person!==person.id||previous.menuId!==product.id||previous.sourceItemId!==sourceItemId||previous.qty!==qty||previous.note!==note)throw Object.assign(new Error('ID de solicitação já utilizado em outro pedido'),{http:409});return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});}
    if(s.orders.length>=50)throw Object.assign(new Error('Limite de pedidos da sessão de teste atingido'),{http:429});
-   const requested={id:rand(),requestId,person:person.id,menuId:product.id,name:product.name,qty,unit:product.unit,note,table:person.table||s.table,status:'solicitado',itemId:null,createdAt:now(),updatedAt:now(),statusHistory:[{status:'solicitado',at:now()}]};
+   const requested={id:rand(),requestId,person:person.id,menuId:product.id,sourceItemId,name:product.name,qty,unit:product.unit,note,table:person.table||s.table,status:'solicitado',itemId:null,createdAt:now(),updatedAt:now(),statusHistory:[{status:'solicitado',at:now()}]};
    s.orders.push(requested);
    recordEvent(s,'pedido','Solicitado: '+qty+' × '+product.name+' · '+person.name,null,requested.id);broadcast(s);
    return reply(res,201,{ok:true,orderId:requested.id,status:'solicitado'});
@@ -335,5 +377,5 @@ server.listen(PORT,'0.0.0.0',()=>{
 });
 setInterval(()=>{
  for(const [key,s] of store)if(Date.now()>s.expires){store.delete(key);streams.delete(key);}
- for(const [id,venue] of restaurants){for(const [table,key] of venue.tables)if(!store.has(key))venue.tables.delete(table);if(venue.tables.size===0&&Date.now()-(venue.lastActivity||0)>3*3600_000)restaurants.delete(id)}
+ for(const [id,venue] of restaurants){for(const [table,key] of venue.tables)if(!store.has(key))venue.tables.delete(table);if(venue.tables.size===0&&Date.now()-(venue.lastActivity||0)>3*3600_000){restaurants.delete(id);restaurantCodes.delete(venue.code)}}
 },30*60_000).unref();
