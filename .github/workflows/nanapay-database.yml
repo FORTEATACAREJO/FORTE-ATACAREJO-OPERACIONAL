@@ -1,9 +1,9 @@
 name: Nanapay database schema validation
 on:
   push:
-    branches: [homolog/honesto-demo-isolada-20261113]
+    branches: [homolog/nanapay]
     paths:
-      - "honesto-homologacao/database/**"
+      - "nanapay/database/**"
       - ".github/workflows/nanapay-database.yml"
   workflow_dispatch:
 permissions:
@@ -43,6 +43,6 @@ jobs:
           CREATE TABLE auth.users (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
           SQL
       - name: Apply isolated migration
-        run: psql -v ON_ERROR_STOP=1 -f honesto-homologacao/database/001_nanapay_isolated_schema.sql
+        run: psql -v ON_ERROR_STOP=1 -f nanapay/database/001_nanapay_isolated_schema.sql
       - name: Verify RLS, server permissions and cross-tenant constraints
-        run: psql -v ON_ERROR_STOP=1 -f honesto-homologacao/database/test-tenant-security.sql
+        run: psql -v ON_ERROR_STOP=1 -f nanapay/database/test-tenant-security.sql
