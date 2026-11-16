@@ -1,8 +1,5 @@
-name: Android Forte Financeiro APK
+name: Legado - APK Financeiro separado (somente manual)
 on:
-  push:
-    branches: [main]
-    paths: ['android-financeiro/**', '.github/workflows/android-financeiro-apk.yml']
   workflow_dispatch:
 permissions:
   contents: write
