@@ -122,7 +122,14 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
    };
    const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
    if(result.error)throw Error(result.error.code==='23505'?'Motorista já registrado; confira os dados existentes.':result.error.message);
-   setMessage('Cadastro inserido em segurança como INATIVO. Ativação somente após validação de CNH, documentos e conjunto.');
+   let note='Cadastro inserido como INATIVO. Ativação somente após conferir CNH, documentos e conjunto.';
+   if(selected){
+    const marked=await supabase.from('forte_op_motoristas_pendentes')
+      .update({situacao:'CADASTRO_INATIVO',revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()})
+      .eq('source_id',selected);
+    if(marked.error)note+=' Atenção: o status do histórico precisa ser conferido.';
+   }
+   setMessage(note);
    setEditor(false);setSelected(null);setForm(EMPTY);await load();
   }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
  }
