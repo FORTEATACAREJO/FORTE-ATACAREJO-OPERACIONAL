@@ -56,11 +56,16 @@ function applyActivity(value){
 function applyRole(mode){
  if(!['compra','venda'].includes(mode))return;
  const role=mode==='compra'?'destino':'origem';
- if($('myRole').value!==role){
+ const previousRole=$('myRole').value;
+ const uf=$('myCompanyUF').value;
+ if(previousRole!==role&&uf){
+  const oldSide=$(previousRole==='destino'?'toUFManual':'fromUFManual');
+  if(oldSide.value===uf)oldSide.value='';
+ }
+ if(previousRole!==role){
   $('myRole').value=role;
   if($('myDoc').value)notify($('myRole'));
  }
- const uf=$('myCompanyUF').value;
  if(uf){
   const own=$(role==='destino'?'toUFManual':'fromUFManual');
   // A UF da empresa configurada prevalece no lado que ela ocupa.
