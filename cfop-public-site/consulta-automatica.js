@@ -237,7 +237,7 @@ function formatCompany(c){
  let ie=c.registrations.length?'IE(s) retornada(s): '+c.registrations.map(r=>r.ie+' ('+r.uf+')'+(r.active===true?' ativa':r.active===false?' inativa':' status desconhecido')).join('; '):'Inscrição estadual não confirmada';
  return '<strong>'+safe(c.name||c.cnpj)+'</strong><p>'+safe(c.cnpj)+' · '+safe(uf+city)+'</p><p>Situação cadastral: '+safe(c.situation||'Não confirmada')+'</p><p>'+safe(c.simple)+'</p><p>'+safe(ie)+'</p><small>Fonte: '+safe(c.source)+'</small>';
 }
-function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,profile,priorSt,context,contextAudit){
+function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,profile,priorSt,context,contextAudit,journey){
  const route=from.uf&&to.uf?from.uf+' → '+to.uf:'UF ainda não confirmada';
  const meta=natureInfo(nature),different=!!from.uf&&!!to.uf&&from.uf!==to.uf;
  const isSale=meta.kind==='venda',isPurchase=meta.kind==='compra';
@@ -316,7 +316,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }
  if(isPurchase&&nature==='compra_ativo'&&from.uf==='MG'&&to.uf==='GO'){
   r.pending.push('Máquina/equipamento para integrar o ativo imobilizado em GO: confirmar se a empresa é contribuinte de ICMS, o NCM, o regime e o uso efetivo do bem.');
-  r.pending.push('Verificar eventual ICMS diferencial de alíquotas na aquisição interestadual para ativo imobilizado, responsabilidade, comprovante, prazo e possíveis créditos via CIAP, conforme condições legais.');
+  r.pending.push('Verificar eventual ICMS diferencial de alíquotas na aquisição interestadual para ativo imobilizado, responsabilidade, guia, prazo e créditos CIAP somente se o regime e os requisitos legais permitirem.');
   sources.push({label:'SEFAZ-GO — Guia prático EFD 5.9: aquisição interestadual para ativo imobilizado e CIAP',
     url:'https://goias.gov.br/economia/wp-content/uploads/sites/45/2026/03/Guia_pratico_5.9.pdf'});
   r.note=(r.note?r.note+' ':'')+'Exemplo de compra MG → GO para uso como máquina da empresa: confira a NF-e emitida pelo vendedor e o registro de entrada do comprador; possível DIFAL e CIAP exigem apuração própria.';
@@ -410,6 +410,42 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
  }
+ if(isPurchase&&journey?.mode==='compra'){
+  r.purchaseReview={seller:journey.sellerType||'nao_sei',invoice:journey.invoiceStatus||'nao_sei',
+   assetUse:journey.assetUse||null};
+  if(journey.sellerType==='pessoa_fisica'||journey.sellerType==='produtor_rural'){
+   r.cfop='Confirmar documento de entrada e CFOP aplicável';
+   r.confidence='Operação de compra com vendedor não empresarial típico';
+   r.note='O documento fiscal e a pessoa responsável pela emissão dependem das regras aplicáveis ao vendedor e ao adquirente. Não pressupor que uma pessoa física ou produtor rural emita NF-e comum de saída.';
+   r.pending.push('Verificar se o vendedor possui inscrição estadual/credenciamento e qual documento deve acobertar a operação; a empresa adquirente pode ter obrigação de documento de entrada conforme a UF e o caso concreto.');
+   if(to.uf==='GO'){
+    sources.push({label:'SEFAZ-GO — tipos de documentos fiscais e NF-e/NFA-e',url:'https://goias.gov.br/economia/documentos-fiscais/'});
+    if(journey.sellerType==='produtor_rural')sources.push({label:'SEFAZ-GO — cadastramento de produtor rural pessoa física',url:'https://goias.gov.br/economia/cadastramento-de-produtor-rural-ou-urbano-ou-extrator-mineral-pessoa-fisica/'});
+   }
+  }else if(journey.sellerType==='nao_sei'){
+   r.pending.push('Confirmar se o fornecedor é empresa, pessoa física ou produtor rural e quem deve emitir o documento fiscal.');
+  }
+  if(journey.invoiceStatus==='xml'){
+   r.pending.push('O XML da aquisição foi informado como disponível, mas ainda não foi lido nesta consulta. Conferir chave, situação de autorização, emitente, itens, NCM e tributos no documento original.');
+  }else if(journey.invoiceStatus==='danfe'){
+   r.pending.push('A DANFE não substitui a validação do XML autorizado. Obter o XML para conferir os itens e a situação da NF-e.');
+  }else{
+   r.pending.push('Confirmar documentação que acompanhará a aquisição antes de registrar a entrada.');
+  }
+  if(nature==='compra_ativo'){
+   if(journey.assetUse==='nao'){
+    r.cfop='Finalidade da compra a corrigir';
+    r.confidence='O usuário declarou que o bem não integrará o ativo';
+    r.note='Não usar a hipótese de entrada para ativo imobilizado: confirme se a mercadoria será revendida, usada/consumida ou empregada na produção.';
+    r.pending.push('Corrigir a finalidade da compra antes de selecionar CFOP e tratamento de DIFAL.');
+   }else if(journey.assetUse==='nao_sei'){
+    r.pending.push('Confirmar se o bem é efetivamente destinado ao ativo imobilizado, em vez de revenda ou uso e consumo.');
+   }
+   if(context?.taxRegime==='simples'||context?.taxRegime==='mei'||context?.taxRegime==='excesso'){
+    r.pending.push('Empresa declarou Simples/MEI: não presumir créditos normais de ICMS/CIAP; verificar regime, habilitação, exceções e obrigações do diferencial.');
+   }
+  }
+ }
  if(!info.code){
   r.cfop='Confirmar NCM do produto';
   r.confidence='Classificação do produto pendente';
@@ -477,9 +513,11 @@ function resultHTML(input,from,to,info,fiscal,audit){
   ' · data: '+safe(input.triage.operationDate||'hoje')+'</p>':'';
 
  const kind=natureInfo(input.nature).kind;
+ const sellerKind=input.journey?.sellerType||'nao_sei';
+ const buyerFromIndividual=kind==='compra'&&['pessoa_fisica','produtor_rural'].includes(sellerKind);
  const stepText=kind==='compra'?[
-  'Explique ao fornecedor para que a mercadoria será usada e peça a NF-e de saída corretamente emitida para seu estabelecimento.',
-  'Quando receber o XML, confira produto, NCM, dados das empresas e tributos; o CFOP de entrada do comprador não é necessariamente o CFOP da saída do fornecedor.',
+  buyerFromIndividual?'Confirme na legislação da operação quem deve emitir o documento fiscal e se sua empresa terá de emitir nota de entrada; não presumir NF-e de saída de pessoa física ou produtor rural.':'Informe ao fornecedor como o bem será utilizado e solicite o documento fiscal exigível para seu estabelecimento.',
+  'Se houver NF-e, obtenha o XML autorizado e confira produto, NCM, estabelecimento e tributos; o CFOP de entrada do comprador não é necessariamente o CFOP de saída do fornecedor.',
   input.nature==='compra_ativo'?
    'Se for equipamento de uso duradouro da empresa, verifique enquadramento no ativo, possível DIFAL e condições de crédito do ICMS/CIAP. Não presuma imposto devido ou crédito sem regra validada.':
    'Confirme a finalidade da compra, a eventual ST/antecipação e se haverá recolhimento adicional ao estado de destino.'
@@ -714,7 +752,7 @@ async function onSubmit(event,registerIfAsked=true){
   lastNcmOptions=new Set([...(info.suggest?.options||[]).map(x=>x.ncm),...(info.results||[]).map(x=>x.codigo)].filter(v=>/^\d{8}$/.test(String(v||''))));
   const rules=await stateRules(a,b,info,nature,scenario);
   if(id!==runId)return;
-  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt,scenario,scenarioCheck);
+  const fiscal=fiscalStatus(nature,a,b,info,goodsOrigin,input.buyerTaxStatus,rules,profile,priorSt,scenario,scenarioCheck,input.journey);
   const audit=window.FORTE_QUALIDADE_FISCAL?.assess({from:a,to:b,product:info,fiscal,stateData:rules,input})||null;
   lastInput=input;
   $('results').innerHTML=resultHTML(input,a,b,info,fiscal,audit);
