@@ -25,7 +25,7 @@
   const buyerTaxProof=verifiedIE(to);
   const choiceBuyer=s(input.buyerTaxStatus);
   const status={
-   "Cadastro/UF":route?'Conferido parcialmente':'Não confirmado',
+   "Cadastro/UF":route?(input.simulation===true?'UF informada pelo usuário; identidade não verificada':'UF identificada; inscrição estadual a conferir'):'Não confirmado',
    "NCM do produto":officialNCM?'Código existente; enquadramento pendente':'Pendente',
    "CEST do produto":cestFound?'Correspondência indicativa':'Não identificado — pode não ser aplicável',
    "CFOP de saída/entrada":cfopSingle?'Hipótese única; revisar':'Condicional',
