@@ -1,6 +1,6 @@
 {
-  "name": "FORTE FINANCEIRO",
-  "short_name": "Financeiro",
+  "name": "FORTE-OP | Financeiro",
+  "short_name": "FORTE-OP",
   "description": "Caixa, contas, cartões e estoque da Forte Atacarejo",
   "id": "/financeiro.html",
   "start_url": "/financeiro.html",
