@@ -65,7 +65,7 @@ function broadcast(s){for(const res of streams.get(s.viewToken)||[]){try{res.wri
 function reply(res,code,payload,headers={}){res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers});res.end(JSON.stringify(payload));}
 function safe(res,e){reply(res,e.http||400,{error:e.message||'Falha'});}
 function body(req){return new Promise((resolve,reject)=>{let data='';req.on('data',c=>{data+=c;if(data.length>22000){reject(Object.assign(new Error('Pedido muito grande'),{http:413}));req.destroy()}});req.on('end',()=>{try{resolve(JSON.parse(data||'{}'))}catch{reject(new Error('JSON inválido'))}});req.on('error',reject)});}
-function staff(req,s){if(req.headers['x-honesto-staff']!==s.staffToken)throw Object.assign(new Error('Ação exclusiva do caixa na demonstração'),{http:403});}
+function staff(req,s){if(req.headers['x-nanapay-staff']!==s.staffToken)throw Object.assign(new Error('Ação exclusiva do caixa na demonstração'),{http:403});}
 function venueForId(id){const v=restaurants.get(String(id||''));if(!v)throw Object.assign(new Error('Restaurante de demonstração não encontrado ou expirado'),{http:404});return v;}
 function roleFor(req,venue){const header=String(req.headers.authorization||'');const token=header.startsWith('Bearer ')?header.slice(7):'';if(!token)throw Object.assign(new Error('Acesso exclusivo do restaurante. Informe sua credencial de demonstração.'),{http:401});if(token===venue.adminToken)return {role:'admin',name:'Administrador',id:'admin'};for(const [id,w] of venue.waiters)if(w.token===token)return {role:'garcom',name:w.name,id};throw Object.assign(new Error('Acesso não autorizado para este estabelecimento'),{http:403});}
 function venueStatus(venue){const tables=[...venue.tables].map(([number,t])=>{const s=store.get(t);if(!s||Date.now()>s.expires||s.closed)return null;const snap=snapshot(s);return {table:s.table,number,openedAt:s.createdAt,people:s.people.filter(p=>p.present).length,balance:snap.balance,ordersPending:s.orders.filter(o=>o.status==='solicitado').length,returnsPending:s.disputes.filter(d=>d.status==='pendente').length,tableMovesPending:s.transfers.filter(t=>t.status==='pendente').length,lastUpdate:(s.events.at(-1)?.at||s.createdAt)};}).filter(Boolean);return {establishmentId:venue.id,name:venue.name,orderingEnabled:venue.orderingEnabled,createdAt:venue.createdAt,tables,billing:{monthlyCents:499,currency:'BRL',status:'not_configured',method:'credit_card',realChargesEnabled:false}};}
@@ -315,7 +315,7 @@ server.listen(PORT,'0.0.0.0',()=>{
  console.log('Nanapay DEMO escutando na porta',PORT);
  // Homologação somente: executar teste real HTTP após cada inicialização.
  // Processo de teste isolado, sem tocar em clientes e sessões desta instância.
- if(process.env.HONESTO_SKIP_SMOKE!=='1'){
+ if(process.env.Nanapay_SKIP_SMOKE!=='1'){
   const smoke=spawn(process.execPath,[path.join(__dirname,'tests','smoke.mjs')],{cwd:__dirname,stdio:['ignore','pipe','pipe']});
   smoke.stdout.on('data',b=>console.log('[Nanapay TESTE]',String(b).trim()));
   smoke.stderr.on('data',b=>console.error('[Nanapay TESTE]',String(b).trim()));
