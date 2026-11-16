@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
+const lawSource=readFileSync(new URL('../fundamentacao-legal.js',import.meta.url),'utf8');
 const source=readFileSync(new URL('../qualidade-fiscal.js',import.meta.url),'utf8');
 const fakeWindow={};
+vm.runInNewContext(lawSource,{window:fakeWindow},{timeout:1000});
 vm.runInNewContext(source,{window:fakeWindow},{timeout:1000});
 const {assess}=fakeWindow.FORTE_QUALIDADE_FISCAL;
 const base={
@@ -58,13 +60,13 @@ test('um CFOP unico permanece sujeito a revisao de regra tributaria',()=>{
  assert.equal(r.status['CFOP de saída/entrada'],'Hipótese única; revisar');
  assert.equal(r.canIssue,false);
 });
-test('mesmo com regra hipoteticamente aprovada, faltam documentos e valores',()=>{
+test('contador remoto sem revisão jurídica não homologa, mesmo com CFOP único',()=>{
  const r=evalCase({
   fiscal:{cfop:'6.102'},
   stateData:{verifiedRules:[{id:10}],verifiedRuleCount:1},
   input:{goodsOrigin:'terceiros',buyerTaxStatus:'sim',triage:{taxRegime:'normal',specialRegime:'nao',unusual:'nao'},triageAssessment:{issues:[]}}
  });
- assert.equal(hasCode(r,'UF_REGRA'),false);
+ assert.equal(hasCode(r,'UF_REGRA'),true);
  assert.ok(hasCode(r,'VALORES'));
  assert.equal(r.canIssue,false);
 });
