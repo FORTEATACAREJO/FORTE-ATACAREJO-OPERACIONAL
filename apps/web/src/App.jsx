@@ -17,6 +17,7 @@ import ItauStandalone from './ItauStandalone.jsx';
 import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
+import FreteRequestsPanel from "./FreteRequestsPanel.jsx";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -567,6 +568,7 @@ const CARGOS = [
   "CONSULTA",
 ];
 const MODULES = [
+  ["freteSolicitacoes", "4A", "FORTE-OP FRETE", "Solicitações, motoristas e sincronização de fretes."],
   ["painelUnicoVendas", "0", "PAINEL DE PEDIDOS DE VENDA", "Entrada central de todas as vendas e roteamento autorizado para Balcão ou Carga Direta."],
   ["clientes", "1", "CARGA DIRETA", "Venda/carga direta com destino definido."],
   ["diretas", "1A", "PAINEL VENDAS DIRETAS", "Nota fiscal, documentos e distribuição por cliente."],
@@ -689,8 +691,8 @@ const MODULE_GROUPS = [
   {
     id: "logistica",
     title: "LOGÍSTICA E OPERAÇÃO",
-    subtitle: "Estoque, paletes e controle físico. Motoristas são sincronizados do Forte Frete.",
-    modules: ["estoque", "paletes"],
+    subtitle: "Estoque, paletes, motoristas e fretes dentro do FORTE-OP.",
+    modules: ["estoque", "paletes", "motorista", "freteSolicitacoes"],
   },
   {
     id: "conferencia",
@@ -872,7 +874,7 @@ export default function App() {
     try{
       if(body.action!=='TEST_VALIDATE')await saveCloudState(data);
       const {data:session,error}=await supabase.auth.getSession();
-      if(error||!session?.session?.access_token)throw new Error('Entre novamente no Forte Vendas.');
+      if(error||!session?.session?.access_token)throw new Error('Entre novamente no FORTE-OP.');
       const response=await fetch('https://forte-itau-api.onrender.com/api/itau/collections',{method:'POST',headers:{Authorization:'Bearer '+session.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
       const receipt=await response.json();
       if(!response.ok||receipt.error)throw new Error(receipt.error||'Não foi possível confirmar a cobrança.');
@@ -2202,8 +2204,8 @@ export default function App() {
       <SefazAutoSync data={data} onChange={setData} currentUser={currentUser} />
       <Drawer drawer={drawer}><button onClick={()=>setModal({type:"ajudaIa",tab})}>Ajuda IA</button>
         <div className="sideBrand">
-          <b>FORTE VENDAS</b>
-          <small>Gestão de Cargas e Vendas</small>
+          <b>FORTE-OP</b>
+          <small>Gestão operacional integrada</small>
         </div>
         <WorkspaceMenu navigation={navigation} screen={tab} group={tab.startsWith("group:")?tab.slice(6):groupForTab(tab)} onNavigate={setTab}/>
         <section className="drawer-system-actions" aria-label="Configurações e acesso" onClick={event=>event.stopPropagation()}><div data-forte-top-actions aria-label="Ações do sistema" /></section>
@@ -2212,12 +2214,12 @@ export default function App() {
           <small>VERSÃO</small>
           <b>V6.9.0</b>
           <span>{cloudError?"⚠ Gravação pendente":"● Conectado"}</span>
-          <small className="workspace-release">Menu unificado · 20/10/2026</small>
+          <small className="workspace-release">FORTE-OP unificado · 16/11/2026</small>
         </div>
       </Drawer>
       <main className="main">
         {cloudError&&<div role="alert" className="workspace-cloud-error"><b>Gravação pendente</b><p>{cloudError}</p></div>}
-        <header className="header dashboardHeader forte-header"><MenuButton drawer={drawer}/><Brand label="FORTE VENDAS"/>
+        <header className="header dashboardHeader forte-header"><MenuButton drawer={drawer}/><Brand label="FORTE-OP"/>
           <div className="globalSearchWrap">
             <input
               className="headerSearchInput"
@@ -2288,7 +2290,7 @@ export default function App() {
                   <div className="dashboardGroupHead">
                     <div>
                       <h2>INTEGRAÇÕES</h2>
-                      <p>Conexões e importações do FORTE VENDAS.</p>
+                      <p>Conexões e importações do FORTE-OP.</p>
                     </div>
                   </div>
                   <div className="integrationCards">
@@ -2558,6 +2560,7 @@ export default function App() {
             </button>
           </section>
         )}
+        {tab === "freteSolicitacoes" && <FreteRequestsPanel data={data} />}
         {tab === "motorista" && (
           <section className="card">
             <h2>MOTORISTA / VEÍCULO</h2>
@@ -13427,7 +13430,7 @@ function AjudaIa({ tab, onClose, onNavigate }) {
               responder();
             }
           }}
-          placeholder="DIGITE SUA DÚVIDA SOBRE O FORTE VENDAS..."
+          placeholder="DIGITE SUA DÚVIDA SOBRE O FORTE-OP..."
         />
         <div className="modalActions">
           <button onClick={() => responder()}>PERGUNTAR À IA</button>
