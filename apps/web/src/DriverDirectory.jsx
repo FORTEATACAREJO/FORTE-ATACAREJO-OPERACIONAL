@@ -155,8 +155,8 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td></tr>)}</tbody></table></div>
  {isAdmin&&<section><h3>Legado preservado — completar somente com documentos reais</h3>
  <p>Os 23 cadastros antigos estão disponíveis para revisão no FORTE-OP e continuam inativos. Complete os dados reais, salve um rascunho e depois gere o cadastro definitivo inativo.</p>
- <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Pendências</th><th>Situação</th><th>Ação</th></tr></thead>
- <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{digits(l.dados?.cnh).length===11?'Informada':'PENDENTE'}</td><td>{l.requisitos_pendentes?.length||0}</td><td>{l.situacao}</td>
+ <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Veículo</th><th>Pendências</th><th>Situação</th><th>Ação</th></tr></thead>
+ <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{digits(l.dados?.cnh).length===11?'Informada':'PENDENTE'}</td><td>{vehicles.find(v=>v.id===l.dados?.veiculo_origem_id)?.placa||'Não identificado'}</td><td>{l.requisitos_pendentes?.length||0}</td><td>{l.situacao}</td>
  <td>{existing.some(e=>e.id===l.id_origem)?'CADASTRO INATIVO CRIADO':<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR E COMPLETAR</button>}</td></tr>)}</tbody></table></div></section>}
  {isAdmin&&editor&&<form onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
  <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
