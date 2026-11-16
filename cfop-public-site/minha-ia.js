@@ -22,6 +22,9 @@
   st:el('priorStContainer')?.hidden?'não se aplica/sem confirmação':el('priorSt')?.selectedOptions?.[0]?.textContent?.trim()||'não confirmada',
   product:onlyWords(el('product')?.value),
   taxStatus:el('buyerTaxStatus')?.value||'unknown',
+  journey:window.FORTE_JORNADA?.getIntent()||null,
+  fromUF:el('fromUFManual')?.value||'',
+  toUF:el('toUFManual')?.value||'',
   context:window.FORTE_TRIAGEM_FISCAL?.read()||null
  });
  function prompt(){
@@ -53,6 +56,9 @@
    if(v.context.operationDate)base.push('Data da operação informada: '+v.context.operationDate+'.');
    base.push('Não presuma validade, abrangência ou autorização de regime especial sem analisar o ato legal. A referência do ato NÃO foi incluída neste texto.');
   }
+  if(v.journey?.mode)base.push('Objetivo informado: '+onlyWords(v.journey.mode)+'.');
+  if(v.journey?.question)base.push('Dúvida escrita pelo usuário (revisar antes de compartilhar): '+onlyWords(v.journey.question)+'.');
+  if(v.fromUF||v.toUF)base.push('Estados declarados para consulta preliminar: origem '+onlyWords(v.fromUF||'não informada')+', destino '+onlyWords(v.toUF||'não informado')+'.');
   if(route)base.push('UF remetente: '+route[1]+'; UF destinatário: '+route[2]+'.');
   if(hasResult){
    base.push('CFOP sugerido pela plataforma, ainda não homologado: '+onlyWords(rawCFOP||'indefinido')+'.');
