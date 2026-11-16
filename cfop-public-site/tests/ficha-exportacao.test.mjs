@@ -54,7 +54,7 @@ test('a ficha está marcada como orientação, não NF-e',()=>{
  assert.equal(data.nfe.transmitida,false);
  assert.equal(data.validacao.can_use_for_automatic_issuing,false);
  assert.equal(data.tipo,'consulta_orientativa_nao_homologada');
- assert.equal(data.schema_version,'1.0.0');
+ assert.equal(data.schema_version,'1.1.0');
 });
 test('NCM e CEST são apresentados como sugestões e fonte legal preservada',()=>{
  const {win,els}=runtime();win.FORTE_FICHA_EXPORTACAO.setSnapshot(fixture());
