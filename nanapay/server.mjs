@@ -32,7 +32,7 @@ function validTable(raw){
  return value.toUpperCase();
 }
 function newDemo(tableNo='12',seed=true,venue=null){
- const established=venue||{id:mk(),name:'Restaurante Exemplo',staffToken:mk(),adminToken:mk(),waiters:new Map(),createdAt:now(),orderingEnabled:true,tables:new Map()};
+ const established=venue||{id:mk(),name:'Restaurante Exemplo',staffToken:mk(),adminToken:mk(),waiters:new Map(),createdAt:now(),lastActivity:Date.now(),orderingEnabled:true,tables:new Map()};
  if(!venue)restaurants.set(established.id,established);
  const number=validTable(tableNo),table='Mesa '+number;
  const s={id:rand(),viewToken:mk(),staffToken:established.staffToken,establishmentId:established.id,name:established.name,tableNumber:number,table,createdAt:now(),expires:Date.now()+3*3600_000,closed:false,settledAt:null,mode:'restante',count:seed?4:1,
@@ -42,7 +42,7 @@ function newDemo(tableNo='12',seed=true,venue=null){
  orderingEnabled:established.orderingEnabled,menu:[{id:'chope300',name:'Chope 300 ml',unit:1400},{id:'chope500',name:'Chope 500 ml',unit:2100},{id:'agua',name:'Água mineral',unit:600},{id:'refri',name:'Refrigerante',unit:800},{id:'batata',name:'Batata frita',unit:3800}],orders:[],memberTokens:new Map()};
  const add=(name,qty,price,person)=>{const i={id:rand(),name,qty,unit:price,person:person===null?null:s.people[person].id,active:true,at:now(),cancelledAt:null};s.items.push(i);recordEvent(s,'item','Lançado: '+qty+' × '+name,qty*price,i.id);};
  if(seed){add('Cerveja',2,1200,0);add('Batata frita',1,3800,null);add('Refrigerante',2,800,2);add('Hambúrguer',1,3500,1);}
- established.tables.set(number,s.viewToken);store.set(s.viewToken,s);return s;
+ established.tables.set(number,s.viewToken);established.lastActivity=Date.now();store.set(s.viewToken,s);return s;
 }
 const money=(x)=>{const str=String(x).trim().replace(',','.');if(!/^\d{1,6}(\.\d{1,2})?$/.test(str))throw new Error('Valor monetário inválido');const cents=Math.round(Number(str)*100);if(!(cents>0&&cents<=1_000_000))throw new Error('Valor fora do intervalo');return cents;};
 function splitAmount(total,ids){const out={};if(!ids.length)return out;const q=Math.floor(total/ids.length),r=total%ids.length;ids.forEach((id,i)=>out[id]=q+(i<r?1:0));return out;}
@@ -237,7 +237,7 @@ const server=http.createServer(async(req,res)=>{
    if(s.orders.some(o=>o.status==='solicitado')||s.transfers.some(t=>t.status==='pendente')||s.disputes.some(d=>d.status==='pendente'))throw Object.assign(new Error('Há pedidos, trocas ou devoluções pendentes'),{http:409});
    s.closed=true;s.settledAt=now();recordEvent(s,'quitacao','Conta integralmente quitada e encerrada no PDV');
    const venue=restaurants.get(s.establishmentId);
-   if(venue)for(const [table,token] of venue.tables)if(token===s.viewToken)venue.tables.delete(table);
+   if(venue){venue.lastActivity=Date.now();for(const [table,token] of venue.tables)if(token===s.viewToken)venue.tables.delete(table);}
   }else if(u.pathname==='/api/pdv/dispute-status'){
    // Only the simulated restaurant POS can accept/reject a return.
    const dispute=s.disputes.find(d=>d.id===String(x.id||''));
@@ -277,10 +277,18 @@ const server=http.createServer(async(req,res)=>{
     recordEvent(s,'devolucao','Devolução aprovada por cancelamento no PDV: '+item.name,null,dispute.id);
    }
   }else if(u.pathname==='/api/pdv/payment'){
+   // A stable POS retry key prevents double-posting after transient network failures.
+   // For a real POS integration, its own immutable transaction reference is mandatory.
+   const requestId=x.requestId===undefined?null:String(x.requestId||'');
+   if(requestId!==null&&!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Identificador do pagamento inválido');
+   if(requestId!==null){
+    const prior=s.payments.find(p=>p.requestId===requestId);
+    if(prior)return reply(res,200,{ok:true,confirmed:true,duplicate:true,paymentId:prior.id});
+   }
    const amount=money(x.amount),person=existingPerson(s,x.person);
    if(amount>snapshot(s).balance)throw new Error('Pagamento maior que o saldo');
    if(!['pix','cartao','dinheiro'].includes(x.method))throw new Error('Forma de pagamento inválida');
-   const payment={id:rand(),person:person?.id||null,amount,method:x.method,status:'confirmed',at:now()};s.payments.push(payment);recordEvent(s,'pagamento','Pagamento confirmado no caixa · '+x.method+(person?' · '+person.name:''),-amount,payment.id);
+   const payment={id:rand(),requestId,person:person?.id||null,amount,method:x.method,status:'confirmed',at:now()};s.payments.push(payment);recordEvent(s,'pagamento','Pagamento confirmado no caixa · '+x.method+(person?' · '+person.name:''),-amount,payment.id);
    if(person&&x.leaves){person.present=false;s.count=Math.max(1,s.count-1);}
   }else if(u.pathname==='/api/client/service'){
    verifyMember(x.person,true);
@@ -324,5 +332,5 @@ server.listen(PORT,'0.0.0.0',()=>{
 });
 setInterval(()=>{
  for(const [key,s] of store)if(Date.now()>s.expires){store.delete(key);streams.delete(key);}
- for(const [id,venue] of restaurants){for(const [table,key] of venue.tables)if(!store.has(key))venue.tables.delete(table);if(venue.tables.size===0)restaurants.delete(id)}
+ for(const [id,venue] of restaurants){for(const [table,key] of venue.tables)if(!store.has(key))venue.tables.delete(table);if(venue.tables.size===0&&Date.now()-(venue.lastActivity||0)>3*3600_000)restaurants.delete(id)}
 },30*60_000).unref();
