@@ -5,7 +5,7 @@ const child=spawn(process.execPath,['server.mjs'],{cwd:new URL('../',import.meta
 let output='';child.stderr.on('data',x=>output+=x);child.stdout.on('data',x=>output+=x);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const assertISO=(value,label)=>{assert.equal(typeof value,'string',label+' deve conter data ISO');assert(!Number.isNaN(Date.parse(value)),label+' deve conter horário válido');assert(/Z$/.test(value),label+' deve ser UTC com Z');};
-async function req(path,obj,staff){const r=await fetch(origin+path,{method:obj?'POST':'GET',headers:{'Content-Type':'application/json',...(staff?{'X-Honesto-Staff':staff}:{})},body:obj?JSON.stringify(obj):undefined});return {status:r.status,body:await r.json()};}
+async function req(path,obj,staff){const r=await fetch(origin+path,{method:obj?'POST':'GET',headers:{'Content-Type':'application/json',...(staff?{'X-Nanapay-Staff':staff}:{})},body:obj?JSON.stringify(obj):undefined});return {status:r.status,body:await r.json()};}
 try{
  let ready=false;for(let i=0;i<40;i++){try{if((await req('/health')).status===200){ready=true;break}}catch{}await sleep(150)}
  assert(ready,'servidor não iniciou '+output);
