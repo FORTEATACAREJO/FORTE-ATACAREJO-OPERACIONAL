@@ -1,18 +1,24 @@
 {
-  "name": "FORTE-OP | Financeiro",
+  "name": "FORTE-OP — Financeiro integrado",
   "short_name": "FORTE-OP",
   "description": "Caixa, contas, cartões e estoque da Forte Atacarejo",
-  "id": "/financeiro.html",
-  "start_url": "/financeiro.html",
+  "id": "/",
+  "start_url": "/?app=financeiro",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f4f7fb",
-  "theme_color": "#0a8b78",
+  "theme_color": "#ab0808",
   "icons": [
     {
-      "src": "/financeiro-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/forte-op-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/forte-op-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
