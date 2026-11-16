@@ -16,7 +16,10 @@
   const officialNCM=has8(product.code)&&Number(product.official?.entry?.nivel)===8;
   const cest=s(product.suggest?.cest).replace(/\D/g,"");
   const cestFound=Boolean(cest)&&Array.isArray(product.cests)&&product.cests.some(x=>s(x?.cest).replace(/\D/g,"")===cest);
-  const completeFiscalRules=Array.isArray(stateData?.verifiedRules)&&stateData.verifiedRules.length>0&&Number(stateData?.verifiedRuleCount)>0;
+  const scenario=input.triage||{};
+  const scenarioReview=input.triageAssessment||{needsReview:true,issues:['Cenário tributário não analisado']};
+  const scenarioIsGeneral=scenario.specialRegime==='nao'&&scenario.unusual==='nao'&&scenario.taxRegime&&scenario.taxRegime!=='nao_sei';
+  const completeFiscalRules=Boolean(scenarioIsGeneral)&&Array.isArray(stateData?.verifiedRules)&&stateData.verifiedRules.length>0&&Number(stateData?.verifiedRuleCount)>0;
   const cfop=s(fiscal.cfop).trim();
   const cfopSingle=/^[1256]\.\d{3}$/.test(cfop);
   const buyerTaxProof=verifiedIE(to);
@@ -27,6 +30,9 @@
    "CEST do produto":cestFound?'Correspondência indicativa':'Não identificado — pode não ser aplicável',
    "CFOP de saída/entrada":cfopSingle?'Hipótese única; revisar':'Condicional',
    "Regra estadual da operação":completeFiscalRules?'Regra registrada; revisar escopo':'Sem regra homologada aplicável',
+   "Regime do emitente":scenario.taxRegime&&scenario.taxRegime!=='nao_sei'?'Informado pelo usuário':'Não confirmado',
+   "Regime especial/benefício":scenario.specialRegime==='sim'?'Declarado — depende de ato e vigência':scenario.specialRegime==='nao'?'Não declarado':'Não confirmado',
+   "Condições especiais da operação":scenario.unusual==='sim'?'Declaradas — rever norma':scenario.unusual==='nao'?'Não declaradas':'Não confirmadas',
    "Valores da nota":'Não informados'
   };
   if(!route)add("UF","Confirmar a UF efetiva do estabelecimento e o local da operação.");
@@ -40,7 +46,14 @@
    if(choiceBuyer==="sim"||choiceBuyer==="nao")add("IE_DECLARADA","A condição de contribuinte foi informada pelo usuário, não verificada pelo órgão estadual.");
   }
   if(!cfopSingle)add("CFOP","Confirmar CFOP final: a classificação exibida ainda é uma hipótese ou contém alternativas.");
-  if(!completeFiscalRules)add("UF_REGRA","Regra estadual específica da rota e do produto não homologada neste motor; verificar legislação e responsabilidade de ST/DIFAL.");
+  if(!completeFiscalRules)add("UF_REGRA","Regra estadual específica da rota, produto e cenário fiscal não homologada neste motor; verificar legislação e responsabilidade de ST/DIFAL.");
+  if(!scenario.taxRegime||!scenario.specialRegime||!scenario.unusual)add("TRIAGEM_PENDENTE","Preencher a triagem inicial: regime do emitente, regime especial e particularidades da operação.");
+  if(scenario.specialRegime==='sim')add("REGIME_ESPECIAL","Regime especial declarado pelo usuário: não aplicar benefício, CFOP, CST ou cálculo até conferir ato, vigência e alcance na operação.");
+  if(scenario.specialRegime==='nao_sei')add("REGIME_DESCONHECIDO","Verificar se o emitente possui regime especial ou benefício fiscal aplicável.");
+  if(scenario.unusual==='sim')add("OPERACAO_ATIPICA","Tratamento tributário específico declarado; conferir a legislação e os reflexos nesta operação.");
+  if(scenario.unusual==='nao_sei')add("CONDICAO_DESCONHECIDA","Verificar se existe tributação especial, antecipação ou regime monofásico.");
+  if(scenario.taxRegime==='nao_sei')add("CRT_DESCONHECIDO","Confirmar o regime tributário e o CRT do emitente.");
+  for(const issue of (Array.isArray(scenarioReview.issues)?scenarioReview.issues:[]))add("CENARIO_"+issues.length,issue);
   if(!input.invoiceTotal)add("VALORES","Informar valores de mercadoria, frete, despesas, descontos e benefícios para calcular bases e tributos.");
   add("TRIBUTOS","Conferir CST/CSOSN, ICMS, ST/DIFAL/FCP, PIS, COFINS e IBS/CBS exigíveis com regras vigentes antes da emissão.");
   return Object.freeze({
