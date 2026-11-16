@@ -36,7 +36,7 @@
   conditional:status().specialRegime==='sim'||status().unusual==='sim'
  });
  function validate(v){
-  if(!v.taxRegime)return {ok:false,message:'Informe o regime tributário do emitente (ou selecione “Não sei”).'};
+  if(!v.taxRegime)return {ok:false,message:'Informe o regime tributário da sua empresa (ou selecione “Não sei”).'};
   if(!v.specialRegime)return {ok:false,message:'Informe se existe regime especial ou benefício fiscal (ou selecione “Não sei”).'};
   if(v.specialRegime==='sim'&&!v.specialKind)return {ok:false,message:'Selecione a área do regime especial, mesmo que seja “Não sei”.'};
   if(v.specialRegime==='sim'&&!v.specialScope)return {ok:false,message:'Confirme se o regime especial se aplica à mercadoria e operação, ou marque “Não sei”.'};
@@ -51,9 +51,9 @@
   const add=x=>{if(!pending.includes(x))pending.push(x)};
   const needsSpecial=v.specialRegime==='sim';
   const needsUnusual=v.unusual==='sim';
-  if(v.taxRegime==='nao_sei')add('Confirmar regime tributário do emitente e CRT aplicável na NF-e.');
+  if(v.taxRegime==='nao_sei')add('Confirmar regime tributário da empresa consultante e CRT aplicável à operação.');
   if(v.taxRegime==='outro'||v.taxRegime==='rural')
-   add('Confirmar enquadramento fiscal específico do emitente, inscrição e documento adequado à operação.');
+   add('Confirmar enquadramento fiscal da empresa consultante, inscrição e documento adequado à operação.');
   if(v.taxRegime==='mei')add('Confirmar enquadramento MEI e regras aplicáveis ao produto/atividade e ao documento fiscal.');
   if(v.taxRegime==='excesso')add('Confirmar tratamento do excesso do sublimite para o ICMS e parametrização tributária vigente.');
   if(v.specialRegime==='nao_sei')add('Verificar se existe regime especial, incentivo ou benefício fiscal para o estabelecimento e operação.');
