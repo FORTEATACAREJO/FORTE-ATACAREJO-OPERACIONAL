@@ -51,6 +51,7 @@ function applyActivity(value){
  const ref={revenda:'profileRevenda',industria:'profileIndustria',
   empresa:'profileEmpresa',consumidor:'profileConsumidor'}[value];
  if(ref){$(ref).checked=true;notify($(ref))}
+ if($('journeyMode').value==='compra')$('goodsOrigin').value='desconhecida';
 }
 function applyRole(mode){
  if(!['compra','venda'].includes(mode))return;
@@ -62,7 +63,9 @@ function applyRole(mode){
  const uf=$('myCompanyUF').value;
  if(uf){
   const own=$(role==='destino'?'toUFManual':'fromUFManual');
-  if(!own.value)own.value=uf;
+  // A UF da empresa configurada prevalece no lado que ela ocupa.
+  // O usuário pode corrigir a UF manualmente se a compra/venda for de outro estabelecimento.
+  own.value=uf;
  }
  $('fromDocLabel').textContent=mode==='compra'?'CNPJ/CPF do fornecedor (se souber)':'CNPJ/CPF da sua empresa vendedora (se souber)';
  $('toDocLabel').textContent=mode==='compra'?'CNPJ/CPF da sua empresa compradora (se souber)':'CNPJ/CPF do comprador (se souber)';
