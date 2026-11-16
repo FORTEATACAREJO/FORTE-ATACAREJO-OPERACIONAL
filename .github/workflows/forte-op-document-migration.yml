@@ -1,0 +1,55 @@
+name: "FORTE-OP | Migração privada de documentos"
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "Escolha uma execução. Transferência só após conferir os dois segredos privados."
+        required: true
+        type: choice
+        default: SOMENTE_CONFERIR
+        options:
+          - SOMENTE_CONFERIR
+          - TRANSFERIR_E_CONFERIR
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forte-op-migracao-documental
+  cancel-in-progress: false
+
+jobs:
+  documentos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FRETE_LEGACY_SUPABASE_URL: https://nkynfboqwfxhhxcsrawl.supabase.co
+      FORTE_OP_SUPABASE_URL: https://gtwecfyffjszghnvtlzr.supabase.co
+      FRETE_LEGACY_SERVICE_ROLE_KEY: ${{ secrets.FRETE_LEGACY_SERVICE_ROLE_KEY }}
+      FORTE_OP_SERVICE_ROLE_KEY: ${{ secrets.FORTE_OP_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Conferir dependências da migração
+        run: |
+          npm ci --ignore-scripts
+          node --check scripts/forte-op-migrate-storage.mjs
+      - name: Confirmar segredos sem revelar valores
+        shell: bash
+        run: |
+          if [[ -z "$FRETE_LEGACY_SERVICE_ROLE_KEY" || -z "$FORTE_OP_SERVICE_ROLE_KEY" ]]; then
+            echo "Configure os segredos privados dos dois projetos no repositório antes da migração."
+            exit 1
+          fi
+          echo "Credenciais protegidas disponíveis. Valores não serão exibidos."
+      - name: Conferir inventário privado (sem copiar)
+        if: ${{ inputs.modo == 'SOMENTE_CONFERIR' }}
+        run: node scripts/forte-op-migrate-storage.mjs
+      - name: Transferir e verificar SHA-256 de seis arquivos
+        if: ${{ inputs.modo == 'TRANSFERIR_E_CONFERIR' }}
+        env:
+          FORTE_OP_MIGRATION_ALLOWED: "1"
+        run: node scripts/forte-op-migrate-storage.mjs --execute
