@@ -112,7 +112,7 @@ function render(){
 async function copyQR(){try{await navigator.clipboard.writeText($('qrLink').textContent);message('Endereço do QR copiado.')}catch{message('Copie o endereço exibido acima.',true)}}
 async function openTechnicalPOS(){try{
   const d=await api('/api/restaurant/demo-pdv-access');
-  sessionStorage.setItem('honesto-pdv-demo',JSON.stringify({token:d.token,staff:d.staff,est:d.establishmentId}));
+  sessionStorage.setItem('nanapay-pdv-demo',JSON.stringify({token:d.token,staff:d.staff,est:d.establishmentId}));
   location.href='/pdv-simulado';
  }catch(e){message(e.message,true)}
 }
