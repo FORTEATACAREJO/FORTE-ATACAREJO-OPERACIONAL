@@ -1,0 +1,48 @@
+name: Nanapay database schema validation
+on:
+  push:
+    branches: [homolog/honesto-demo-isolada-20261113]
+    paths:
+      - "honesto-homologacao/database/**"
+      - ".github/workflows/nanapay-database.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  schema-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: tests_only
+          POSTGRES_DB: nanapay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: tests_only
+      PGDATABASE: nanapay_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Supabase-compatible roles for isolated test DB
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon;
+          CREATE ROLE authenticated;
+          CREATE ROLE service_role;
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
+          SQL
+      - name: Apply isolated migration
+        run: psql -v ON_ERROR_STOP=1 -f honesto-homologacao/database/001_nanapay_isolated_schema.sql
+      - name: Verify RLS, server permissions and cross-tenant constraints
+        run: psql -v ON_ERROR_STOP=1 -f honesto-homologacao/database/test-tenant-security.sql
