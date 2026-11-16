@@ -7,7 +7,7 @@ export const normalizeCpf=value=>String(value||"").replace(/\D/g,"");
 export function readLastCpf(app,storage){try{const legacy={fiscal:"forteFiscalLastIdentifier",frete:"forteFreteCpf",financeiro:"forte_financeiro_login"};const v=normalizeCpf(storage.getItem("forte:remembered-cpf:"+app)||storage.getItem("forte:last-cpf")||(legacy[app]&&storage.getItem(legacy[app])));return /^\d{11}$/.test(v)?v:""}catch{return ""}}
 export function saveLastCpf(app,value,storage){const cpf=normalizeCpf(value);if(!/^\d{11}$/.test(cpf))return "";try{storage.setItem("forte:remembered-cpf:"+app,cpf);storage.setItem("forte:last-cpf",cpf)}catch{}return cpf}
 export function accessTimeout(promise,ms=20000){let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("A conexão demorou. Tente novamente; sua sessão não foi encerrada.")),ms)})]).finally(()=>clearTimeout(timer))}
-const names={vendas:"Forte Vendas",financeiro:"Forte Financeiro","venda-externa":"Forte Venda Externa","carga-direta":"Forte Carga Direta",patio:"Forte Operador de Pátio",site:"Administração do site",frete:"Forte Frete",fiscal:"Forte Fiscal"};
+const names={vendas:"FORTE-OP",financeiro:"Forte Financeiro","venda-externa":"Forte Venda Externa","carga-direta":"Forte Carga Direta",patio:"Forte Operador de Pátio",site:"Administração do site",frete:"Forte Frete",fiscal:"Forte Fiscal"};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const digits=v=>String(v||"").replace(/\D/g,"");
 export function startAccess({client,app,content,onAllowed,onBlocked}){
