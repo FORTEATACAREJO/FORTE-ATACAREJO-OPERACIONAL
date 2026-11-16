@@ -140,7 +140,8 @@ footer{padding:16px 14px;font-size:11px}
 </main><footer>Nanapay · Forte Atacarejo Ltda. · Homologação sem pagamentos reais</footer>
 <script src="/vendor/qrcode.js"></script>
 <script>
-let token='',data=null,es=null,loading=false,pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,establishmentId='';
+let token='',data=null,es=null,loading=false,pendingRequestId=null,memberToken='',visitorId='',installPrompt=null,establishmentId='',restaurantCode='',restaurantName='';
+const repeatPending=new Map();let waiterCallPendingId=null;
 const $=(x)=>document.getElementById(x);
 const fmt=(c)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const dtFormat=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -149,10 +150,10 @@ const timeInfo=(at,title='Registrado')=>'<div class="small">'+escapeHtml(title)+
 const escapeHtml=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?' error':'')+'">'+escapeHtml(v)+'</div>';setTimeout(()=>$('message').innerHTML='',5500)}
 async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
-async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;establishmentId=d.establishmentId;memberToken='';visitorId='';history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
+async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;establishmentId=d.establishmentId;restaurantCode=d.restaurantCode||'';restaurantName='Restaurante Exemplo';memberToken='';visitorId='';history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
 async function connect(){if(es)es.close();
  try{const saved=JSON.parse(localStorage.getItem('nanapay-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('nanapay-display-name'),lastTable=localStorage.getItem('nanapay-last-table');if(lastName)$('joinName').value=lastName;if(lastTable&&!$('joinTable').value)$('joinTable').value=lastTable;}catch{}
- $('inviteUrl').textContent=location.origin+'/?est='+encodeURIComponent(establishmentId);await refresh();
+ $('inviteUrl').textContent=nanaPublicUrl();await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
 history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));}
 async function refresh(){if(!token||loading)return;loading=true;try{data=await api('/api/session/'+encodeURIComponent(token)+(memberToken?'?memberToken='+encodeURIComponent(memberToken):''));render();$('connection').textContent='Conectado'}catch(e){$('connection').textContent='Sem conexão'}finally{loading=false;}}
@@ -188,7 +189,13 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  $('menuList').innerHTML=d.menu.map(m=>'<div class="menu-product"><strong>'+escapeHtml(m.name)+'</strong><div class="value">'+fmt(m.unit)+'</div>'+(d.orderingEnabled?'<button class="btn light sm" onclick="chooseMenu(\''+escapeHtml(m.id)+'\')">Solicitar produto</button>':'<span class="small">Somente consulta</span>')+'</div>').join('');
 $('subtotal').textContent=fmt(d.subtotal);$('service').textContent=fmt(d.service);$('paid').textContent='− '+fmt(d.paid);$('balance').textContent=fmt(d.balance);
 $('items').innerHTML=d.items.map(i=>'<div class="row"><div><strong class="'+(!i.active?'cut':'')+'">'+escapeHtml(i.name)+'</strong><div class="small">'+i.qty+' × '+fmt(i.unit)+' · '+escapeHtml(ids[i.person]||'Compartilhado')+'</div>'+timeInfo(i.at,'Lançado')+(i.cancelledAt?timeInfo(i.cancelledAt,'Cancelado'):'')+returnWidget(i)+'</div><span class="value">'+fmt(i.qty*i.unit)+'</span></div>').join('')||'<p class="small">Sem produtos</p>';
-$('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
+const seen=new Set(),quickItems=d.items.filter(i=>{if(!i.active)return false;const key=String(i.name).trim().toLocaleLowerCase('pt-BR');if(seen.has(key))return false;seen.add(key);return true});
+ $('repeatProducts').innerHTML=quickItems.map(i=>'<div class="quick-repeat-row"><strong>'+escapeHtml(i.name)+'</strong><button class="btn light sm" type="button" onclick="repeatProduct(\''+i.id+'\')" '+(!d.orderingEnabled||d.closed||!joined||repeatPending.has(i.id)?'disabled':'')+'>'+(repeatPending.has(i.id)?'Enviando…':'Pedir outra')+'</button></div>').join('')||'<p class="small">Os produtos aparecerão aqui quando forem lançados na comanda.</p>';
+ const myCall=[...(d.waiterCalls||[])].reverse().find(x=>x.person===visitorId),callPending=myCall&&myCall.status!=='atendido';
+ $('callWaiter').disabled=!joined||d.closed||!!callPending||!!waiterCallPendingId;
+ $('callWaiter').textContent=callPending?(myCall.status==='a_caminho'?'✓ Garçom a caminho':'✓ Garçom chamado'):'🔔 Chamar garçom';
+ $('callWaiterStatus').textContent=callPending?'Chamado enviado para '+myCall.table+' · '+(myCall.status==='a_caminho'?'Atendente a caminho':'Aguardando atendimento'):myCall&&myCall.status==='atendido'?'Último chamado atendido. Se precisar, pode chamar novamente.':'Toque para avisar o atendente da sua mesa.';
+ $('people').innerHTML=d.people.map(p=>'<div class="row"><div><strong>'+escapeHtml(p.name)+'</strong> <span class="pill '+(p.present?'ok':'warn')+'">'+(p.present?'Na mesa':'Saiu')+'</span><div class="small">'+fmt(d.shares[p.id])+' em consumo</div></div><label class="checkbox"><input type="checkbox" '+(p.service?'checked':'')+' '+(p.id!==visitorId?'disabled':'')+' onchange="serviceChoice(\''+p.id+'\',this.checked)">10% opcional</label></div>').join('');
 $('splitMode').value=d.mode;$('splitCount').value=d.count;
 const rate=d.mode==='individual'?d.people.map(p=>[p.name,d.individually[p.id]]):Object.entries(d.rateio).map(([p,amount])=>[ids[p]||p,amount]);
 $('splitResult').innerHTML=rate.map(([name,amount])=>'<div class="row"><span>'+escapeHtml(name)+'</span><strong class="value">'+fmt(amount)+'</strong></div>').join('');
@@ -213,6 +220,28 @@ displayOrderPrice();
 const orderStatus={solicitado:'Aguardando aceitação',aceito:'Aceito no PDV',entregue:'Entregue',recusado:'Não aceito'};
 $('clientOrders').innerHTML=d.orders.map(o=>'<div class="row"><div><strong>'+escapeHtml(o.qty)+' × '+escapeHtml(o.name)+'</strong><div class="small">'+escapeHtml(ids[o.person]||'Cliente')+' · '+escapeHtml(o.note||'Sem observação')+'</div>'+timeInfo(o.createdAt,'Solicitado')+(o.statusHistory?.length>1?timeInfo(o.updatedAt,'Último status'):'')+'</div><span class="pill '+(o.status==='recusado'?'warn':'ok')+'">'+escapeHtml(orderStatus[o.status]||o.status)+'</span></div>').join('')||'<p class="small">Nenhum pedido solicitado ainda.</p>';
 }
+async function repeatProduct(itemId){
+ if(!memberToken||!visitorId||!data?.orderingEnabled||data.closed||repeatPending.has(itemId))return;
+ const requestId=crypto.randomUUID();repeatPending.set(itemId,requestId);
+ try{render();await api('/api/client/order',{person:visitorId,sourceItemId:itemId,qty:1,note:'Pedir outra — reposição rápida',requestId});repeatPending.delete(itemId);await refresh();note('Outra unidade solicitada. O valor só muda após confirmação no PDV.')}
+ catch(e){repeatPending.delete(itemId);note(e.message+' · Confira Meus pedidos antes de tentar novamente.',true)}
+ finally{if(data)render()}
+}
+async function callWaiterNow(){
+ if(!memberToken||!visitorId||data?.closed)return;
+ waiterCallPendingId=waiterCallPendingId||crypto.randomUUID();
+ try{render();const result=await api('/api/client/waiter-call',{requestId:waiterCallPendingId});waiterCallPendingId=null;await refresh();note('Garçom chamado para '+result.table+'. Aguarde o atendimento.')}
+ catch(e){note(e.message,true)}
+ finally{if(data)render()}
+}
+async function lookupRestaurantCode(raw){
+ const code=String(raw||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+ if(!/^[A-Z2-9]{8}$/.test(code))throw Error('Informe o código de 8 caracteres do restaurante.');
+ const v=await api('/api/restaurant/resolve?code='+encodeURIComponent(code));
+ establishmentId=v.establishmentId;restaurantCode=v.restaurantCode;restaurantName=v.name;
+ $('restaurantCode').value=v.restaurantCode;$('restaurantCodeLabel').classList.add('hidden');$('joinRestaurant').textContent=v.name;
+ return v;
+}
 function chooseMenu(id){
  if(!data.orderingEnabled){note('Este estabelecimento permite apenas visualizar o cardápio',true);return}
  $('orderProduct').value=id;displayOrderPrice();$('orderCard').scrollIntoView({behavior:'smooth',block:'center'})
@@ -220,7 +249,8 @@ function chooseMenu(id){
 async function joinNanapay(e){e.preventDefault();const name=$('joinName').value.trim(),table=$('joinTable').value.trim().toUpperCase();
  if(!/^[A-Z0-9]{1,6}$/.test(table)){note('Informe um número de mesa válido.',true);return}
  try{
-  if(!establishmentId)throw Error('Abra o QR Code do estabelecimento primeiro');
+  if(!establishmentId)await lookupRestaurantCode($('restaurantCode').value);
+   if(!establishmentId)throw Error('Leia o QR Code ou informe o código do restaurante.');
   // A returning customer may have changed tables without changing the comanda.
   // Resume only if this device already owns a token for a comanda showing the selected current table.
   let recent=null;try{recent=JSON.parse(localStorage.getItem('nanapay-current-comanda:'+establishmentId)||'null')}catch{}
@@ -246,7 +276,7 @@ async function joinNanapay(e){e.preventDefault();const name=$('joinName').value.
   await connect();note('Bem-vindo(a), '+name+'! Mesa '+table+' confirmada.');}
  catch(ex){note(ex.message,true)}
 }
-function nanaPublicUrl(){const url=new URL('/',location.origin);if(establishmentId)url.searchParams.set('est',establishmentId);return url.toString()}
+function nanaPublicUrl(){const url=new URL('/',location.origin);if(restaurantCode)url.searchParams.set('code',restaurantCode);else if(establishmentId)url.searchParams.set('est',establishmentId);return url.toString()}
 function nanaIsIos(){return /iPhone|iPad|iPod/i.test(navigator.userAgent)}
 function hideNanaBrowserHelp(){$('browserHelp').classList.add('hidden')}
 function nanaBrowserInfo(text){$('browserInstructions').textContent=text;$('browserHelp').classList.remove('hidden');$('browserHelp').scrollIntoView({behavior:'smooth',block:'nearest'})}
@@ -279,7 +309,7 @@ async function contest(id){const reason=prompt('Por que deseja devolver ou conte
  else if(reason!==null)note('Descreva o motivo em pelo menos 5 caracteres.',true);
 }
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
-async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
+async function copyInvite(){const link=nanaPublicUrl();try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
 $('newDemo').addEventListener('click',startNew);
 $('joinForm').addEventListener('submit',joinNanapay);
 $('moveForm').addEventListener('submit',async e=>{e.preventDefault();
@@ -297,10 +327,11 @@ $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
  catch(ex){note(ex.message+' — você pode tentar novamente sem criar pedido duplicado.',true)}
 });
 (async()=>{const qs=new URLSearchParams(location.search);
- if(qs.get('est'))establishmentId=qs.get('est');
+ if(qs.get('code')){try{await lookupRestaurantCode(qs.get('code'))}catch(e){note(e.message,true)}}
+ if(qs.get('est')&&!establishmentId)establishmentId=qs.get('est');
  if(qs.get('token')){token=qs.get('token');try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}
- else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('joinRestaurant').textContent='Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('nanapay-last-table')||'';$('joinName').value=localStorage.getItem('nanapay-display-name')||''}catch{}}
- else{await startNew()}
+ else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('restaurantCodeLabel').classList.add('hidden');$('joinRestaurant').textContent=restaurantName||'Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('nanapay-last-table')||'';$('joinName').value=localStorage.getItem('nanapay-display-name')||''}catch{}}
+ else{$('joinPanel').classList.remove('hidden');$('joinRestaurant').textContent='restaurante';$('restaurantCodeLabel').classList.remove('hidden');}
 })();
 setInterval(refresh,5000);
 </script></body></html>
