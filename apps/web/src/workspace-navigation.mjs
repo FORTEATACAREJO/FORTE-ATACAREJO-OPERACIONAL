@@ -10,7 +10,7 @@ export function workspaceNavigation(canGroup,canScreen,unread=0){
  if(canScreen('paletes'))main.push(item('paletes','Pallets','Estoque e contas correntes','box',['paletes']));
  if(canScreen('painelCargas'))main.push(item('painelCargas','Cargas','Expedição e logística','truck',['painelCargas','ordensCarregamento','planejamento','todasCargas']));
  if(canScreen('freteSolicitacoes'))main.push(item('freteSolicitacoes','Frete','Solicitações e sincronização do frete','truck',['freteSolicitacoes','motorista']));
- if(canGroup('financeiro'))main.push(item('group:financeiro','Financeiro','Contas, cobranças e tesouraria','money',[],['financeiro']));
+ if(canGroup('financeiro'))main.push(item('group:financeiro','Financeiro','Contas, cobranças e tesouraria','money',[],['financeiro','cobrancas']));
  const tools=[
  ['vendas','Outras operações de venda','Balcão e representantes','file'],
  ['patio','Estoque do galpão','Consulta do estoque físico','box'],
