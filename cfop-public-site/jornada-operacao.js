@@ -77,7 +77,9 @@ function applyRole(mode){
 }
 function applyPurpose(){
  const mode=$('journeyMode').value;
- const code=nature[mode]?.[$('journeyPurpose').value]||'';
+ const purpose=$('journeyPurpose').value;
+ const code=nature[mode]?.[purpose]||'';
+ $('assetUseBlock').hidden=!(mode==='compra'&&purpose==='ativo');
  if(!code)return;
  if($('nature').value!==code){$('nature').value=code;notify($('nature'))}
  // A origem fiscal do remetente não se confunde com o perfil do comprador.
@@ -93,6 +95,8 @@ function selectMode(mode){
  });
  $('journeyPurposeBlock').hidden=!(mode in choices);
  $('journeyQuestionBlock').hidden=mode!=='duvida';
+ $('purchaseChecks').hidden=mode!=='compra';
+ $('assetUseBlock').hidden=true;
  if(mode in choices){populateChoices(mode)}
  else if(mode==='duvida'){$('journeyQuestion').focus()}
  $('journeyHelp').textContent=MESSAGES[mode];
@@ -181,6 +185,9 @@ function init(){
   btn.addEventListener('click',()=>selectMode(btn.dataset.journey));
  });
  $('journeyPurpose').addEventListener('change',applyPurpose);
+ for(const id of ['purchaseSellerType','purchaseInvoiceStatus','assetUse']){
+  $(id).addEventListener('change',clearCurrentOutput);
+ }
  $('journeyAskIA').addEventListener('click',()=>{
   if(!$('journeyQuestion').value.trim()){
    $('journeyHelp').textContent='Escreva sua dúvida antes de levar à Minha IA.';
@@ -199,8 +206,13 @@ function init(){
  $('clear').addEventListener('click',()=>{
   // Restaura apenas perfil explicitamente salvo; nova consulta inicia sem finalidade anterior.
   $('journeyMode').value='';
+  $('purchaseSellerType').value='nao_sei';
+  $('purchaseInvoiceStatus').value='nao_sei';
+  $('assetUse').value='nao_sei';
   $('journeyPurposeBlock').hidden=true;
   $('journeyQuestionBlock').hidden=true;
+  $('purchaseChecks').hidden=true;
+  $('assetUseBlock').hidden=true;
   document.querySelectorAll('[data-journey]').forEach(btn=>btn.setAttribute('aria-pressed','false'));
   $('journeyHelp').textContent='Escolha comprar, vender, outra operação ou tirar uma dúvida.';
   restoreCompany();
@@ -211,5 +223,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else init();
 root.FORTE_JORNADA=Object.freeze({selectMode,applyPurpose,saveCompany,restoreCompany,
  getIntent:()=>({mode:$('journeyMode').value,purpose:$('journeyPurpose').value,
+ sellerType:$('journeyMode').value==='compra'?$('purchaseSellerType').value:null,
+ invoiceStatus:$('journeyMode').value==='compra'?$('purchaseInvoiceStatus').value:null,
+ assetUse:$('journeyMode').value==='compra'&&$('journeyPurpose').value==='ativo'?$('assetUse').value:null,
  question:$('journeyQuestion').value.trim().slice(0,350)})});
 })(window);
