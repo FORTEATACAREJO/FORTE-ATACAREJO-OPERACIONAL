@@ -30,7 +30,7 @@
    "CEST do produto":cestFound?'Correspondência indicativa':'Não identificado — pode não ser aplicável',
    "CFOP de saída/entrada":cfopSingle?'Hipótese única; revisar':'Condicional',
    "Regra estadual da operação":completeFiscalRules?'Regra registrada; revisar escopo':'Sem regra homologada aplicável',
-   "Regime do emitente":scenario.taxRegime&&scenario.taxRegime!=='nao_sei'?'Informado pelo usuário':'Não confirmado',
+   "Regime da empresa consultante":scenario.taxRegime&&scenario.taxRegime!=='nao_sei'?'Informado pelo usuário':'Não confirmado',
    "Regime especial/benefício":scenario.specialRegime==='sim'?'Declarado — depende de ato e vigência':scenario.specialRegime==='nao'?'Não declarado':'Não confirmado',
    "Condições especiais da operação":scenario.unusual==='sim'?'Declaradas — rever norma':scenario.unusual==='nao'?'Não declaradas':'Não confirmadas',
    "Valores da nota":'Não informados'
@@ -46,8 +46,21 @@
    if(choiceBuyer==="sim"||choiceBuyer==="nao")add("IE_DECLARADA","A condição de contribuinte foi informada pelo usuário, não verificada pelo órgão estadual.");
   }
   if(!cfopSingle)add("CFOP","Confirmar CFOP final: a classificação exibida ainda é uma hipótese ou contém alternativas.");
+  const journey=input.journey||{};
+  const purchase=String(input.nature||'').startsWith('compra');
+  if(purchase){
+   if(input.simulation===true)add('DOCUMENTOS','Simulação por UF, sem CNPJ/CPF de uma ou ambas as partes. Identidade, inscrição e localização real não confirmadas.');
+   if(!journey.sellerType||journey.sellerType==='nao_sei')add('TIPO_FORNECEDOR','Confirmar se o vendedor é empresa, pessoa física ou produtor rural.');
+   if(['pessoa_fisica','produtor_rural'].includes(journey.sellerType))add('NOTA_ENTRADA','Confirmar documento exigível e quem deve emiti-lo. Não presumir NF-e de saída de pessoa física/produtor rural.');
+   if(journey.invoiceStatus==='xml')add('XML','XML informado pelo usuário, mas não verificado automaticamente por esta consulta; conferir autorização e itens reais.');
+   else if(journey.invoiceStatus==='danfe')add('DANFE','Conferir XML autorizado. Foto ou DANFE isolados não comprovam todos os dados fiscais.');
+   else add('DOCUMENTO_PENDENTE','Confirmar o documento fiscal que acompanhará a compra.');
+   if(input.nature==='compra_ativo'&&journey.assetUse!=='sim')add('ATIVO','Confirmar se a máquina/bem será mesmo imobilizado; finalidade influencia CFOP e eventual DIFAL.');
+   if(input.nature==='compra_ativo'&&['simples','mei','excesso'].includes(scenario.taxRegime))
+    add('CIAP_REGIME','Simples/MEI declarado: não atribuir automaticamente créditos de ICMS via CIAP; verificar regime e exceções.');
+  }
   if(!completeFiscalRules)add("UF_REGRA","Regra estadual específica da rota, produto e cenário fiscal não homologada neste motor; verificar legislação e responsabilidade de ST/DIFAL.");
-  if(!scenario.taxRegime||!scenario.specialRegime||!scenario.unusual)add("TRIAGEM_PENDENTE","Preencher a triagem inicial: regime do emitente, regime especial e particularidades da operação.");
+  if(!scenario.taxRegime||!scenario.specialRegime||!scenario.unusual)add("TRIAGEM_PENDENTE","Preencher a triagem inicial: regime da empresa, regime especial e particularidades da operação.");
   if(scenario.specialRegime==='sim')add("REGIME_ESPECIAL","Regime especial declarado pelo usuário: não aplicar benefício, CFOP, CST ou cálculo até conferir ato, vigência e alcance na operação.");
   if(scenario.specialRegime==='nao_sei')add("REGIME_DESCONHECIDO","Verificar se o emitente possui regime especial ou benefício fiscal aplicável.");
   if(scenario.unusual==='sim')add("OPERACAO_ATIPICA","Tratamento tributário específico declarado; conferir a legislação e os reflexos nesta operação.");
