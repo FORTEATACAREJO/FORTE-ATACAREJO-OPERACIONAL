@@ -1,18 +1,41 @@
-import {useEffect,useState} from "react";
-import App from "./App.jsx";
-import {supabase,setAuthContext} from "./supabase.js";
-import {accessTimeout} from "./access-standard.js";
+import {useEffect,useState} from 'react';
+import App from './App.jsx';
+import UnifiedRoleWorkspace from './UnifiedRoleWorkspace.jsx';
+import {supabase,setAuthContext} from './supabase.js';
+import {accessTimeout} from './access-standard.js';
+import {loadForteOpGrants,preferredForteOpGrant} from './forte-op-grants.js';
+
 export default function AuthGate(){
- const [ready,setReady]=useState(false),[error,setError]=useState(""),[attempt,setAttempt]=useState(0);
- useEffect(()=>{let live=true;setError("");async function load(){
-  try{
-   const u=await accessTimeout(supabase.auth.getUser());if(u.error||!u.data.user)throw Error("Não foi possível conferir a sessão.");
-   const p=await accessTimeout(supabase.from("fc_perfis").select("*").eq("user_id",u.data.user.id).maybeSingle());
-   if(p.error)throw Error("Não foi possível carregar o perfil.");
-   if(!p.data?.ativo||p.data.status_aprovacao!=="APROVADO"||p.data.trocar_senha)throw Error("O cadastro precisa de aprovação ou atualização da senha.");
-   const grant=await accessTimeout(supabase.rpc('access_current_module',{p_app:'vendas'}));if(grant.error||!grant.data?.allowed)throw Error('Aguarde aprovação específica no Forte Vendas.');
-   if(live){setAuthContext({user:u.data.user,profile:{...p.data,perfil:grant.data.role||p.data.perfil,permissoes:grant.data.permissions||p.data.permissoes}});setReady(true)}
-  }catch(e){if(live)setError(e.message||"Não foi possível conferir o acesso.")}
- }load();return()=>{live=false;setAuthContext(null)}},[attempt]);
- return ready?<App/>:<section><p>{error||"Conferindo acesso autorizado…"}</p>{error&&<button onClick={()=>setAttempt(n=>n+1)}>TENTAR NOVAMENTE</button>}</section>;
+ const [ready,setReady]=useState(false),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
+ const [scope,setScope]=useState(null);
+ useEffect(()=>{
+  let active=true;
+  setReady(false);setError('');
+  async function load(){
+   try{
+    const {data:u,error:userError}=await accessTimeout(supabase.auth.getUser());
+    if(userError||!u?.user)throw Error('Não foi possível conferir a sessão.');
+    const {data:p,error:profileError}=await accessTimeout(supabase.from('fc_perfis').select('*').eq('user_id',u.user.id).maybeSingle());
+    if(profileError||!p?.ativo||p.status_aprovacao!=='APROVADO'||p.trocar_senha)
+      throw Error('Cadastro sem aprovação válida ou com senha pendente.');
+    const grants=await accessTimeout(loadForteOpGrants(supabase));
+    const activeGrant=preferredForteOpGrant(grants);
+    if(!activeGrant)throw Error('Seu usuário ainda não possui módulo FORTE-OP autorizado.');
+    const role=String(activeGrant.role||p.perfil||'').toUpperCase();
+    const profile={...p,perfil:role,permissoes:activeGrant.permissions||p.permissoes};
+    const restricted=['MOTORISTA','OPERADOR_PATIO','VENDEDOR_EXTERNO'].includes(role)||!grants.vendas?.allowed;
+    if(active){
+     setAuthContext({user:u.user,profile});
+     setScope({grants,profile,restricted});setReady(true);
+    }
+   }catch(e){if(active){setAuthContext(null);setError(e.message||'Não foi possível validar o acesso.');}}
+  }
+  load();
+  return()=>{active=false;setAuthContext(null)};
+ },[attempt]);
+ if(!ready)return <section role={error?'alert':undefined} style={{padding:24}}>
+  <p>{error||'Conferindo acesso FORTE-OP…'}</p>
+  {error&&<button type="button" onClick={()=>setAttempt(x=>x+1)}>TENTAR NOVAMENTE</button>}
+ </section>;
+ return scope?.restricted?<UnifiedRoleWorkspace grants={scope.grants} profile={scope.profile}/>:<App/>;
 }
