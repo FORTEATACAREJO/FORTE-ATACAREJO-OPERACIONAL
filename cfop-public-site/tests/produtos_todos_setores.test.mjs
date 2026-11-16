@@ -9,6 +9,7 @@ import vm from 'node:vm';
  * de mercadoria, obrigação CEST ou alíquota por fabricante/UF.
  */
 const main=readFileSync(new URL('../consulta-automatica.js',import.meta.url),'utf8');
+const triage=readFileSync(new URL('../triagem-fiscal.js',import.meta.url),'utf8');
 const helpers=['classificacao.js','st-mg-evidencias.js','qualidade-fiscal.js']
   .map(name=>readFileSync(new URL('../'+name,import.meta.url),'utf8'));
 const scenarios=[
@@ -23,7 +24,7 @@ const scenarios=[
  {sector:'veículos',label:'Automóvel',ncm:'87032310',uf:'MG'},
  {sector:'construção',label:'Cimento CP II F32',ncm:'25232910',uf:'MG'}
 ];
-const IDS='goodsOrigin priorSt priorStContainer buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileConsumidor profileHelp goodsOriginHelp myDoc myRole rememberMe myDocStatus companyNameSearch companyUfSearch companyTarget companySearchStatus companySearchResults searchCompanies registerCompany registerBox registerRole registerName registerAccept registerState message results afterActions submit consultation clear print removeSaved swapCnpj swapStatus'.split(' ');
+const IDS='taxRegime specialRegime specialKind specialScope specialValidity specialAct specialFields unusualOperation unusualKind unusualFields operationDate triageStatus triageFiscal goodsOrigin priorSt priorStContainer buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileConsumidor profileHelp goodsOriginHelp myDoc myRole rememberMe myDocStatus companyNameSearch companyUfSearch companyTarget companySearchStatus companySearchResults searchCompanies registerCompany registerBox registerRole registerName registerAccept registerState message results afterActions submit consultation clear print removeSaved swapCnpj swapStatus'.split(' ');
 const mk=()=>({value:'',checked:false,hidden:false,disabled:false,textContent:'',innerHTML:'',selectedOptions:[],
  handlers:{},addEventListener(type,fn){this.handlers[type]=fn},appendChild(){},replaceChildren(){},contains(){return true},reset(){}});
 
@@ -40,11 +41,13 @@ const FROM=validCnpj('112223330001'),TO=validCnpj('998887770001');
 function setup({label='Produto de teste',ncm='',uf='MG',candidate='',family=false}={}){
  const e=Object.fromEntries(IDS.map(id=>[id,mk()]));
  const document={getElementById(id){if(!e[id])throw Error('element_missing:'+id);return e[id]},createElement:mk};
+ e.taxRegime.value='normal';e.specialRegime.value='nao';e.unusualOperation.value='nao';
  e.profileRevenda.checked=true;e.goodsOrigin.value='terceiros';e.priorSt.value='unknown';e.buyerTaxStatus.value='unknown';
  e.nature.value='venda_revenda';e.nature.selectedOptions=[{textContent:'Venda para revenda'}];
  e.fromCnpj.value=FROM;e.toCnpj.value=TO;e.product.value=label;e.declaredNcm.value=ncm;
  const win={};
  for(const script of helpers)vm.runInNewContext(script,{window:win},{timeout:1000});
+ vm.runInNewContext(triage,{window:win,document},{timeout:1000});
  const urls=[];
  const fetch=async url=>{
   const u=String(url);urls.push(u);let result={};
