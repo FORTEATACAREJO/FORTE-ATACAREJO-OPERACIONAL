@@ -42,10 +42,16 @@ const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((n||0)/100);
 const stamp=t=>t?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'medium'}).format(new Date(t)):'';
-let token='',staff='',est='',sse=null;
+let token='',staff='',est='',sse=null;const pendingOperations=new Set();let paymentRetryKey='',paymentRetrySignature='';
 function alertMessage(v,error=false){$('notice').textContent=v;$('notice').style.color=error?'#ad3828':'#176b33'}
 async function api(path,body,needStaff=false){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(needStaff?{'x-nanapay-staff':staff}:{})},body:body?JSON.stringify({...body,token}):undefined});const data=await r.json();if(!r.ok)throw Error(data.error||'Falha do PDV');return data}
-async function action(path,body,message){try{await api(path,body,true);alertMessage(message);await refresh()}catch(e){alertMessage(e.message,true)}}
+async function action(path,body,message){
+ if(pendingOperations.has(path))return false;
+ pendingOperations.add(path);
+ try{await api(path,body,true);alertMessage(message);await refresh();return true}
+ catch(e){alertMessage(e.message,true);return false}
+ finally{pendingOperations.delete(path)}
+}
 async function start(){try{const d=await api('/api/pdv-demo/create',{});token=d.token;staff=d.staff;est=d.establishmentId;sessionStorage.setItem('nanapay-pdv-demo',JSON.stringify({token,staff,est}));
 connect()}catch(e){alertMessage(e.message,true)}}
 async function connect(){if(sse)sse.close();
@@ -68,6 +74,13 @@ async function order(id,status){await action('/api/pdv/order-status',{id,status}
 async function move(id,status){await action('/api/pdv/transfer-status',{id,status},'Troca de mesa atualizada no PDV')}
 $('new').addEventListener('click',start);
 $('productForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/item',{name:$('prodName').value,qty:Number($('qty').value),price:$('price').value},'Produto lançado pelo PDV')});
-$('payForm').addEventListener('submit',e=>{e.preventDefault();action('/api/pdv/payment',{amount:$('amount').value,method:$('method').value},'Pagamento presencial registrado no PDV')});
+$('payForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const amount=$('amount').value.trim(),method=$('method').value;
+ const signature=token+'|'+amount+'|'+method;
+ if(signature!==paymentRetrySignature){paymentRetrySignature=signature;paymentRetryKey=crypto.randomUUID()}
+ const sent=await action('/api/pdv/payment',{amount,method,requestId:paymentRetryKey},'Pagamento presencial registrado no PDV');
+ if(sent){paymentRetryKey='';paymentRetrySignature=''}
+});
 try{const d=JSON.parse(sessionStorage.getItem('nanapay-pdv-demo')||'null');if(d?.token&&d?.staff&&d?.est){token=d.token;staff=d.staff;est=d.est;connect().catch(()=>{})}}catch{}
 </script></body></html>
