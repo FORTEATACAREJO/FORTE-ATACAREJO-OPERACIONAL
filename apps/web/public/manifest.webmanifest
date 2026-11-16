@@ -1,7 +1,7 @@
 {
-  "name": "Forte Vendas",
-  "short_name": "Forte Vendas",
-  "description": "Vendas, cargas, documentos, financeiro e logística da Forte Atacarejo.",
+  "name": "FORTE-OP",
+  "short_name": "FORTE-OP",
+  "description": "Gestão unificada: vendas, compras, vendas externas, carga direta, financeiro, frete, estoque e operações.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -11,9 +11,9 @@
   "theme_color": "#ab0808",
   "icons": [
     {
-      "src": "https://site-forte-atacarejo.onrender.com/central/icons/vendas-aprovado-320.png",
-      "sizes": "320x320",
-      "type": "image/png",
+      "src": "/forte-op-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ]
