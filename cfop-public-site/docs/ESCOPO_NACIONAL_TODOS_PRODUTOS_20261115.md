@@ -1,3 +1,5 @@
+> **DIRETRIZ ATUALIZADA EM 16/11/2026:** A homologação fiscal do FORTECOMPANNY depende exclusivamente de fundamentação em legislação oficial vigente, âmbito de aplicação, vigência, exceções e revisão técnica documentada. **XML não é requisito, nem comprova correção tributária.** Quaisquer referências abaixo a XML obrigatório devem ser interpretadas como possibilidade de conferência auxiliar. Prevalece `docs/DIRETRIZ_HOMOLOGACAO_LEGISLACAO_SEM_XML_20261116.md`.
+
 # FORTECOMPANNY+ IA — Escopo fiscal nacional para TODOS os produtos
 
 **Diretriz de produto:** 15/11/2026. A finalidade é **orientar** o preenchimento e a parametrização da NF-e (não emitir, assinar, transmitir ou cancelar documentos).
