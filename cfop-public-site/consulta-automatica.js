@@ -244,7 +244,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  const buyer=taxpayerStatus(to,buyerDeclaration);
  const today=context?.operationDate?context.operationDate.split('-').reverse().join('/'):new Date().toLocaleDateString('pt-BR');
  const sources=[
-  {label:'Tabela CFOP (Fazenda MG)',url:'https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/decretos/d42145_2001.html'},
+  {label:'Portal nacional da NF-e — tabela CFOP vigente',url:'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=%2FNJarYc9nus%3D'},
   {label:'Lei Kandir / LC 190/2022 (DIFAL)',url:'https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm'},
   {label:'CONFAZ — Convênio ICMS 142/2018 (ST)',url:'https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18'}
  ];
@@ -476,6 +476,26 @@ function resultHTML(input,from,to,info,fiscal,audit){
   ' · '+safe(input.triageAssessment?.label||'Pendente')+
   ' · data: '+safe(input.triage.operationDate||'hoje')+'</p>':'';
 
+ const kind=natureInfo(input.nature).kind;
+ const stepText=kind==='compra'?[
+  'Explique ao fornecedor para que a mercadoria será usada e peça a NF-e de saída corretamente emitida para seu estabelecimento.',
+  'Quando receber o XML, confira produto, NCM, dados das empresas e tributos; o CFOP de entrada do comprador não é necessariamente o CFOP da saída do fornecedor.',
+  input.nature==='compra_ativo'?
+   'Se for equipamento de uso duradouro da empresa, verifique enquadramento no ativo, possível DIFAL e condições de crédito do ICMS/CIAP. Não presuma imposto devido ou crédito sem regra validada.':
+   'Confirme a finalidade da compra, a eventual ST/antecipação e se haverá recolhimento adicional ao estado de destino.'
+ ]:kind==='venda'?[
+  'Confirme os dados da sua empresa, o destino da mercadoria e se o comprador é contribuinte do ICMS.',
+  'Identifique o produto e confira o NCM, as regras especiais e eventual ICMS-ST/DIFAL antes de parametrizar seu emissor.',
+  'Utilize a ficha orientativa para conferir a operação no emissor que já usa. Este aplicativo não emite nem transmite NF-e.'
+ ]:[
+  'Identifique o documento original e a finalidade da operação especial.',
+  'Confirme a legislação aplicável e as condições do estabelecimento e do produto.',
+  'Utilize os resultados apenas após conferência documental, sem emissão pelo FORTECOMPANNY.'
+ ];
+ const stepHtml='<section class="plain-steps"><strong>'+(
+  kind==='compra'?'Como proceder com sua compra':kind==='venda'?'Como preparar sua venda':'Como analisar a operação')+
+  '</strong><ol>'+stepText.map(x=>'<li>'+safe(x)+'</li>').join('')+'</ol></section>';
+
  const profileText=profiles[input.profile]?.label||'Não informado';
  const review=audit||{title:'Ficha orientativa — não homologada para emissão',reason:'Consulta fiscal ainda não homologada',issues:[]};
  const auditBox='<section class="fiscal-audit" aria-label="Status da parametrização">'+
@@ -483,7 +503,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
    '<details><summary>Verificar antes de usar na NF-e ('+review.issues.length+')</summary><ul>'+
    review.issues.map(x=>'<li>'+safe(x.text)+'</li>').join('')+
    '</ul></details></section>';
- return '<h2>Resultado da consulta</h2>'+auditBox+scenarioSummary+
+ return '<h2>Resultado da consulta</h2>'+auditBox+scenarioSummary+stepHtml+
   '<p class="muted">Perfil: '+safe(profileText)+' · '+safe(input.natureText)+' · '+safe(fiscal.route)+' · '+safe(originText)+'</p>'+
   (fiscal.buyerStatus==='unknown'&&/^(venda|compra)/.test(input.nature)?
    '<div class="taxpayer-question" role="group" aria-label="Confirmar condição de contribuinte do destinatário"><strong>O destinatário é contribuinte do ICMS?</strong><p>Confira a IE do destinatário na <a target="_blank" rel="noopener noreferrer" href="'+(to.uf==='MG'?'https://www.mg.gov.br/servico/realizar-consulta-publica-ao-cadastro-de-contribuintes-do-icms-sintegra':'https://www.sintegra.gov.br/links.html')+'">consulta pública do SINTEGRA</a>. CNPJ e Simples não comprovam IE.</p><div class="taxpayer-answers"><button type="button" data-tax-status="sim">Sim, IE ativa conferida</button><button type="button" data-tax-status="nao">Não contribuinte</button></div></div>':'')+
