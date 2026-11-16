@@ -51,7 +51,7 @@
   ].filter(Boolean)).slice(0,45);
   const file={
    formato:'FORTECOMPANNY_ORIENTACAO_FISCAL',
-   schema_version:'1.0.0',
+   schema_version:'1.1.0',
    generated_at:safeISO(),
    objetivo:'orientar_parametrizacao_de_nfe',
    tipo:'consulta_orientativa_nao_homologada',
@@ -60,8 +60,11 @@
    validacao:{status:'pendente',can_use_for_automatic_issuing:false,requires_manual_review:true,
     avisos:pending,regra_estadual_homologada_para_consulta:Number(rules?.verifiedRuleCount||0)},
    operacao:{
+    objetivo_declarado:clean(input.journey?.mode,30)||null,
+    finalidade_em_linguagem_comum:clean(input.journey?.purpose,45)||null,
+    simulacao_apenas_com_uf:input.simulation===true,
     cenario_tributario_declarado:{
-     regime_emitente:clean(input.triage?.taxRegime,50)||'nao_informado',
+     regime_empresa_consultante:clean(input.triage?.taxRegime,50)||'nao_informado',
      regime_especial:clean(input.triage?.specialRegime,20)||'nao_informado',
      tributo_afetado:clean(input.triage?.specialKind,30)||null,
      alcance_declarado:clean(input.triage?.specialScope,20)||null,
