@@ -66,6 +66,19 @@ p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-h
 #results .tax-alert{border:1px solid #e1cc93;background:#fff9ec;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5;color:#6b4a13}
 
 
+
+.guided-start{border:1px solid #bbccde;border-radius:14px;padding:17px;margin:0 0 18px;background:#f7f9fc;min-width:0}
+.guided-start legend{font-weight:800;color:#183752;font-size:17px;padding:0 7px}
+.guided-intro{font-size:14px;color:#4f6479;margin:0 0 14px}
+.guided-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:13px}
+.guided-buttons button{min-height:66px;background:#fff;color:#193653;border:1px solid #c5d2df;border-radius:10px;font-weight:750;padding:10px 6px;font-size:13px;line-height:1.4}
+.guided-buttons button span{font-size:19px;margin-right:5px}
+.guided-buttons button[aria-pressed="true"]{background:#e8f1fa;border:2px solid #305b87;padding:9px 5px}
+#journeyPurposeBlock{margin:10px 0}
+#journeyQuestion{width:100%;padding:12px;border:1px solid #c4d0dd;border-radius:10px;font:inherit;resize:vertical}
+.own-identity .actions{flex-wrap:wrap}
+@media(max-width:440px){.guided-buttons button{font-size:12px;min-height:69px;padding:8px 5px}}
+
 .tax-triage{border:1px solid #bacbdd;border-radius:14px;padding:15px;margin:12px 0 20px;background:#f5f8fc;min-width:0}
 .tax-triage legend{font-size:16px;font-weight:750;color:#203c58;padding:0 6px}
 .tax-triage-intro{font-size:13px;line-height:1.55;margin:4px 0 12px;color:#536781}
@@ -148,6 +161,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 <script src="/classificacao.js?v=20261115c" defer></script>
 <script src="/ficha-exportacao.js?v=20261116a" defer></script>
 <script src="/triagem-fiscal.js?v=20261116a" defer></script>
+<script src="/jornada-operacao.js?v=20261116a" defer></script>
 <script src="/consulta-automatica.js?v=20261116a" defer></script>
 <script src="/minha-ia.js?v=20261116a" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
@@ -159,6 +173,27 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 <section class="card">
 <h2>Dados da operação</h2>
 <form id="consultation" novalidate>
+<fieldset class="guided-start" id="guidedStart">
+ <legend>O que você quer fazer hoje?</legend>
+ <p class="guided-intro">Conte a operação em palavras simples. Vamos perguntar só o necessário para orientar sua empresa.</p>
+ <div class="guided-buttons" role="group" aria-label="Escolha sua necessidade">
+  <button type="button" data-journey="compra" aria-pressed="false"><span>🛒</span> Quero comprar</button>
+  <button type="button" data-journey="venda" aria-pressed="false"><span>🏪</span> Quero vender</button>
+  <button type="button" data-journey="outra" aria-pressed="false"><span>🔄</span> Outra operação</button>
+  <button type="button" data-journey="duvida" aria-pressed="false"><span>💬</span> Tenho uma dúvida</button>
+ </div>
+ <input id="journeyMode" type="hidden" value="">
+ <div class="field" id="journeyPurposeBlock" hidden>
+  <label for="journeyPurpose" id="journeyPurposeLabel">Para que será usada a mercadoria?</label>
+  <select id="journeyPurpose"><option value="">Selecione a finalidade...</option></select>
+ </div>
+ <div id="journeyQuestionBlock" hidden>
+  <label for="journeyQuestion"><strong>Escreva sua dúvida como falaria com alguém</strong></label>
+  <textarea id="journeyQuestion" rows="3" maxlength="350" placeholder="Ex.: Minha empresa é de Goiás. Quero comprar uma máquina em Minas Gerais. Como faço?"></textarea>
+  <p class="notice">Você poderá continuar na consulta guiada ou utilizar o botão Minha IA. Não envie dados sigilosos na pergunta.</p>
+ </div>
+ <p id="journeyHelp" role="status" class="notice" aria-live="polite">Escolha uma das opções acima para começar.</p>
+</fieldset>
 <details class="own-identity"><summary>Meu CPF/CNPJ — salvar no aparelho</summary>
  <div class="grid">
   <div class="field"><label for="myDoc">Meu CPF ou CNPJ</label><input id="myDoc" maxlength="22" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="CPF ou CNPJ"></div>
@@ -166,6 +201,18 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  </div>
  <label class="opt-row" for="rememberMe"><input type="checkbox" id="rememberMe"><span>Lembrar meu CPF/CNPJ neste aparelho (opcional). <small>Sem cadastro ou envio ao servidor para guardar essa preferência.</small></span></label>
  <p class="notice" id="myDocStatus" role="status" aria-live="polite"></p>
+<div class="grid">
+ <div class="field"><label for="myCompanyAlias">Como identificar minha empresa neste aparelho? (opcional)</label><input id="myCompanyAlias" maxlength="70" autocomplete="off" placeholder="Ex.: Minha empresa"></div>
+ <div class="field"><label for="myCompanyUF">Em qual estado fica minha empresa?</label><select id="myCompanyUF"><option value="">UF não informada</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select></div>
+ <div class="field"><label for="myCompanyRegime">Qual regime tributário da minha empresa?</label>
+ <select id="myCompanyRegime"><option value="">Prefiro informar a cada consulta</option><option value="simples">Simples Nacional</option><option value="mei">MEI</option><option value="normal">Regime normal (Lucro Real/Presumido)</option><option value="excesso">Simples — excesso de sublimite</option><option value="rural">Produtor rural / pessoa física</option><option value="outro">Outro</option><option value="nao_sei">Não sei</option></select></div>
+ <div class="field"><label for="myCompanySpecial">Minha empresa possui regime especial?</label>
+ <select id="myCompanySpecial"><option value="">Informar em cada consulta</option><option value="sim">Sim (exige conferência do ato)</option><option value="nao">Não declarado</option><option value="nao_sei">Não sei</option></select></div>
+ <div class="field full"><label for="myCompanyActivity">Minha atividade principal</label>
+ <select id="myCompanyActivity"><option value="">Informar em cada consulta</option><option value="revenda">Revenda / comércio</option><option value="industria">Indústria / fabricação</option><option value="consumidor">Empresa que usa/consome os produtos</option></select></div>
+</div>
+<div class="actions"><button id="myCompanySave" class="secondary" type="button">Salvar parâmetros da minha empresa</button><button id="myCompanyForget" class="secondary" type="button">Esquecer perfil salvo</button></div>
+<p id="myCompanyStatus" class="notice" role="status" aria-live="polite">Salvamento opcional, somente neste aparelho. Não salva senhas, XMLs nem autorizações fiscais.</p>
 </details>
 <fieldset class="tax-triage" id="triageFiscal">
  <legend>Antes de começar: qual é o cenário fiscal desta operação?</legend>
@@ -327,12 +374,12 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  </div>
  <div class="cnpj-direction full">
   <div class="cnpj-line">
-   <div class="field"><label for="fromCnpj">4. CNPJ ou CPF de origem</label>
-    <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
+   <div class="field"><label for="fromCnpj" id="fromDocLabel">CNPJ/CPF do fornecedor ou remetente (se souber)</label>
+    <input id="fromCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF"><small>Se ainda não souber o CNPJ, informe apenas a UF abaixo para uma orientação preliminar.</small><label for="fromUFManual">UF de onde sairá a mercadoria</label><select id="fromUFManual"><option value="">UF não informada</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select>
    </div>
    <button id="swapCnpj" type="button" class="secondary swap-cnpj" title="Trocar remetente e destinatário" aria-label="Inverter CPF ou CNPJ de origem e destino">⇄ Inverter origem/destino</button>
-   <div class="field"><label for="toCnpj">5. CNPJ ou CPF de destino</label>
-    <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF" required>
+   <div class="field"><label for="toCnpj" id="toDocLabel">CNPJ/CPF do comprador ou destinatário (se souber)</label>
+    <input id="toCnpj" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="22" placeholder="CNPJ da empresa ou CPF"><small>Se ainda não souber o CNPJ, informe apenas a UF abaixo para uma orientação preliminar.</small><label for="toUFManual">UF onde a mercadoria será recebida</label><select id="toUFManual"><option value="">UF não informada</option><option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option><option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option><option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option><option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option><option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option><option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option></select>
    </div>
   </div>
   <details class="lookup-card"><summary>Não sei o CNPJ — buscar pelo nome</summary>
