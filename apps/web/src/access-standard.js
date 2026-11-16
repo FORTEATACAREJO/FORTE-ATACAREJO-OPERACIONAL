@@ -1,3 +1,4 @@
+import {loadForteOpGrants,preferredForteOpGrant} from './forte-op-grants.js';
 import {legalCall,renderLegal,installLegalReceiptButton,showLegalReceipts} from './legal-acceptance.js';
 import {createModuleRegistration} from './module-registration.js';
 import {installVaultButton,renderIntegrationVault} from './integration-vault.js';
@@ -10,7 +11,7 @@ export function accessTimeout(promise,ms=20000){let timer;return Promise.race([p
 const names={vendas:"FORTE-OP",financeiro:"Forte Financeiro","venda-externa":"Forte Venda Externa","carga-direta":"Forte Carga Direta",patio:"Forte Operador de Pátio",site:"Administração do site",frete:"Forte Frete",fiscal:"Forte Fiscal"};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const digits=v=>String(v||"").replace(/\D/g,"");
-export function startAccess({client,app,content,onAllowed,onBlocked}){
+export function startAccess({client,app,content,onAllowed,onBlocked,allowOtherModules=false}){
 const notificationControl=startNotifications({client,app});let registrationBusy=false;let moduleRegistration;let showBlocked=false;
 const invitationParams=new URLSearchParams(location.search),genericInvitation=invitationParams.get("convite")==="1";
 let cpfStorage;try{cpfStorage=localStorage}catch{}
@@ -86,8 +87,11 @@ if(disposed||registrationBusy)return;if(checking){checkAgain=true;return}checkin
 try{await notificationControl.ready;const s=await accessTimeout(client.auth.getSession());if(!s.data.session){const wasApproved=approved;if(approved){approved=false;onBlocked?.()}adminUI(false);if(wasApproved||box.hidden||mode==="pending"||mode==="password"){mode="login";draw()}else if(!box.querySelector("form"))draw();return}
 const r=await call("STATUS");lastStatus=r;if(r.cpf)rememberCpf(r.cpf);
 if(recovery||r.changing){approved=false;onBlocked?.();adminUI(false);if(mode!=="password"||!box.querySelector("form")){mode="password";draw()}return}
-const legal=['frete','vendas','financeiro','fiscal','venda-externa'].includes(app)?await call('LEGAL_STATUS'):{accepted:true};if(!legal.accepted){approved=false;onBlocked?.();adminUI(false);if(content)content.hidden=true;renderLegal({host:box,client,app,state:legal,onAccepted:check,onExit:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='login';draw();},onRecover:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='recover';draw();}});return;}delete box.dataset.legalVersion;box.classList.remove('forte-legal');
-if(r.allowed){if(!approved){if(mounted){location.reload();return}mounted=true;approved=true;box.hidden=true;if(content)content.hidden=false;onAllowed?.(r);resolveReady(r)}adminUI(r.isAdmin);installLegalReceiptButton({client,app,host:adminBox});return}
+const otherGrant=allowOtherModules&&app==='vendas'&&!r.allowed
+  ?preferredForteOpGrant(await loadForteOpGrants(client)):null;
+const effective=otherGrant?{...r,allowed:true,role:otherGrant.role||r.role,permissions:otherGrant.permissions||r.permissions,app:otherGrant.app,isAdmin:otherGrant.isAdmin||r.isAdmin}:r;
+const legal=otherGrant?{accepted:true}:['frete','vendas','financeiro','fiscal','venda-externa'].includes(app)?await call('LEGAL_STATUS'):{accepted:true};if(!legal.accepted){approved=false;onBlocked?.();adminUI(false);if(content)content.hidden=true;renderLegal({host:box,client,app,state:legal,onAccepted:check,onExit:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='login';draw();},onRecover:async()=>{await client.auth.signOut();delete box.dataset.legalVersion;mode='recover';draw();}});return;}delete box.dataset.legalVersion;box.classList.remove('forte-legal');
+if(effective.allowed){if(!approved){if(mounted){location.reload();return}mounted=true;approved=true;box.hidden=true;if(content)content.hidden=false;onAllowed?.(effective);resolveReady(effective)}adminUI(effective.isAdmin);installLegalReceiptButton({client,app,host:adminBox});return}
 if(approved){approved=false;onBlocked?.()}adminUI(false);if(await accessTimeout(moduleRegistration.resume(box,moduleOptions())))return;if(["request","recover"].includes(mode)&&box.querySelector("form"))return;mode="pending";notice=r.notifications?.[0]?.message||(r.status==="SEM_SOLICITACAO"?"Seu cadastro ainda não tem autorização para este aplicativo. Solicite a análise.":"Cadastro enviado. Aguarde aprovação do admin ou master.");draw();
 }catch(e){if(approved){approved=false;onBlocked?.()}notice=e.message;const status=box.querySelector('[role="status"]');if(status&&box.querySelector("form"))status.textContent=notice;else draw()}finally{checking=false;if(checkAgain){checkAgain=false;setTimeout(check,0)}}
 }
