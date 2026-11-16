@@ -1,11 +1,16 @@
 // Preserve original route IDs and permissions; expose three work panels and one logistics panel.
 export function workspaceNavigation(canGroup,canScreen,unread=0){
  const item=(id,label,description,icon,screens=[],groups=[])=>({id,label,description,icon,screens,groups});
- const main=[item('home','Início','Resumo da operação','home',['home'])];
- if(canScreen('painelUnicoVendas'))main.push(item('painelUnicoVendas','Vendas','Pedidos, vendas externas, documentos e histórico','file',['painelUnicoVendas','clientes','diretas','balcao','externas']));
- if(canScreen('painelCompras'))main.push(item('painelCompras','Compras','Pedidos ao fornecedor e destino das notas','box',['painelCompras','comprasFornecedor','compraForte']));
- if(canScreen('paletes'))main.push(item('paletes','Pallets','Notas, distribuição, estoque e contas correntes','box',['paletes']));
- if(canScreen('painelCargas'))main.push(item('painelCargas','Cargas','Um painel logístico por carga','truck',['painelCargas','ordensCarregamento','planejamento','todasCargas']));
+ const main=[item('home','Início','Painel único FORTE-OP','home',['home'])];
+ if(canScreen('painelUnicoVendas'))main.push(item('painelUnicoVendas','Vendas','Pedidos, documentos e histórico','file',['painelUnicoVendas']));
+ if(canScreen('externas'))main.push(item('externas','Vendas externas','Pedidos e representantes sem sair do aplicativo','users',['externas']));
+ if(canScreen('clientes'))main.push(item('clientes','Carga direta','Vendas e entregas diretas','truck',['clientes','diretas']));
+ if(canScreen('balcao'))main.push(item('balcao','Balcão','Vendas de balcão e entregas','money',['balcao']));
+ if(canScreen('painelCompras'))main.push(item('painelCompras','Compras','Compras e pedidos ao fornecedor','box',['painelCompras','comprasFornecedor','compraForte']));
+ if(canScreen('paletes'))main.push(item('paletes','Pallets','Estoque e contas correntes','box',['paletes']));
+ if(canScreen('painelCargas'))main.push(item('painelCargas','Cargas','Expedição e logística','truck',['painelCargas','ordensCarregamento','planejamento','todasCargas']));
+ if(canScreen('freteSolicitacoes'))main.push(item('freteSolicitacoes','Frete','Solicitações e sincronização do frete','truck',['freteSolicitacoes','motorista']));
+ if(canGroup('financeiro'))main.push(item('group:financeiro','Financeiro','Contas, cobranças e tesouraria','money',[],['financeiro']));
  const tools=[
  ['vendas','Outras operações de venda','Balcão e representantes','file'],
  ['patio','Estoque do galpão','Consulta do estoque físico','box'],
