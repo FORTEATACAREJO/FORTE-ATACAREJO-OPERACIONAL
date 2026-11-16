@@ -316,6 +316,8 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }
  if(isPurchase&&nature==='compra_ativo'&&from.uf==='MG'&&to.uf==='GO'){
   r.pending.push('Máquina/equipamento para integrar o ativo imobilizado em GO: confirmar se a empresa é contribuinte de ICMS, o NCM, o regime e o uso efetivo do bem.');
+  sources.push({label:'Estado de Goiás — tabela de CFOP para entrada de bens no ativo (2.551 e 2.406, conforme operação com ST)',
+   url:'https://legisla.casacivil.go.gov.br/pesquisa_legislacao/106175'});
   r.pending.push('Verificar eventual ICMS diferencial de alíquotas na aquisição interestadual para ativo imobilizado, responsabilidade, guia, prazo e créditos CIAP somente se o regime e os requisitos legais permitirem.');
   sources.push({label:'SEFAZ-GO — Guia prático EFD 5.9: aquisição interestadual para ativo imobilizado e CIAP',
     url:'https://goias.gov.br/economia/wp-content/uploads/sites/45/2026/03/Guia_pratico_5.9.pdf'});
