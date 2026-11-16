@@ -81,7 +81,7 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
 <p id="alert" role="status"></p></main>
 <footer>Nanapay · Projeto FORTE ATACAREJO LTDA. · Homologação sem transações reais</footer>
 <script src="/vendor/qrcode.js"></script><script>
-let role='admin',session=null,current=null;
+let role='admin',session=null,current=null,noticeInitialized=false,noticeSeen=new Set();
 const $=id=>document.getElementById(id);
 const fmt=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((v||0)/100);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -95,9 +95,9 @@ async function api(route,payload){
 async function enter(venue,key,expected){
  session={venue:String(venue).trim(),key:String(key).trim(),expected};
  const d=await api('/api/restaurant/dashboard');if(d.role!==expected)throw Error('Esta chave pertence a outro perfil. Selecione seu perfil correto.');
- sessionStorage.setItem('nana-pay-panel',JSON.stringify(session));current=d;render();
+ sessionStorage.setItem('nanapay-panel',JSON.stringify(session));current=d;render();
  $('login').classList.add('closed');$('panel').classList.remove('closed');message('Painel conectado.');}
-function signout(){session=null;current=null;sessionStorage.removeItem('nana-pay-panel');$('panel').classList.add('closed');$('login').classList.remove('closed');$('accessKey').value='';message('Acesso encerrado neste aparelho.')}
+function signout(){session=null;current=null;sessionStorage.removeItem('nanapay-panel');$('panel').classList.add('closed');$('login').classList.remove('closed');$('accessKey').value='';message('Acesso encerrado neste aparelho.')}
 async function refresh(){if(!session)return;try{current=await api('/api/restaurant/dashboard');render()}catch(e){message(e.message,true);if(/não autorizado|não encontrado/.test(e.message))signout()}}
 function render(){
  const d=current,admin=d.role==='admin';
@@ -105,14 +105,26 @@ function render(){
  $('activeTables').textContent=d.tables.length;
  $('pendingOrders').textContent=d.tables.reduce((v,t)=>v+t.ordersPending,0);
  $('pendingReturns').textContent=d.tables.reduce((v,t)=>v+t.returnsPending,0);
+ const calls=d.tables.flatMap(t=>t.waiterCalls||[]),orders=d.tables.flatMap(t=>(t.requestedOrders||[]).map(o=>({...o,table:o.table||t.table})));
+ $('pendingWaiterCalls').textContent=calls.length;
+ $('waiterAlerts').innerHTML=calls.map(call=>'<div class="alert-card '+(call.status==='pendente'?'pending':'')+'"><div class="alert-title">🔔 '+esc(call.table)+' · '+esc(call.client)+'</div><div class="mini">'+stamp(call.at)+' · '+(call.status==='a_caminho'?'Garçom a caminho':'Aguardando garçom')+'</div><div class="action">'+(call.status==='pendente'?'<button class="btn sm" onclick="markWaiterCall(\''+esc(call.id)+'\',\'a_caminho\')">Estou a caminho</button>':'')+'<button class="btn soft sm" onclick="markWaiterCall(\''+esc(call.id)+'\',\'atendido\')">Atendido</button></div></div>').join('')||'<p class="hint">Nenhuma chamada pendente.</p>';
+ $('waiterOrderAlerts').innerHTML=orders.map(o=>'<div class="alert-card"><div class="alert-title">'+esc(o.qty)+' × '+esc(o.name)+'</div><div class="mini">'+esc(o.table)+' · '+esc(o.client)+' · '+stamp(o.at)+'</div>'+(o.note?'<div class="mini">Observação: '+esc(o.note)+'</div>':'')+'<span class="waiting-badge">Aguardando confirmação no PDV</span></div>').join('')||'<p class="hint">Nenhum pedido novo.</p>';
+ const notices=[...calls.filter(x=>x.status==='pendente').map(x=>({key:'call:'+x.id,title:'Nanapay — Garçom solicitado',body:x.table+' · '+x.client})),...orders.map(x=>({key:'order:'+x.id,title:'Nanapay — Novo pedido',body:x.table+' · '+x.qty+' × '+x.name}))];
+ if(noticeInitialized&&typeof Notification!=='undefined'&&Notification.permission==='granted'){for(const n of notices)if(!noticeSeen.has(n.key))try{new Notification(n.title,{body:n.body,tag:n.key})}catch{}}
+ noticeSeen=new Set(notices.map(x=>x.key));noticeInitialized=true;
  for(const k of ['adminSettings','adminQR','adminWaiters','adminBilling','adminPOS'])$(k).classList.toggle('closed',!admin);
  $('tables').innerHTML=d.tables.map(t=>'<div class="table-row"><div class="row"><strong>'+esc(t.table)+'</strong><span class="pill">'+fmt(t.balance)+' em aberto</span></div><div class="mini">'+t.people+' pessoa(s) · '+stamp(t.openedAt)+'</div><div class="flex" style="margin-top:8px">'+(t.ordersPending?'<span class="pill wait">'+t.ordersPending+' pedido(s)</span>':'')+(t.returnsPending?'<span class="pill wait">'+t.returnsPending+' devolução(ões)</span>':'')+(t.tableMovesPending?'<span class="pill wait">'+t.tableMovesPending+' troca(s)</span>':'')+'</div></div>').join('')||'<p class="hint">Nenhuma mesa aberta. Quando o cliente entrar pelo QR Code, sua mesa aparecerá aqui.</p>';
  if(!admin)return;
  $('restaurantName').value=d.name;$('enableOrders').checked=d.orderingEnabled;
- const url=location.origin+'/?est='+encodeURIComponent(d.establishmentId);
+ const url=location.origin+'/?code='+encodeURIComponent(d.restaurantCode);$('restaurantPublicCode').textContent=d.restaurantCode;
  $('qrLink').textContent=url;$('openClient').href=url;
  try{const qr=qrcode(0,'M');qr.addData(url);qr.make();$('qr').innerHTML=qr.createSvgTag({cellSize:5,margin:7,scalable:true})}catch{}
  $('waiters').innerHTML=(d.waiters||[]).map(w=>'<div class="table-row row"><div><strong>'+esc(w.name)+'</strong><div class="mini">Criado em '+stamp(w.createdAt)+'</div></div><button class="btn warn sm" onclick="revoke(\''+esc(w.id)+'\')">Revogar</button></div>').join('')||'<p class="hint">Nenhum garçom cadastrado.</p>';
+}
+async function markWaiterCall(id,status){try{await api('/api/restaurant/waiter-call/status',{id,status});await refresh();message(status==='a_caminho'?'Cliente informado: garçom a caminho.':'Chamada marcada como atendida.')}catch(e){message(e.message,true)}}
+async function enableWaiterNotifications(){
+ if(typeof Notification==='undefined'){message('Seu navegador não oferece notificações. Os avisos na tela continuam funcionando.',true);return}
+ try{const permission=await Notification.requestPermission();message(permission==='granted'?'Notificações ativadas enquanto o painel estiver aberto.':'Avisos na tela disponíveis; notificações não autorizadas.',permission!=='granted')}catch{message('Não foi possível ativar notificações neste navegador.',true)}
 }
 async function copyQR(){try{await navigator.clipboard.writeText($('qrLink').textContent);message('Endereço do QR copiado.')}catch{message('Copie o endereço exibido acima.',true)}}
 async function openTechnicalPOS(){try{
@@ -126,7 +138,7 @@ $('accessForm').addEventListener('submit',async e=>{e.preventDefault();try{await
 $('createDemo').addEventListener('click',async()=>{try{
  const r=await fetch('/api/pdv-demo/create',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
  const d=await r.json();if(!r.ok)throw Error(d.error||'Falha ao criar demonstração');
- $('venue').value=d.establishmentId;$('accessKey').value=d.adminToken;chooseRole('admin');await enter(d.establishmentId,d.adminToken,'admin');
+ $('venue').value=d.restaurantCode;$('accessKey').value=d.adminToken;chooseRole('admin');await enter(d.establishmentId,d.adminToken,'admin');
  message('Restaurante fictício criado. Esta chave de administrador é temporária e exclusiva desta sessão.');
 }catch(e){message(e.message,true)}});
 $('settingsForm').addEventListener('submit',async e=>{e.preventDefault();try{
@@ -139,5 +151,6 @@ $('waiterForm').addEventListener('submit',async e=>{e.preventDefault();try{
  $('copyWaiter').addEventListener('click',()=>navigator.clipboard.writeText(d.accessToken).then(()=>message('Chave copiada.')).catch(()=>message('Copie a chave acima.',true)));
  $('waiterName').value='';await refresh();message('Garçom cadastrado.')
 }catch(e){message(e.message,true)}});
-try{const s=JSON.parse(sessionStorage.getItem('nana-pay-panel')||'null');if(s?.key&&s?.venue&&s?.expected){enter(s.venue,s.key,s.expected).catch(()=>sessionStorage.removeItem('nana-pay-panel'))}}catch{}
+try{const s=JSON.parse(sessionStorage.getItem('nanapay-panel')||'null');if(s?.key&&s?.venue&&s?.expected){enter(s.venue,s.key,s.expected).catch(()=>sessionStorage.removeItem('nanapay-panel'))}}catch{}
+setInterval(refresh,4000);
 </script></body></html>
