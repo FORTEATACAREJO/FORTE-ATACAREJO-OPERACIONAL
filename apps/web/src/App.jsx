@@ -18,6 +18,7 @@ import {registryConflict} from "./registry-identity.js";
 import {CUSTOMER_UFS,customerAddressError,normalizeCustomerAddress,validCustomerDocument,companyAddressPatch,consultarCnpj,mergeMissingCustomerDetails} from './customer-address.js';
 import DriverDirectory from "./DriverDirectory.jsx";
 import FreteRequestsPanel from "./FreteRequestsPanel.jsx";
+import FinanceiroPortal from "./financeiro-portal/Portal.jsx";
 import {Brand, MenuButton, Drawer, BottomNav, useDrawer} from './ForteUI.jsx';
 import {customerName} from "./customer-name.js";
 import { PROFILE_CODES, PROFILE_LABELS, normalizeProfile, profileOptionsFor } from "./profiles.js";
@@ -793,6 +794,15 @@ const custoFornecedor = (d, produtoId, condicaoPagamento, marca = "") => {
 };
 export default function App() {
   const drawer=useDrawer();
+  const [financeGranted,setFinanceGranted]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    if(!supabase){setFinanceGranted(false);return;}
+    supabase.rpc("access_current_module",{p_app:"financeiro"})
+      .then(({data,error})=>{if(active)setFinanceGranted(!error&&data?.allowed===true&&String(data.role||"").toUpperCase()==="MASTER")})
+      .catch(()=>{if(active)setFinanceGranted(false)});
+    return()=>{active=false;};
+  },[]);
   const financeMode=new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=financeMode?"group:financeiro":"home";
   const [data, setData] = useState(() => applyAuthUser(loadData(seed)));
   const cloudReady = useRef(false);
@@ -902,7 +912,7 @@ export default function App() {
   };
   const canAccessGroup = (groupId, action = "visualizar") => {
     if(financeMode&&groupId!=="financeiro")return false;
-    if (groupId === "financeiro") return isMaster && cloudReady.current;
+    if (groupId === "financeiro") return isMaster && financeGranted && cloudReady.current;
     if (isAdmin) return true;
     const permissions = currentUser?.permissoes || {};
     if (Array.isArray(permissions)) {
@@ -2284,6 +2294,7 @@ export default function App() {
             const gid = tab.split(":")[1];
             if(gid === "cadastros")return null;
             if(gid === "vendas")return <OperationsMenu canAccess={canAccessTab} onNavigate={setTab}/>;
+            if(gid === "financeiro")return <FinanceiroPortal embedded onExit={()=>setTab("home")} />;
             if (gid === "integracoes")
               return (
                 <section className="dashboardGroup groupScreen">
