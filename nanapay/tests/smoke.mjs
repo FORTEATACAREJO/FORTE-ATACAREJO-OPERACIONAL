@@ -102,6 +102,13 @@ try{
  assert.equal((await req('/api/pdv/dispute-status',{token,id:'fake',status:'aprovada'},waiter.body.accessToken)).status,403,'Garçom não pode aprovar devolução via Nanapay');
  const venue2=(await req('/api/pdv-demo/create',{})).body;
  assert.equal((await roleRequest('/api/restaurant/dashboard',waiter.body.accessToken,venue2.establishmentId)).status,403,'Credencial isolada por restaurante');
+ const otherVenue=await req('/api/table/enter',{establishmentId:venue2.establishmentId,table:'20'});
+ assert.equal(otherVenue.status,200);
+ assert.notEqual(otherVenue.body.token,token,'A mesma numeração de mesa em outro restaurante gera outra comanda');
+ const isolated=(await req('/api/session/'+otherVenue.body.token)).body;
+ assert.equal(isolated.subtotal,0,'Restaurante novo não pode herdar consumo do outro');
+ assert.equal(isolated.people.length,0,'Clientes de outros restaurantes não podem aparecer na sessão');
+ assert.equal(isolated.establishmentId,venue2.establishmentId);
  const settings=await roleRequest('/api/restaurant/settings',demo.adminToken,demo.establishmentId,{name:'Restaurante Nanapay Demo',orderingEnabled:false});
  assert.equal(settings.status,200);
  assert.equal(settings.body.orderingEnabled,false);
@@ -154,6 +161,8 @@ try{
  assert.equal(ordered.orders[0].unit,1400,'preço deve vir do cardápio do PDV');
  const duplicate=await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'chope300',qty:2,note:'Copo bem gelado',requestId});
  assert.equal(duplicate.body.duplicate,true);
+ const conflictingOrder=await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'chope300',qty:1,note:'Copo bem gelado',requestId});
+ assert.equal(conflictingOrder.status,409,'ID repetido com quantidade diferente não deve ser silenciosamente aceito');
  assert.equal((await snap()).orders.length,1);
  const denied=await req('/api/pdv/order-status',{token,id:ordered.orders[0].id,status:'aceito'});
  assert.equal(denied.status,403,'cliente não pode aceitar pedido');
@@ -208,8 +217,14 @@ try{
  d=await snap();assert(d.service>0);
  assert.equal((await req('/api/client/split',{token,mode:'todos',count:4,memberToken})).status,200);
  d=await snap();assert.equal(Object.values(d.rateio).reduce((a,b)=>a+b,0),d.balance);
- const paid=await req('/api/pdv/payment',{token,amount:'20,00',method:'pix',person,leaves:true},staff);
+ const paymentRequestId='59ab4c81-067b-43a4-81ca-137a5c1209a3';
+ const paid=await req('/api/pdv/payment',{token,amount:'20,00',method:'pix',person,leaves:true,requestId:paymentRequestId},staff);
  assert.equal(paid.status,200);assert.equal(paid.body.confirmed,true);
+ const paidAgain=await req('/api/pdv/payment',{token,amount:'20,00',method:'pix',person,leaves:true,requestId:paymentRequestId},staff);
+ assert.equal(paidAgain.status,200);assert.equal(paidAgain.body.duplicate,true,'Mesmo pagamento confirmado duas vezes não pode duplicar saldo');
+ const conflictingPayment=await req('/api/pdv/payment',{token,amount:'19,00',method:'pix',person,leaves:true,requestId:paymentRequestId},staff);
+ assert.equal(conflictingPayment.status,409,'ID de pagamento reutilizado com outro valor deve ser rejeitado');
+ assert.equal((await snap()).payments.length,1,'Exatamente um pagamento para a mesma transação');
  d=await snap();assert.equal(d.paid,2000);assert.equal(d.people.find(p=>p.id===person).present,false);
  assertISO(d.payments[0].at,'pagamento confirmado pelo caixa');
  assert.equal((await req('/api/pdv/payment',{token,amount:'999999',method:'pix'},staff)).status,400);
@@ -265,6 +280,7 @@ try{
  assert.equal(d.transfers[0].to,'Mesa 15');
  assert(d.items.length>=5,'Histórico continua disponível no fechamento');
  assert.equal((await req('/api/client/order',{token,person:visitorId,memberToken,menuId:'agua',qty:1,note:'teste',requestId:'46ff5b85-4470-41f4-b5cb-01dc6ce6a234'})).status,409);
+ assert.equal((await req('/api/pdv/settle',{token},staff)).status,409,'Conta quitada não pode ser encerrada duas vezes');
  const freshAfterSettlement=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'12'});
  assert.notEqual(freshAfterSettlement.body.token,token,'Nova comanda só após quitação anterior');
  console.log('PASS: Nanapay 3 perfis isolados + PDV técnico conectado + devoluções e histórico com data/hora');
