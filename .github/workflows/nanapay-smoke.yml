@@ -23,3 +23,5 @@ jobs:
         run: node nanapay/tests/smoke.mjs
       - name: Test tenant role authorization without real Supabase keys
         run: node nanapay/tests/identity.mjs
+      - name: Test QR code, quick repeat orders and waiter SOS end-to-end
+        run: node nanapay/tests/quick-actions.mjs
