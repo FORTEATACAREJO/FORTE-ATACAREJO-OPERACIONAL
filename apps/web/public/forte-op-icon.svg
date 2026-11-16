@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+<title id="t">FORTE-OP</title>
+<rect width="512" height="512" rx="92" fill="#071b54"/>
+<path d="M74 288C95 206 222 117 414 103c37-2 59 21 59 48-32-30-92-25-138-19-116 15-202 72-230 143-10 25-5 51 20 65l-8 28c-55-13-65-45-43-80z" fill="#f20b1b"/>
+<path d="M166 244 214 163h215l-42 60H282l-23 35h112l-43 65H221l-45 70H95l71-149z" fill="#f20b1b"/>
+<text x="256" y="464" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="900" text-anchor="middle" letter-spacing="-2">FORTE-OP</text>
+</svg>
