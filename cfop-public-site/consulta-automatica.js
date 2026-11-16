@@ -48,11 +48,13 @@ const natureMetadata=Object.freeze({
 const profiles={
  revenda:{label:'Revenda',origin:'terceiros',help:'Revenda normalmente vende mercadoria adquirida de fornecedores. Confirme o XML e se houve ST na entrada.'},
  industria:{label:'Indústria',origin:'propria',help:'Se você fabricou a mercadoria, marque fabricação própria. A indústria também pode vender itens comprados de terceiros: altere a origem quando for o caso.'},
+ empresa:{label:'Empresa / serviços',origin:'desconhecida',help:'Empresas de serviços ou de outros setores podem comprar máquinas, materiais para uso e bens para seu patrimônio. A origem da mercadoria precisa ser confirmada no fornecedor.'},
  consumidor:{label:'Consumidor final',origin:'desconhecida',help:'Consumidor final informa o uso da mercadoria. A fabricação própria ou aquisição de terceiros se refere ao REMETENTE, não ao comprador.'}
 };
 function selectedProfile(){
  if($('profileRevenda').checked)return 'revenda';
  if($('profileIndustria').checked)return 'industria';
+ if($('profileEmpresa').checked)return 'empresa';
  if($('profileConsumidor').checked)return 'consumidor';
  return '';
 }
@@ -692,7 +694,7 @@ function clearPreviousAnalysis(){
 $('nature').addEventListener('change',clearPreviousAnalysis);
 $('product').addEventListener('input',()=>{confirmedNcm='';lastNcmOptions=new Set();$('declaredNcm').value='';});
 $('declaredNcm').addEventListener('input',()=>{confirmedNcm='';lastNcmOptions=new Set();});
-['profileRevenda','profileIndustria','profileConsumidor'].forEach(id=>{
+['profileRevenda','profileIndustria','profileEmpresa','profileConsumidor'].forEach(id=>{
  $(id).addEventListener('change',()=>{
   refreshProfileDetails(selectedProfile(),true);
   clearPreviousAnalysis();
