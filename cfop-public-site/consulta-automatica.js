@@ -253,12 +253,20 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   const url=String(item.portal_tributario||'');
   if(/^https:\/\/[A-Za-z0-9.-]+(?:\/|$)/.test(url))sources.push({label:'Legislação estadual — '+item.uf,url});
  }
+ const localDate=new Date(),dateISO=context?.operationDate||
+  [localDate.getFullYear(),String(localDate.getMonth()+1).padStart(2,'0'),String(localDate.getDate()).padStart(2,'0')].join('-');
+ const finalidade=/revenda/.test(nature)?'revenda':/consumo/.test(nature)?'uso_consumo':
+  /ativo/.test(nature)?'ativo_imobilizado':/industrializacao/.test(nature)?'industrializacao':'';
+ const law=window.FORTE_FUNDAMENTO_LEGAL?.assess(stateData||{},{
+  fromUF:from.uf,toUF:to.uf,natureza:nature,finalidade,
+  ncm:info.code,cest:info.suggest?.cest,date:dateISO,specialRegime:context?.specialRegime
+ })||{legalReviewedCount:0,hasApplicableReviewedRule:false,xmlRequired:false};
  const r={
   route,cfop:'Não determinado',confidence:'Não definido',note:'',st:'Verificar enquadramento do produto, UF e responsabilidade tributária. CEST somente quando legalmente aplicável.',
   difal:'Não definido',costWarning:'',tax:'Sem cálculo de valores',sources,pending:[],
   buyerStatus:buyer,purpose:meta.purpose,production:ownership,date:today,
   stateStatus:stateData?.sourceStatus||'fonte estadual não consultada',
-  certified:Number(stateData?.verifiedRuleCount||0)
+  certified:Number(law.legalReviewedCount||0)
  };
  if(!from.uf||!to.uf)r.pending.push('Confirmar UF de origem/destino e local de entrega.');
  if(from.kind==='manual'||to.kind==='manual')
