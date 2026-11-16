@@ -1,7 +1,120 @@
-import {useState} from 'react';
-export default function DriverDirectory({data,onClose,onSync}){
- const [query,setQuery]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const rows=(data.motoristas||[]).filter(m=>m.ativo!==false&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
- async function refresh(){setBusy(true);try{const r=await onSync();setMessage(r.count+' motorista(s)/conjunto(s) atualizados do Forte Frete.')}catch(e){setMessage(e.message)}finally{setBusy(false)}}
- return <div className="modalBackdrop"><section className="modal"><div className="modalHead"><h2>MOTORISTAS — FORTE FRETE</h2><button onClick={onClose}>FECHAR</button></div><p>Cadastro único no Forte Frete. O Vendas consulta os motoristas para pedidos e cargas.</p><div className="rowActions"><a href="https://forte-frete.onrender.com" target="_blank" rel="noopener noreferrer">ABRIR FORTE FRETE</a><button disabled={busy} onClick={refresh}>ATUALIZAR MOTORISTAS</button></div><p role="status">{message}</p><label>BUSCAR NOME, CPF OU PLACA<input value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="flowTable"><table><thead><tr><th>MOTORISTA</th><th>WHATSAPP</th><th>CONJUNTO</th><th>CAPACIDADE</th><th>SITUAÇÃO</th></tr></thead><tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{m.telefone}</td><td>{[m.placa1,m.placa2,m.placa3,m.placa4].filter(Boolean).join(' / ')||'Não informado'}</td><td>{Number(m.capacidadeMaximaKg||m.capacidadeAlvoKg||0).toLocaleString('pt-BR')} kg</td><td>{m.statusCadastro==='LEGADO'?'CADASTRO EXISTENTE — COMPLETAR NO FRETE':m.statusCadastro||'CONSULTA'}</td></tr>)}</tbody></table></div>{!rows.length&&<p>Nenhum motorista disponível. Atualize a consulta ou cadastre no Forte Frete.</p>}</section></div>;
+import {useEffect,useMemo,useState} from 'react';
+import {supabase} from './supabase.js';
+
+const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
+const digits=value=>String(value||'').replace(/\D/g,'');
+const legacyForm=source=>({
+ nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
+ email:source.email||'',cnh:digits(source.cnh_registro||source.cnh||''),categoria_cnh:source.categoria_cnh||'',
+ validade_cnh:source.validade_cnh||'',rntrc:source.rntrc||'',proprietario_nome:source.proprietario_nome||'',
+ proprietario_documento:digits(source.proprietario_cpf_cnpj||''),chave_pix:source.chave_pix||'',
+ favorecido_pix:source.titular_pix||'',capacidade_operacional_kg:''
+});
+const cpfValido=value=>{
+ const d=digits(value);
+ if(d.length!==11||/^(\d)\1{10}$/.test(d))return false;
+ const dig=n=>{let t=0;for(let i=0;i<n;i++)t+=Number(d[i])*(n+1-i);const r=t*10%11;return r===10?0:r};
+ return dig(9)===Number(d[9])&&dig(10)===Number(d[10]);
+};
+const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(3,6)}.${d.slice(6,9)}-**`:'PENDENTE';};
+
+export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
+ const [query,setQuery]=useState('');
+ const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
+ const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
+ const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
+  .filter(m=>m.ativo!==false&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[existing,data,query]);
+ async function load(){
+  if(!supabase)return;
+  const [drivers,veiculos]=await Promise.all([
+   supabase.from('fc_motoristas').select('id,nome,cpf,whatsapp,ativo,capacidade_operacional_kg,status_ia').order('nome').limit(150),
+   supabase.from('fc_veiculos').select('id,placa,tipo,ativo').order('placa').limit(100)
+  ]);
+  if(drivers.error)throw new Error('Falha ao consultar motoristas do FORTE-OP: '+drivers.error.message);
+  if(veiculos.error)throw new Error('Falha ao consultar veículos do FORTE-OP: '+veiculos.error.message);
+  setExisting(drivers.data||[]);setVehicles(veiculos.data||[]);
+  if(isAdmin){
+   const stored=await supabase.from('forte_op_frete_legado').select('id_origem,dados,situacao').eq('tabela_origem','motoristas').order('importado_em',{ascending:true}).limit(150);
+   if(stored.error)throw new Error('Falha ao conferir legado: '+stored.error.message);
+   setLegacy(stored.data||[]);
+  }
+ }
+ useEffect(()=>{let live=true;load().catch(e=>{if(live)setMessage(e.message)});return()=>{live=false}},[isAdmin]);
+ async function refresh(){
+  setBusy(true);try{await load();setMessage('Consulta de motoristas e veículos atualizada.')}catch(e){setMessage(e.message||String(e))}finally{setBusy(false)}
+ }
+ function begin(row=null){
+  setSelected(row?.id_origem||null);
+  setForm(row?legacyForm(row.dados||{}):EMPTY);
+  setEditor(true);setMessage('');
+ }
+ const patch=(name,value)=>setForm(f=>({...f,[name]:value}));
+ async function save(event){
+  event.preventDefault();
+  if(!isAdmin)return setMessage('Somente Master ou Administrador pode cadastrar motorista.');
+  if(!cpfValido(form.cpf))return setMessage('Informe CPF válido.');
+  if(digits(form.whatsapp).length<10)return setMessage('Informe WhatsApp com DDD.');
+  if(digits(form.cnh).length!==11)return setMessage('Informe os 11 dígitos do registro CNH.');
+  if(!form.nome.trim()||!form.proprietario_nome.trim()||!form.chave_pix.trim()||!form.favorecido_pix.trim()||!(Number(form.capacidade_operacional_kg)>0))
+   return setMessage('Complete nome, proprietário, chave Pix, favorecido Pix e capacidade operacional positiva.');
+  setBusy(true);setMessage('');
+  try{
+   const user=await supabase.auth.getUser();
+   if(user.error||!user.data.user)throw Error('Sessão expirada.');
+   const [profile,grant]=await Promise.all([
+    supabase.from('fc_perfis').select('empresa_id').eq('user_id',user.data.user.id).maybeSingle(),
+    supabase.rpc('access_current_module',{p_app:'vendas'})
+   ]);
+   if(profile.error||!profile.data?.empresa_id)throw Error('Empresa do usuário não identificada.');
+   if(grant.error||!grant.data?.allowed||!grant.data?.isAdmin)throw Error('Cadastro restrito a Master ou Administrador aprovado.');
+   const payload={
+    ...(selected?{id:selected}:{}),empresa_id:profile.data.empresa_id,
+    nome:form.nome.trim().toUpperCase(),cpf:digits(form.cpf),whatsapp:digits(form.whatsapp),
+    cnh:digits(form.cnh),email:form.email.trim()||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    validade_cnh:form.validade_cnh||null,rntrc:form.rntrc.trim()||null,
+    proprietario_nome:form.proprietario_nome.trim().toUpperCase(),proprietario_documento:digits(form.proprietario_documento)||null,
+    chave_pix:form.chave_pix.trim(),favorecido_pix:form.favorecido_pix.trim().toUpperCase(),
+    capacidade_operacional_kg:Number(form.capacidade_operacional_kg),
+    status_ia:'PENDENTE_CONFERENCIA_DOCUMENTAL',ativo:false
+   };
+   const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
+   if(result.error)throw Error(result.error.code==='23505'?'Motorista já registrado; confira os dados existentes.':result.error.message);
+   setMessage('Cadastro inserido em segurança como INATIVO. Ativação somente após validação de CNH, documentos e conjunto.');
+   setEditor(false);setSelected(null);setForm(EMPTY);await load();
+  }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
+ }
+ const fields=[
+  ['nome','Nome completo',true],['cpf','CPF',true],['whatsapp','WhatsApp com DDD',true],
+  ['cnh','Registro CNH (11 dígitos)',true],['categoria_cnh','Categoria CNH',false],
+  ['validade_cnh','Validade CNH',false,'date'],['proprietario_nome','Nome do proprietário',true],
+  ['proprietario_documento','CPF/CNPJ do proprietário',false],['chave_pix','Chave Pix',true],
+  ['favorecido_pix','Favorecido Pix',true],['capacidade_operacional_kg','Capacidade operacional (kg)',true,'number'],
+  ['rntrc','RNTRC',false],['email','E-mail',false,'email']
+ ];
+ return <div className="modalBackdrop"><section className="modal wide" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
+ <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>FECHAR</button></div>
+ <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
+ <div className="rowActions">
+ <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
+ {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
+ </div>
+ <p role="status" aria-live="polite">{message}</p>
+ <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Registros antigos para conferência:</b> {isAdmin?legacy.length:'restritos à administração'}</p>
+ <label>BUSCAR MOTORISTA<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, CPF ou placa"/></label>
+ <div className="flowTable"><table><thead><tr><th>Motorista</th><th>CPF</th><th>Capacidade</th><th>Status</th></tr></thead>
+ <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td></tr>)}</tbody></table></div>
+ {isAdmin&&<section><h3>Legado preservado — completar somente com documentos reais</h3>
+ <p>Um registro legado não significa motorista aprovado. CPF, CNH, capacidade e Pix deverão ser conferidos antes da ativação.</p>
+ <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Situação</th><th>Ação</th></tr></thead>
+ <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{l.dados?.cnh_registro?'Informada':'PENDENTE'}</td><td>{l.situacao}</td>
+ <td>{existing.some(e=>e.id===l.id_origem)?'CADASTRO INATIVO CRIADO':<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR E COMPLETAR</button>}</td></tr>)}</tbody></table></div></section>}
+ {isAdmin&&editor&&<form onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
+ <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
+ <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10}}>
+ {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
+ <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
+ </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
+ <div className="rowActions"><button type="submit" disabled={busy}>SALVAR CADASTRO PARA HOMOLOGAÇÃO</button><button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
+ </section></div>;
 }
