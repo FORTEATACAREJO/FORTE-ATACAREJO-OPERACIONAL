@@ -1,4 +1,4 @@
-name: Android APK
+name: FORTE-OP Android APK
 on:
   push:
     branches: [main]
@@ -18,22 +18,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Prepare official launcher icon
+      - name: Prepare FORTE-OP launcher icon
         run: |
+          python3 -m pip install --quiet 'CairoSVG==2.8.2'
           mkdir -p android-apk/app/src/main/res/drawable
-          cp apps/web/public/icons/icon-512.png android-apk/app/src/main/res/drawable/app_icon.png
+          python3 -c "import cairosvg; cairosvg.svg2png(url='apps/web/public/forte-op-icon.svg',write_to='android-apk/app/src/main/res/drawable/app_icon.png',output_width=512,output_height=512)"
 
       - name: Build installable APK
         working-directory: android-apk
         run: gradle :app:assembleDebug --no-daemon
       - name: Prepare APK
-        run: cp android-apk/app/build/outputs/apk/debug/app-debug.apk ForteVendas.apk
+        run: cp android-apk/app/build/outputs/apk/debug/app-debug.apk Forte-OP.apk
       - name: Publish stable Android download
         uses: ncipollo/release-action@v1
         with:
           tag: android-latest
-          name: 'Forte Vendas Android'
-          artifacts: 'ForteVendas.apk'
+          name: 'FORTE-OP Android'
+          artifacts: 'Forte-OP.apk'
           allowUpdates: true
           replacesArtifacts: true
           makeLatest: true
