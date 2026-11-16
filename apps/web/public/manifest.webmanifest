@@ -11,9 +11,15 @@
   "theme_color": "#ab0808",
   "icons": [
     {
-      "src": "/forte-op-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/forte-op-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/forte-op-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
