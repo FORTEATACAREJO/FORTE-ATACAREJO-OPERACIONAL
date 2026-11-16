@@ -28,7 +28,7 @@ test('home shortcuts open each workflow and distinguish Central Forte from Whats
   for(const button of shortcuts)button.click();
   assert.deepEqual(Array.from(dom.window.events),['whatsapp','balcao','orcamento','nova-venda','nova-compra','planejamento','paletes']);
   const panels=[...d.querySelectorAll('.home-panel-links button')];for(const button of panels)button.click();
-  assert.deepEqual(Array.from(dom.window.events).slice(-4),['painelUnicoVendas','painelCompras','paletes','painelCargas']);
+  assert.deepEqual(Array.from(dom.window.events).slice(-9),['painelUnicoVendas','externas','clientes','balcao','painelCompras','paletes','painelCargas','freteSolicitacoes','group:financeiro']);
   assert.equal(d.querySelector('.home-summary strong').textContent,'1');
   d.querySelector('.home-summary button').click();assert.equal(dom.window.events.at(-1),'painelUnicoVendas');
  }finally{dom.window.close();}
@@ -39,7 +39,7 @@ test('read-only and unapproved users do not gain creation shortcuts or panel sum
   const dom=await fixture(role);const d=dom.window.document;
   try{
    assert.deepEqual([...d.querySelectorAll('.home-shortcuts button b')].map(x=>x.textContent),role==='reader'?['WhatsApp','Pallets']:[]);
-   assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?4:0);
+   assert.equal(d.querySelectorAll('.home-panel-links button').length,role==='reader'?8:0);
    assert.equal(d.querySelectorAll('.home-summary button').length,role==='reader'?2:0);
    assert.equal(d.querySelectorAll('.home-shortcuts a').length,1);
   }finally{dom.window.close();}
