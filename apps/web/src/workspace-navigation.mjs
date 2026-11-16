@@ -1,4 +1,4 @@
-// Preserve original route IDs and permissions; expose three work panels and one logistics panel.
+// FORTE-OP: single in-app navigation with permission-filtered entry points.
 export function workspaceNavigation(canGroup,canScreen,unread=0){
  const item=(id,label,description,icon,screens=[],groups=[])=>({id,label,description,icon,screens,groups});
  const main=[item('home','Início','Painel único FORTE-OP','home',['home'])];
@@ -23,12 +23,12 @@ export function workspaceNavigation(canGroup,canScreen,unread=0){
  ['relatorios','Relatórios','Consulta e desempenho','file'],
  ['integracoes','Integrações','WhatsApp, Gmail, bancos e cartões','grid']
  ];
- const more=tools.filter(([g])=>canGroup(g)&&!(g==='cobrancas'&&canGroup('financeiro'))).map(([g,label,description,icon])=>item('group:'+g,label,description,icon,[],g==='financeiro'?['financeiro','cobrancas']:[g]));
+ const more=tools.filter(([g])=>canGroup(g)&&g!=='financeiro'&&!(g==='cobrancas'&&canGroup('financeiro'))).map(([g,label,description,icon])=>item('group:'+g,label,description,icon,[],g==='financeiro'?['financeiro','cobrancas']:[g]));
  if(canScreen('whatsapp'))more.unshift(item('whatsapp','WhatsApp — Central'+(unread?' ('+unread+')':''),'Conversas, respostas e anexos','users',['whatsapp']));
  return{main,more};
 }
 export function workspaceItemActive(item,screen,group){
  if(item.id===screen||item.screens.includes(screen))return true;
- if(['whatsapp','painelUnicoVendas','clientes','diretas','balcao','externas','painelCompras','comprasFornecedor','compraForte','paletes','painelCargas','ordensCarregamento','planejamento','todasCargas'].includes(screen))return false;
+ if(['whatsapp','painelUnicoVendas','clientes','diretas','balcao','externas','painelCompras','comprasFornecedor','compraForte','paletes','painelCargas','ordensCarregamento','planejamento','todasCargas','motorista','freteSolicitacoes'].includes(screen))return false;
  return item.groups.includes(group);
 }
