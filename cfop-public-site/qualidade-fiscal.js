@@ -19,7 +19,17 @@
   const scenario=input.triage||{};
   const scenarioReview=input.triageAssessment||{needsReview:true,issues:['Cenário tributário não analisado']};
   const scenarioIsGeneral=scenario.specialRegime==='nao'&&scenario.unusual==='nao'&&scenario.taxRegime&&scenario.taxRegime!=='nao_sei';
-  const completeFiscalRules=Boolean(scenarioIsGeneral)&&Array.isArray(stateData?.verifiedRules)&&stateData.verifiedRules.length>0&&Number(stateData?.verifiedRuleCount)>0;
+  const nature=s(input.nature);
+  const purpose=/revenda/.test(nature)?'revenda':/consumo/.test(nature)?'uso_consumo':/ativo/.test(nature)?'ativo_imobilizado':/industrializacao/.test(nature)?'industrializacao':'';
+  const now=new Date();
+  const localDate=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+  const legal=root.FORTE_FUNDAMENTO_LEGAL?.assess(stateData||{},{
+   fromUF:from.uf,toUF:to.uf,natureza:nature,finalidade:purpose,
+   ncm:product.code,cest:product.suggest?.cest,date:scenario.operationDate||localDate,
+   specialRegime:scenario.specialRegime
+  })||{hasApplicableReviewedRule:false,legalReviewedCount:0,
+   problems:['Módulo de revisão legal não carregado; não é possível homologar regras.'],xmlRequired:false};
+  const completeFiscalRules=Boolean(scenarioIsGeneral)&&legal.hasApplicableReviewedRule===true;
   const cfop=s(fiscal.cfop).trim();
   const cfopSingle=/^[1256]\.\d{3}$/.test(cfop);
   const buyerTaxProof=verifiedIE(to);
@@ -29,7 +39,8 @@
    "NCM do produto":officialNCM?'Código existente; enquadramento pendente':'Pendente',
    "CEST do produto":cestFound?'Correspondência indicativa':'Não identificado — pode não ser aplicável',
    "CFOP de saída/entrada":cfopSingle?'Hipótese única; revisar':'Condicional',
-   "Regra estadual da operação":completeFiscalRules?'Regra registrada; revisar escopo':'Sem regra homologada aplicável',
+   "Regra estadual da operação":completeFiscalRules?'Regra com revisão legal registrada; conferir demais condições':'Fundamento legal ainda não homologado',
+   "Base da homologação":'Legislação oficial, vigência, exceções e revisão — XML não exigido',
    "Regime da empresa consultante":scenario.taxRegime&&scenario.taxRegime!=='nao_sei'?'Informado pelo usuário':'Não confirmado',
    "Regime especial/benefício":scenario.specialRegime==='sim'?'Declarado — depende de ato e vigência':scenario.specialRegime==='nao'?'Não declarado':'Não confirmado',
    "Condições especiais da operação":scenario.unusual==='sim'?'Declaradas — rever norma':scenario.unusual==='nao'?'Não declaradas':'Não confirmadas',
@@ -38,7 +49,7 @@
   if(!route)add("UF","Confirmar a UF efetiva do estabelecimento e o local da operação.");
   if(input.goodsOrigin==='desconhecida'||!input.goodsOrigin)add("ORIGEM","Confirmar aquisição de terceiros ou produção própria do remetente.");
   if(!officialNCM)add("NCM_CODIGO","Confirmar NCM vigente na base oficial.");
-  add("NCM_PRODUTO","Confirmar o enquadramento NCM pelo produto real, composição, aplicação, XML ou ficha técnica. Consultar o Sistema Classif da Receita se necessário.");
+  add("NCM_PRODUTO","Determinar NCM pelas características do produto, regras gerais, notas legais, NESH e soluções oficiais da Receita no Classif. NCM em XML é apenas informação auxiliar.");
   if(!cestFound&&cest)add("CEST","Conferir CEST candidato contra a descrição legal, NCM e segmento; CEST não é obrigatório para todas as mercadorias.");
   if(!cest&&Array.isArray(product.cests)&&product.cests.length)add("CEST_CANDIDATO","Há CESTs possíveis relacionados ao NCM, mas nenhum foi confirmado pela descrição do produto. Isso não prova que exista ICMS-ST devido.");
   if(!buyerTaxProof){
@@ -52,14 +63,14 @@
    if(input.simulation===true)add('DOCUMENTOS','Simulação por UF, sem CNPJ/CPF de uma ou ambas as partes. Identidade, inscrição e localização real não confirmadas.');
    if(!journey.sellerType||journey.sellerType==='nao_sei')add('TIPO_FORNECEDOR','Confirmar se o vendedor é empresa, pessoa física ou produtor rural.');
    if(['pessoa_fisica','produtor_rural'].includes(journey.sellerType))add('NOTA_ENTRADA','Confirmar documento exigível e quem deve emiti-lo. Não presumir NF-e de saída de pessoa física/produtor rural.');
-   if(journey.invoiceStatus==='xml')add('XML','XML informado pelo usuário, mas não verificado automaticamente por esta consulta; conferir autorização e itens reais.');
-   else if(journey.invoiceStatus==='danfe')add('DANFE','Conferir XML autorizado. Foto ou DANFE isolados não comprovam todos os dados fiscais.');
-   else add('DOCUMENTO_PENDENTE','Confirmar o documento fiscal que acompanhará a compra.');
+   if(journey.invoiceStatus==='xml'||journey.invoiceStatus==='danfe')
+    add('DOCUMENTO_AUXILIAR','Documento informado como referência facultativa. A homologação depende da legislação, e não dos códigos/valores usados na nota anterior.');
    if(input.nature==='compra_ativo'&&journey.assetUse!=='sim')add('ATIVO','Confirmar se a máquina/bem será mesmo imobilizado; finalidade influencia CFOP e eventual DIFAL.');
    if(input.nature==='compra_ativo'&&['simples','mei','excesso'].includes(scenario.taxRegime))
     add('CIAP_REGIME','Simples/MEI declarado: não atribuir automaticamente créditos de ICMS via CIAP; verificar regime e exceções.');
   }
-  if(!completeFiscalRules)add("UF_REGRA","Regra estadual específica da rota, produto e cenário fiscal não homologada neste motor; verificar legislação e responsabilidade de ST/DIFAL.");
+  if(!completeFiscalRules)add("UF_REGRA","Ainda não há norma específica com vigência, escopo e revisão jurídica documentados para este cenário. Não usar XML de terceiros como prova de enquadramento.");
+  for(const problem of (legal.problems||[]).slice(0,5))add("FUNDAMENTO_LEGAL_"+issues.length,problem);
   if(!scenario.taxRegime||!scenario.specialRegime||!scenario.unusual)add("TRIAGEM_PENDENTE","Preencher a triagem inicial: regime da empresa, regime especial e particularidades da operação.");
   if(scenario.specialRegime==='sim')add("REGIME_ESPECIAL","Regime especial declarado pelo usuário: não aplicar benefício, CFOP, CST ou cálculo até conferir ato, vigência e alcance na operação.");
   if(scenario.specialRegime==='nao_sei')add("REGIME_DESCONHECIDO","Verificar se o emitente possui regime especial ou benefício fiscal aplicável.");
