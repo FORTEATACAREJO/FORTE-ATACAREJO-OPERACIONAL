@@ -10966,7 +10966,7 @@ function CadModal({
   isAdmin,
 }) {
   if (type === "usuarios" && !isAdmin) return null;
-  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers}/>;
+  if(type==="motoristas")return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} isAdmin={isAdmin}/>;
   const meta = META[type];
   const list = data[type] || [];
   const [edit, setEdit] = useState(null);
