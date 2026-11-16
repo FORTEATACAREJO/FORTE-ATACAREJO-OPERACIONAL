@@ -428,6 +428,10 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
     r.note=(r.note?r.note+' ':'')+'O tratamento específico pode alterar tributos e códigos; o NCM isolado não determina a operação.';
    if(context.specialRegime!=='sim')r.cfop='CFOP a confirmar para operação especial';
   }
+  if(!info.code){
+   r.cfop='Confirmar NCM do produto';
+   r.confidence='Classificação da mercadoria pendente';
+  }
  }
  return r;
 }
