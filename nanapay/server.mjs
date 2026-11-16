@@ -192,7 +192,7 @@ const server=http.createServer(async(req,res)=>{
    const requestId=String(x.requestId||'');
    if(!product||!Number.isInteger(qty)||qty<1||qty>10||!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Pedido inválido');
    const previous=s.orders.find(o=>o.requestId===requestId);
-   if(previous){if(previous.person!==person.id)throw Object.assign(new Error('ID de solicitação pertence a outro cliente'),{http:409});return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});}
+   if(previous){if(previous.person!==person.id||previous.menuId!==product.id||previous.qty!==qty||previous.note!==note)throw Object.assign(new Error('ID de solicitação já utilizado em outro pedido'),{http:409});return reply(res,200,{ok:true,duplicate:true,orderId:previous.id});}
    if(s.orders.length>=50)throw Object.assign(new Error('Limite de pedidos da sessão de teste atingido'),{http:429});
    const requested={id:rand(),requestId,person:person.id,menuId:product.id,name:product.name,qty,unit:product.unit,note,table:person.table||s.table,status:'solicitado',itemId:null,createdAt:now(),updatedAt:now(),statusHistory:[{status:'solicitado',at:now()}]};
    s.orders.push(requested);
@@ -281,11 +281,14 @@ const server=http.createServer(async(req,res)=>{
    // For a real POS integration, its own immutable transaction reference is mandatory.
    const requestId=x.requestId===undefined?null:String(x.requestId||'');
    if(requestId!==null&&!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId))throw new Error('Identificador do pagamento inválido');
+   const amount=money(x.amount),person=existingPerson(s,x.person);
    if(requestId!==null){
     const prior=s.payments.find(p=>p.requestId===requestId);
-    if(prior)return reply(res,200,{ok:true,confirmed:true,duplicate:true,paymentId:prior.id});
+    if(prior){
+     if(prior.amount!==amount||prior.method!==x.method||prior.person!==(person?.id||null))throw Object.assign(new Error('Identificador já utilizado em outro pagamento'),{http:409});
+     return reply(res,200,{ok:true,confirmed:true,duplicate:true,paymentId:prior.id});
+    }
    }
-   const amount=money(x.amount),person=existingPerson(s,x.person);
    if(amount>snapshot(s).balance)throw new Error('Pagamento maior que o saldo');
    if(!['pix','cartao','dinheiro'].includes(x.method))throw new Error('Forma de pagamento inválida');
    const payment={id:rand(),requestId,person:person?.id||null,amount,method:x.method,status:'confirmed',at:now()};s.payments.push(payment);recordEvent(s,'pagamento','Pagamento confirmado no caixa · '+x.method+(person?' · '+person.name:''),-amount,payment.id);
