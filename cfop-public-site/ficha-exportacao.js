@@ -60,6 +60,18 @@
    validacao:{status:'pendente',can_use_for_automatic_issuing:false,requires_manual_review:true,
     avisos:pending,regra_estadual_homologada_para_consulta:Number(rules?.verifiedRuleCount||0)},
    operacao:{
+    cenario_tributario_declarado:{
+     regime_emitente:clean(input.triage?.taxRegime,50)||'nao_informado',
+     regime_especial:clean(input.triage?.specialRegime,20)||'nao_informado',
+     tributo_afetado:clean(input.triage?.specialKind,30)||null,
+     alcance_declarado:clean(input.triage?.specialScope,20)||null,
+     vigencia_declarada:clean(input.triage?.specialValidity,20)||null,
+     referencia_ato:includeIdentifiers?redact(input.triage?.specialAct||'').slice(0,90)||null:null,
+     particularidade:clean(input.triage?.unusual,20)||'nao_informado',
+     tipo_particularidade:clean(input.triage?.unusualKind,30)||null,
+     data_operacao:clean(input.triage?.operationDate,12)||null,
+     observacao:'Condição declarada pelo usuário; não constitui comprovação legal de benefício ou regime.'
+    },
     perfil:clean(input.profile,45)||null,
     natureza:clean(input.nature,65)||null,
     origem_mercadoria:clean(input.goodsOrigin,35)||null,
