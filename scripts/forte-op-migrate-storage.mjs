@@ -11,6 +11,9 @@ const TARGET_BUCKET='forte-op-frete-documentos';
 const required=['FRETE_LEGACY_SUPABASE_URL','FRETE_LEGACY_SERVICE_ROLE_KEY','FORTE_OP_SUPABASE_URL','FORTE_OP_SERVICE_ROLE_KEY'];
 const missing=required.filter(key=>!process.env[key]);
 if(missing.length)throw new Error('Variáveis de ambiente ausentes: '+missing.join(', '));
+const projectRef=value=>{try{return new URL(value).hostname.split('.')[0]}catch{return ''}};
+if(projectRef(process.env.FRETE_LEGACY_SUPABASE_URL)!=='nkynfboqwfxhhxcsrawl'||projectRef(process.env.FORTE_OP_SUPABASE_URL)!=='gtwecfyffjszghnvtlzr')
+  throw new Error('Origem/destino não são os projetos FORTE conferidos; operação bloqueada.');
 const execute=process.argv.includes('--execute')&&process.env.FORTE_OP_MIGRATION_ALLOWED==='1';
 const opts={auth:{persistSession:false,autoRefreshToken:false}};
 const source=createClient(process.env.FRETE_LEGACY_SUPABASE_URL,process.env.FRETE_LEGACY_SERVICE_ROLE_KEY,opts);
