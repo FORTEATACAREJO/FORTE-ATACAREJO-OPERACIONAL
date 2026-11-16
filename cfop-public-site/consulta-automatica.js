@@ -18,7 +18,7 @@ async function stateRules(from,to,info,nature,context){
   '&natureza='+encodeURIComponent(nature||'')+
   (finalidade?'&finalidade='+encodeURIComponent(finalidade):'')+
   (context?.operationDate?'&date='+encodeURIComponent(context.operationDate):'')+
-  (context?.taxRegime&&context.taxRegime!=='nao_sei'?'&regime='+encodeURIComponent(context.taxRegime):'');
+  (nature&&nature.startsWith('venda')&&context?.taxRegime&&context.taxRegime!=='nao_sei'?'&regime='+encodeURIComponent(context.taxRegime):'');
  try{return await jsonFetch(url,{},9000)}catch(_){return null}
 }
 function taxpayerStatus(company,declared){
@@ -261,6 +261,9 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   certified:Number(stateData?.verifiedRuleCount||0)
  };
  if(!from.uf||!to.uf)r.pending.push('Confirmar UF de origem/destino e local de entrega.');
+ if(from.kind==='manual'||to.kind==='manual')
+  r.pending.push('Esta é uma simulação baseada na UF declarada, sem conferência dos CNPJs. Confirmar estabelecimentos, destinatário efetivo, inscrição estadual e local da entrega para orientar uma operação real.');
+ if(isPurchase)r.pending.push('Na compra, normalmente o fornecedor emite a NF-e de saída. O comprador confere o documento recebido e, quando aplicável, registra a entrada; não confundir CFOP do fornecedor com o de entrada da sua empresa.');
  if(ownership==='desconhecida')r.pending.push('Confirmar se a mercadoria foi adquirida de terceiros ou fabricada pelo remetente.');
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
   r.pending.push('Conferir XML anterior: retenção de ST na aquisição foi declarada, mas pode não dispensar ST/DIFAL na operação atual ou no destino.');
@@ -310,6 +313,13 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }else{
   r.note='Operação especial ou finalidade desconhecida: documento original e natureza específica podem mudar o CFOP.';
   r.pending.push('Informar motivo/documento fiscal vinculado para determinar CFOP desta operação.');
+ }
+ if(isPurchase&&nature==='compra_ativo'&&from.uf==='MG'&&to.uf==='GO'){
+  r.pending.push('Máquina/equipamento para integrar o ativo imobilizado em GO: confirmar se a empresa é contribuinte de ICMS, o NCM, o regime e o uso efetivo do bem.');
+  r.pending.push('Verificar eventual ICMS diferencial de alíquotas na aquisição interestadual para ativo imobilizado, responsabilidade, comprovante, prazo e possíveis créditos via CIAP, conforme condições legais.');
+  sources.push({label:'SEFAZ-GO — Guia prático EFD 5.9: aquisição interestadual para ativo imobilizado e CIAP',
+    url:'https://goias.gov.br/economia/wp-content/uploads/sites/45/2026/03/Guia_pratico_5.9.pdf'});
+  r.note=(r.note?r.note+' ':'')+'Exemplo de compra MG → GO para uso como máquina da empresa: confira a NF-e emitida pelo vendedor e o registro de entrada do comprador; possível DIFAL e CIAP exigem apuração própria.';
  }
  const finalConsumer=/consumo|ativo/.test(nature)||nature==='venda_consumo';
  if(different&&finalConsumer&&(isSale||isPurchase)){
@@ -441,7 +451,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
  const s=info.suggest||{};
  const ncm=info.code?ncmFmt(info.code):'Não identificado';
  const cest=s.cest&&info.code?cestFmt(s.cest):info.cests.length?info.cests.length+' correspondências possíveis':'Não identificado — pode não ser aplicável';
- const partyLine=p=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj)+' · '+safe(p.uf||'UF não confirmada');
+ const partyLine=p=>'<strong>'+safe(short(p.name||'Não identificado',65))+'</strong> · '+safe(p.cnpj||'CNPJ/CPF não informado')+' · '+safe(p.uf||'UF não confirmada');
  const details=[];
  if(s.detail)details.push('<p>'+safe(s.detail)+'</p>');
  if(info.official?.entry?.descricao)details.push('<p>Descrição da tabela NCM: '+safe(info.official.entry.descricao)+'</p>');
@@ -633,34 +643,52 @@ async function onSubmit(event,registerIfAsked=true){
  const profile=selectedProfile();
  if(!profile){showError('Selecione seu perfil: revenda, indústria ou consumidor final.');return}
  const from=normDoc($('fromCnpj').value),to=normDoc($('toCnpj').value);
+ const fromUfManual=$('fromUFManual').value,toUfManual=$('toUFManual').value;
  const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value,priorSt=$('priorSt').value;
  const declaredNcm=$('declaredNcm').value.replace(/\D/g,'');
  if($('declaredNcm').value.trim()&&declaredNcm.length!==8){showError('O NCM opcional deve ter oito dígitos. Confira no XML do fabricante.');return;}
  if(!goodsOrigin){showError('Selecione se a mercadoria foi adquirida de terceiros ou é de fabricação própria.');return}
  if(!nature){showError('Selecione a natureza da operação.');return}
- if(!validPartyDoc(from)){showError('Informe um CNPJ ou CPF de origem válido.');return}
- if(!validPartyDoc(to)){showError('Informe um CNPJ ou CPF de destino válido.');return}
+ if(from&&!validPartyDoc(from)){showError('O CNPJ/CPF do fornecedor/remetente está inválido. Corrija ou deixe vazio e informe apenas a UF.');return}
+ if(to&&!validPartyDoc(to)){showError('O CNPJ/CPF do destinatário está inválido. Corrija ou deixe vazio e informe apenas a UF.');return}
+ if(!from&&!validUf(fromUfManual)){showError('Informe o CNPJ/CPF ou a UF de origem da mercadoria.');return}
+ if(!to&&!validUf(toUfManual)){showError('Informe o CNPJ/CPF ou a UF do comprador/destino.');return}
  if(product.length<3){showError('Informe um produto com ao menos três caracteres.');return}
  const id=++runId,btn=$('submit');
  btn.disabled=true;btn.textContent='Pesquisando bases fiscais...';
  $('results').hidden=false;$('results').innerHTML='<div role="status">Consultando CNPJs, NCM e CEST... O resultado separa dados encontrados de informações pendentes.</div>';
- const input={from,to,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent,triage:scenario,triageAssessment:scenarioCheck};
+ const input={from,to,fromUfManual,toUfManual,simulation:!from||!to,journey:window.FORTE_JORNADA?.getIntent()||null,product:short(product,90),nature,goodsOrigin,priorSt,profile,buyerTaxStatus:$('buyerTaxStatus').value,natureText:$('nature').selectedOptions[0].textContent,triage:scenario,triageAssessment:scenarioCheck};
  try{
-  const parts=await Promise.allSettled([party(from),party(to),productInfo(product,declaredNcm||confirmedNcm)]);
+  const manualParty=uf=>({cnpj:'',name:'Identidade não informada (simulação)',uf,city:'',situation:'Não consultada',
+   simple:'Regime do estabelecimento não confirmado',registrations:[],source:'UF indicada pelo usuário; não confirmada em cadastro oficial',
+   seen:null,kind:'manual',verified:false});
+  const parts=await Promise.allSettled([
+   from?party(from):Promise.resolve(manualParty(fromUfManual)),
+   to?party(to):Promise.resolve(manualParty(toUfManual)),
+   productInfo(product,declaredNcm||confirmedNcm)
+  ]);
   if(id!==runId)return;
   const unavailable=doc=>({cnpj:doc,name:'Cadastro indisponível',uf:'',city:'',situation:'',simple:'Não confirmado',registrations:[],source:'Sem resposta',kind:'unavailable'});
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
+  // UF digitada na simulação não é cadastro cadastral nem prova de endereço de entrega.
+  for(const [who,uf,nome] of [[a,fromUfManual,'origem'],[b,toUfManual,'destino']]){
+   if(!who.uf&&validUf(uf)){who.uf=uf;who.source+='; UF fornecida pelo usuário';}
+   else if(who.uf&&validUf(uf)&&who.uf!==uf){
+    scenarioCheck.issues.push('A UF '+nome+' informada manualmente diverge da UF encontrada no cadastro. Confirmar estabelecimento e local efetivo da operação.');
+    scenarioCheck.needsReview=true;
+   }
+  }
   // Conferência indicativa: um cadastro público intermediário não confirma CRT,
   // mas pode apontar uma divergência que exige revisão antes da NF-e.
-  const declared=String(a.simple||'');
+  const declared=String((nature.startsWith('compra')?b:a).simple||'');
   const saysSimple=/\bOptante do Simples Nacional\b/i.test(declared)&&!/\bNão optante\b/i.test(declared);
   const saysNonSimple=/\bNão optante pelo Simples\b/i.test(declared);
   let mismatch='';
   if(saysSimple&&scenario.taxRegime==='normal')
-   mismatch='A consulta cadastral indica opção pelo Simples, mas foi declarado regime normal. Confirme o CRT atual do emitente antes de parametrizar.';
+   mismatch='A consulta cadastral indica opção pelo Simples, mas foi declarado regime normal. Confirme o CRT atual da empresa consultante antes de parametrizar.';
   else if(saysNonSimple&&['simples','mei','excesso'].includes(scenario.taxRegime))
-   mismatch='A consulta cadastral não indica opção pelo Simples, mas foi declarado Simples/MEI. Confirme o enquadramento atual e a data-base da fonte.';
+   mismatch='A consulta cadastral não indica opção pelo Simples, mas foi declarado Simples/MEI. Confirme o enquadramento atual da empresa consultante e a data-base da fonte.';
   if(mismatch){scenarioCheck.issues.push(mismatch);scenarioCheck.needsReview=true;input.regimeMismatch=mismatch;}
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
   lastNcmOptions=new Set([...(info.suggest?.options||[]).map(x=>x.ncm),...(info.results||[]).map(x=>x.codigo)].filter(v=>/^\d{8}$/.test(String(v||''))));
