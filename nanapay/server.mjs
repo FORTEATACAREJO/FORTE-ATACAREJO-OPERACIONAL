@@ -315,7 +315,7 @@ server.listen(PORT,'0.0.0.0',()=>{
  console.log('Nanapay DEMO escutando na porta',PORT);
  // Homologação somente: executar teste real HTTP após cada inicialização.
  // Processo de teste isolado, sem tocar em clientes e sessões desta instância.
- if(process.env.Nanapay_SKIP_SMOKE!=='1'){
+ if(process.env.NANAPAY_SKIP_SMOKE!=='1'){
   const smoke=spawn(process.execPath,[path.join(__dirname,'tests','smoke.mjs')],{cwd:__dirname,stdio:['ignore','pipe','pipe']});
   smoke.stdout.on('data',b=>console.log('[Nanapay TESTE]',String(b).trim()));
   smoke.stderr.on('data',b=>console.error('[Nanapay TESTE]',String(b).trim()));
