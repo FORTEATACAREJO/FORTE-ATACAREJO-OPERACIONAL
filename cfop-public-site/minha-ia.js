@@ -21,7 +21,8 @@
   goodsOrigin:el('goodsOrigin')?.selectedOptions?.[0]?.textContent?.trim()||'não informada',
   st:el('priorStContainer')?.hidden?'não se aplica/sem confirmação':el('priorSt')?.selectedOptions?.[0]?.textContent?.trim()||'não confirmada',
   product:onlyWords(el('product')?.value),
-  taxStatus:el('buyerTaxStatus')?.value||'unknown'
+  taxStatus:el('buyerTaxStatus')?.value||'unknown',
+  context:window.FORTE_TRIAGEM_FISCAL?.read()||null
  });
  function prompt(){
   const v=state(),result=el('results');
@@ -41,6 +42,17 @@
    'ST na aquisição anterior: '+onlyWords(v.st)+'.',
    'Condição de contribuinte do destinatário: '+(v.taxStatus==='sim'?'informado como contribuinte; IE ainda precisa de validação':v.taxStatus==='nao'?'informado como não contribuinte; comprovar condição':'não confirmada')+'.'
   ];
+  if(v.context){
+   base.push('Regime declarado do emitente: '+onlyWords(v.context.taxRegime||'não confirmado')+'.');
+   base.push('Regime especial ou benefício declarado: '+onlyWords(v.context.specialRegime||'não confirmado')+
+    (v.context.specialRegime==='sim'?', tributo afetado: '+onlyWords(v.context.specialKind||'não identificado')+
+     ', aplicabilidade declarada: '+onlyWords(v.context.specialScope||'não confirmada')+
+     ', vigência declarada: '+onlyWords(v.context.specialValidity||'não confirmada'):'')+'.');
+   base.push('Particularidade tributária: '+onlyWords(v.context.unusual||'não confirmado')+
+    (v.context.unusual==='sim'?', tipo: '+onlyWords(v.context.unusualKind||'não confirmado'):'')+'.');
+   if(v.context.operationDate)base.push('Data da operação informada: '+v.context.operationDate+'.');
+   base.push('Não presuma validade, abrangência ou autorização de regime especial sem analisar o ato legal. A referência do ato NÃO foi incluída neste texto.');
+  }
   if(route)base.push('UF remetente: '+route[1]+'; UF destinatário: '+route[2]+'.');
   if(hasResult){
    base.push('CFOP sugerido pela plataforma, ainda não homologado: '+onlyWords(rawCFOP||'indefinido')+'.');
