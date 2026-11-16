@@ -125,6 +125,18 @@ try{
  assert.equal(different.status,200);assert.notEqual(different.body.token,token,'Mesa 20 deve ter comanda diferente');
  const same20=await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'20'});
  assert.equal(same20.body.token,different.body.token,'Comanda de mesa deve ser estável enquanto aberta');
+ const beforeGuest=(await req('/api/session/'+different.body.token)).body;
+ assert.equal(beforeGuest.people.length,0,'Nova mesa começa sem convidados');
+ assert.equal(beforeGuest.subtotal,0);
+ assert.equal((await req('/api/pdv/item',{token:different.body.token,name:'Água antes do cliente',qty:2,price:'6,00'},staff)).status,200);
+ const preJoinBill=(await req('/api/session/'+different.body.token)).body;
+ assert.equal(preJoinBill.subtotal,1200,'Conta registra itens lançados pelo PDV mesmo antes de cliente entrar');
+ assert.equal(preJoinBill.balance,1200,'Saldo de mesa sem cliente deve aparecer no painel');
+ assert.equal(preJoinBill.people.length,0);
+ const afterGuest=await req('/api/client/join',{token:different.body.token,name:'Maria'});
+ assert.equal(afterGuest.status,201);
+ const afterGuestBill=(await req('/api/session/'+different.body.token)).body;
+ assert.equal(afterGuestBill.subtotal,1200,'Lançamentos anteriores à entrada do cliente não podem desaparecer');
  assert.equal((await req('/api/table/enter',{establishmentId:demo.establishmentId,table:'@@'})).status,400,'Mesa inválida deve ser rejeitada');
 
  const joined=await req('/api/client/join',{token,name:'João'});
