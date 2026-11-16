@@ -2212,7 +2212,7 @@ export default function App() {
         <div className="userSessionBox"><span>{currentUser?.nome}</span>{supabaseConfigured && <button className="dangerBtn sessionExit" onClick={()=>supabase?.auth.signOut()}>SAIR</button>}</div>
         <div className="sideVersion">
           <small>VERSÃO</small>
-          <b>V6.9.0</b>
+          <b>V6.9.1</b>
           <span>{cloudError?"⚠ Gravação pendente":"● Conectado"}</span>
           <small className="workspace-release">FORTE-OP unificado · 16/11/2026</small>
         </div>
@@ -12568,7 +12568,7 @@ function NewSale({ data, onClose, onSave, onDataChange }) {
   );
 }
 
-function CadastroIaModal({ data, onChange, currentUser, onClose }) {
+function CadastroIaModal({ data, onChange, currentUser, onClose, onOpenDrivers }) {
   const [tipo, setTipo] = useState("");
   const [documento, setDocumento] = useState("");
   const [nomeInformado, setNomeInformado] = useState("");
@@ -12715,7 +12715,7 @@ function CadastroIaModal({ data, onChange, currentUser, onClose }) {
         <p>Se o tipo não for informado, o sistema exige a escolha antes de analisar.</p>
         <div className="choiceButtons">
           <button className={tipo === "CLIENTE" ? "activeChoice" : "ghost dark"} onClick={() => setTipo("CLIENTE")}>CLIENTE</button>
-          <button className={tipo === "MOTORISTA" ? "activeChoice" : "ghost dark"} onClick={() => window.open("https://forte-frete.onrender.com","_blank","noopener,noreferrer")}>CADASTRAR MOTORISTA NO FORTE FRETE</button>
+          <button className={tipo === "MOTORISTA" ? "activeChoice" : "ghost dark"} onClick={onOpenDrivers}>CONSULTAR MOTORISTAS NO FORTE-OP</button>
         </div>
       </div>
       <div className="miniGrid aiCadastroFields">
