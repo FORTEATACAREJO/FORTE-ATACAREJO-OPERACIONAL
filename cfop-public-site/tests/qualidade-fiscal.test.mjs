@@ -62,7 +62,7 @@ test('mesmo com regra hipoteticamente aprovada, faltam documentos e valores',()=
  const r=evalCase({
   fiscal:{cfop:'6.102'},
   stateData:{verifiedRules:[{id:10}],verifiedRuleCount:1},
-  input:{goodsOrigin:'terceiros',buyerTaxStatus:'sim'}
+  input:{goodsOrigin:'terceiros',buyerTaxStatus:'sim',triage:{taxRegime:'normal',specialRegime:'nao',unusual:'nao'},triageAssessment:{issues:[]}}
  });
  assert.equal(hasCode(r,'UF_REGRA'),false);
  assert.ok(hasCode(r,'VALORES'));
