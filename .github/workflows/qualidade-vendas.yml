@@ -1,4 +1,4 @@
-name: Qualidade Forte Vendas
+name: Qualidade FORTE-OP
 on:
   push:
     branches: [main]
@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: qualidade-vendas-${{ github.ref }}
+  group: qualidade-forte-op-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   verificacao:
@@ -41,7 +41,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qualidade-forte-vendas
+          name: qualidade-forte-op
           path: |
             qa/playwright-report
             qa/reports
