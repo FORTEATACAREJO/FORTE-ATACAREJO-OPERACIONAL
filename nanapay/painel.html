@@ -18,8 +18,10 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
 .info{border:1px solid #d7ebdd;border-radius:14px;background:#f1faf4;padding:14px;font-size:13px;line-height:1.5}.warning{border-color:#f3dfbf;background:#fff8e6}.action{display:flex;gap:8px;flex-wrap:wrap}.mono{font:12px ui-monospace,monospace;overflow-wrap:anywhere;color:#376951}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:17px}
 #qr svg{width:190px;height:190px;max-width:100%}#alert{margin-top:12px;color:#217c41;line-height:1.5}.muted{color:var(--muted)}.divider{border:0;border-top:1px solid var(--line);margin:18px 0}footer{font-size:12px;color:#718479;text-align:center;padding:22px}
 @media(max-width:750px){.grid,.grid-three,.split{grid-template-columns:1fr}.card{padding:17px}.head{align-items:center}.brand{font-size:19px}.role-grid{grid-template-columns:1fr 1fr}main{padding:15px 13px 55px}}
+.alert-card{border:1px solid #cde9d3;background:#f3fbf6;border-radius:12px;padding:12px;margin:10px 0}.alert-card.pending{border-color:#e4cf9b;background:#fff8e8}.alert-title{font-size:15px;font-weight:800}.alert-card .mini{margin-top:5px}.alert-card .action{margin-top:9px}.waiting-badge{font-size:11px;color:#845d14;font-weight:800}
+.grid-three{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:750px){.grid-three{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head><body>
-<header><div class="head"><div class="brand" style="display:flex;align-items:center;gap:9px"><img src="/icon-192.png?v=8" alt="" width="40" height="40" style="border-radius:10px">NANA <span>PAY</span> <span class="pill">DEMO</span></div><a href="/">Conta do cliente</a></div></header>
+<header><div class="head"><div class="brand" style="display:flex;align-items:center;gap:9px"><img src="/icon-192.png?v=8" alt="" width="40" height="40" style="border-radius:10px">Nanapay <span class="pill">DEMO</span></div><a href="/">Conta do cliente</a></div></header>
 <main>
 <div id="login">
  <div class="eyebrow">Acesso exclusivo do estabelecimento</div>
@@ -32,7 +34,7 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
     <button class="role-btn" id="roleWaiter" onclick="chooseRole('garcom')">Garçom<span>Consulta das mesas e solicitações</span></button>
   </div>
   <form id="accessForm">
-    <label for="venue">Código do estabelecimento</label><input id="venue" required placeholder="Código gerado pelo administrador" autocomplete="off">
+    <label for="venue">Código do estabelecimento</label><input id="venue" required placeholder="Código de 8 caracteres" maxlength="8" style="text-transform:uppercase" autocomplete="off">
     <label for="accessKey">Chave de acesso do seu perfil</label><input id="accessKey" required type="password" autocomplete="off" placeholder="Sua chave individual">
     <button class="btn" type="submit" style="margin-top:13px;width:100%">Entrar no painel</button>
   </form>
@@ -52,9 +54,12 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
   <div class="card"><div class="mini">Mesas abertas</div><div class="big" id="activeTables">0</div></div>
   <div class="card"><div class="mini">Pedidos aguardando</div><div class="big" id="pendingOrders">0</div></div>
   <div class="card"><div class="mini">Devoluções pendentes</div><div class="big" id="pendingReturns">0</div></div>
+  <div class="card"><div class="mini">Chamadas do garçom</div><div class="big" id="pendingWaiterCalls">0</div></div>
  </div>
  <div class="grid">
   <div>
+   <div class="card"><div class="row"><h2>🔔 Chamadas do garçom</h2><button type="button" class="btn soft sm" onclick="enableWaiterNotifications()">Ativar notificações</button></div><p class="hint">Avisos por mesa. O garçom pode informar que está a caminho e marcar o atendimento, sem alterar a conta.</p><div id="waiterAlerts"></div></div>
+   <div class="card"><h2>Pedidos para atender</h2><p class="hint">Pedidos solicitados pelo cliente. A confirmação e cobrança continuam exclusivamente no PDV do restaurante.</p><div id="waiterOrderAlerts"></div></div>
    <div class="card"><div class="row"><h2>Mesas e comandas</h2><button class="btn soft sm" onclick="refresh()">Atualizar</button></div>
    <div id="tables"></div></div>
    <div class="card"><h2>Fluxo de devoluções</h2><div class="info">Os pedidos de devolução seguem para o PDV do restaurante. A aprovação, recusa e abatimento do valor nunca são realizados pelo Nanapay nem pelo painel do garçom.</div></div>
@@ -66,7 +71,7 @@ button{font:inherit;cursor:pointer}.btn{background:#087b4b;color:white;border:0;
      <button class="btn" type="submit">Salvar configurações</button>
     </form></div>
    <div class="card" id="adminPOS"><h2>Teste de integração com o PDV</h2><p class="hint">Use o simulador técnico ligado a este mesmo restaurante para testar lançamento, aceite de pedidos e decisões de devolução. Não faz parte das funções do garçom no Nanapay.</p><button class="btn soft" onclick="openTechnicalPOS()">Abrir PDV técnico conectado</button></div>
-   <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o Nanapay.</p><div id="qr"></div><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
+   <div class="card" id="adminQR"><h2>QR Code único</h2><p class="hint">O cliente informa o nome e o número da mesa ao abrir o Nanapay.</p><div id="qr"></div><p class="hint">Código para digitar, sem câmera:</p><strong id="restaurantPublicCode" class="mono" style="font-size:22px;letter-spacing:2px"></strong><div class="mono" id="qrLink"></div><div class="action" style="margin-top:10px"><button class="btn soft sm" onclick="copyQR()">Copiar endereço</button><a class="btn soft sm" style="text-decoration:none" id="openClient" target="_blank" rel="noopener">Abrir cliente</a></div></div>
    <div class="card" id="adminWaiters"><h2>Garçons autorizados</h2><form id="waiterForm"><label for="waiterName">Cadastrar garçom</label><input id="waiterName" required placeholder="Primeiro nome" minlength="2" maxlength="45"><button class="btn" type="submit">Criar acesso individual</button></form>
     <div id="newWaiterKey" class="info closed" style="margin-top:10px"></div><div id="waiters"></div></div>
    <div class="card" id="adminBilling"><h2>Licença Nanapay</h2><div class="row"><strong class="big">R$ 4,99</strong><span>/mês por estabelecimento</span></div><p class="hint">Cartão de crédito escolhido pelo administrador. A cobrança recorrente ainda não está ativada nesta demonstração.</p><span class="pill wait">Cobrança desativada</span></div>
