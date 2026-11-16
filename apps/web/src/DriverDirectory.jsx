@@ -53,6 +53,45 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
   setEditor(true);setMessage('');
  }
  const patch=(name,value)=>setForm(f=>({...f,[name]:value}));
+ async function saveDraft(){
+  if(!isAdmin||!selected)return setMessage('Selecione um motorista migrado para salvar o rascunho.');
+  setBusy(true);setMessage('');
+  try{
+   const user=await supabase.auth.getUser();
+   if(user.error||!user.data.user)throw Error('Sessão expirada.');
+   const grant=await supabase.rpc('access_current_module',{p_app:'vendas'});
+   if(grant.error||!grant.data?.allowed||!grant.data?.isAdmin)throw Error('Revisão restrita à administração.');
+   const capacity=Number(form.capacidade_operacional_kg);
+   const missing=[
+    !cpfValido(form.cpf)?'CPF':null,
+    digits(form.cnh).length!==11?'CNH':null,
+    digits(form.whatsapp).length<10?'WHATSAPP':null,
+    !form.proprietario_nome.trim()?'PROPRIETARIO':null,
+    !form.chave_pix.trim()?'PIX':null,
+    !form.favorecido_pix.trim()?'FAVORECIDO_PIX':null,
+    !(capacity>0)?'CAPACIDADE_OPERACIONAL':null,
+    'DOCUMENTOS_NAO_CONFERIDOS','APROVACAO_ADMINISTRATIVA'
+   ].filter(Boolean);
+   const payload={
+    nome:form.nome.trim(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
+    email:form.email.trim()||null,cnh:digits(form.cnh)||null,
+    categoria_cnh:form.categoria_cnh.trim()||null,validade_cnh:form.validade_cnh||null,
+    rntrc:form.rntrc.trim()||null,proprietario_nome:form.proprietario_nome.trim()||null,
+    proprietario_documento:digits(form.proprietario_documento)||null,
+    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim()||null,
+    capacidade_operacional_kg:capacity>0?capacity:null,requisitos_pendentes:missing,
+    revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()
+   };
+   if(!payload.nome)throw Error('O nome do motorista é obrigatório.');
+   const {data:updated,error}=await supabase.from('forte_op_motoristas_pendentes')
+    .update(payload).eq('source_id',selected).eq('situacao','PENDENTE_DOCUMENTOS')
+    .select('source_id').maybeSingle();
+   if(error)throw Error(error.message);
+   if(!updated)throw Error('Cadastro não está pendente ou usuário sem permissão.');
+   setMessage('Rascunho salvo sem ativar motorista. Pendências: '+missing.length+'.');
+   await load();
+  }catch(e){setMessage(e.message||'Erro ao salvar rascunho.');}finally{setBusy(false)}
+ }
  async function save(event){
   event.preventDefault();
   if(!isAdmin)return setMessage('Somente Master ou Administrador pode cadastrar motorista.');
@@ -118,7 +157,7 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
  </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
- <div className="rowActions"><button type="submit" disabled={busy}>SALVAR CADASTRO PARA HOMOLOGAÇÃO</button><button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
+ <div className="rowActions"><button type="submit" disabled={busy}>GERAR CADASTRO INATIVO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
  {isAdmin&&<ForteOpMigrationAudit/>}
  </section></div>;
 }
