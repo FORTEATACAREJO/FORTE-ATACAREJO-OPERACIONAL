@@ -649,6 +649,17 @@ async function onSubmit(event,registerIfAsked=true){
   const unavailable=doc=>({cnpj:doc,name:'Cadastro indisponível',uf:'',city:'',situation:'',simple:'Não confirmado',registrations:[],source:'Sem resposta',kind:'unavailable'});
   const a=parts[0].status==='fulfilled'?parts[0].value:unavailable(from);
   const b=parts[1].status==='fulfilled'?parts[1].value:unavailable(to);
+  // Conferência indicativa: um cadastro público intermediário não confirma CRT,
+  // mas pode apontar uma divergência que exige revisão antes da NF-e.
+  const declared=String(a.simple||'');
+  const saysSimple=/\bOptante do Simples Nacional\b/i.test(declared)&&!/\bNão optante\b/i.test(declared);
+  const saysNonSimple=/\bNão optante pelo Simples\b/i.test(declared);
+  let mismatch='';
+  if(saysSimple&&scenario.taxRegime==='normal')
+   mismatch='A consulta cadastral indica opção pelo Simples, mas foi declarado regime normal. Confirme o CRT atual do emitente antes de parametrizar.';
+  else if(saysNonSimple&&['simples','mei','excesso'].includes(scenario.taxRegime))
+   mismatch='A consulta cadastral não indica opção pelo Simples, mas foi declarado Simples/MEI. Confirme o enquadramento atual e a data-base da fonte.';
+  if(mismatch){scenarioCheck.issues.push(mismatch);scenarioCheck.needsReview=true;input.regimeMismatch=mismatch;}
   const info=parts[2].status==='fulfilled'?parts[2].value:{label:product,suggest:productHint(product),code:'',official:null,cests:[],issues:['Falha na pesquisa NCM.'],results:[]};
   lastNcmOptions=new Set([...(info.suggest?.options||[]).map(x=>x.ncm),...(info.results||[]).map(x=>x.codigo)].filter(v=>/^\d{8}$/.test(String(v||''))));
   const rules=await stateRules(a,b,info,nature,scenario);
