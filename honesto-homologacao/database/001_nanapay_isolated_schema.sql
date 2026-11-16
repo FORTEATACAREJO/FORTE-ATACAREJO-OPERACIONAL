@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS public.nanapay_guests (
  service_opt_in boolean NOT NULL DEFAULT false,
  UNIQUE(id,restaurant_id),
  UNIQUE(restaurant_id,session_token_digest),
+ UNIQUE(id,restaurant_id,account_id),
  CONSTRAINT nanapay_guests_account_tenant FOREIGN KEY(account_id,restaurant_id)
    REFERENCES public.nanapay_accounts(id,restaurant_id) ON DELETE RESTRICT
 );
@@ -75,10 +76,11 @@ CREATE TABLE IF NOT EXISTS public.nanapay_items (
  launched_at timestamptz NOT NULL DEFAULT now(),
  cancelled_at timestamptz,
  UNIQUE(id,restaurant_id),
+ UNIQUE(id,restaurant_id,account_id),
  CONSTRAINT nanapay_item_account_tenant FOREIGN KEY(account_id,restaurant_id)
    REFERENCES public.nanapay_accounts(id,restaurant_id) ON DELETE RESTRICT,
- CONSTRAINT nanapay_item_guest_tenant FOREIGN KEY(guest_id,restaurant_id)
-   REFERENCES public.nanapay_guests(id,restaurant_id) ON DELETE RESTRICT,
+ CONSTRAINT nanapay_item_guest_account_tenant FOREIGN KEY(guest_id,restaurant_id,account_id)
+   REFERENCES public.nanapay_guests(id,restaurant_id,account_id) ON DELETE RESTRICT,
  CONSTRAINT nanapay_item_cancel_time CHECK(state <> 'cancelled' OR cancelled_at IS NOT NULL)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS nanapay_item_pos_unique
@@ -98,10 +100,10 @@ CREATE TABLE IF NOT EXISTS public.nanapay_returns (
  UNIQUE(id,restaurant_id),
  CONSTRAINT nanapay_return_account_tenant FOREIGN KEY(account_id,restaurant_id)
    REFERENCES public.nanapay_accounts(id,restaurant_id) ON DELETE RESTRICT,
- CONSTRAINT nanapay_return_item_tenant FOREIGN KEY(item_id,restaurant_id)
-   REFERENCES public.nanapay_items(id,restaurant_id) ON DELETE RESTRICT,
- CONSTRAINT nanapay_return_guest_tenant FOREIGN KEY(guest_id,restaurant_id)
-   REFERENCES public.nanapay_guests(id,restaurant_id) ON DELETE RESTRICT,
+ CONSTRAINT nanapay_return_item_account_tenant FOREIGN KEY(item_id,restaurant_id,account_id)
+   REFERENCES public.nanapay_items(id,restaurant_id,account_id) ON DELETE RESTRICT,
+ CONSTRAINT nanapay_return_guest_account_tenant FOREIGN KEY(guest_id,restaurant_id,account_id)
+   REFERENCES public.nanapay_guests(id,restaurant_id,account_id) ON DELETE RESTRICT,
  CONSTRAINT nanapay_return_decision_time CHECK(status='pending' OR decided_at IS NOT NULL),
  CONSTRAINT nanapay_return_denied_reason CHECK(status<>'denied' OR char_length(btrim(coalesce(decision_reason,'')))>=5)
 );
@@ -125,8 +127,8 @@ CREATE TABLE IF NOT EXISTS public.nanapay_orders (
  UNIQUE(id,restaurant_id),
  CONSTRAINT nanapay_order_account_tenant FOREIGN KEY(account_id,restaurant_id)
    REFERENCES public.nanapay_accounts(id,restaurant_id) ON DELETE RESTRICT,
- CONSTRAINT nanapay_order_guest_tenant FOREIGN KEY(guest_id,restaurant_id)
-   REFERENCES public.nanapay_guests(id,restaurant_id) ON DELETE RESTRICT
+ CONSTRAINT nanapay_order_guest_account_tenant FOREIGN KEY(guest_id,restaurant_id,account_id)
+   REFERENCES public.nanapay_guests(id,restaurant_id,account_id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS public.nanapay_payments (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -143,8 +145,8 @@ CREATE TABLE IF NOT EXISTS public.nanapay_payments (
  UNIQUE(id,restaurant_id),
  CONSTRAINT nanapay_payment_account_tenant FOREIGN KEY(account_id,restaurant_id)
    REFERENCES public.nanapay_accounts(id,restaurant_id) ON DELETE RESTRICT,
- CONSTRAINT nanapay_payment_guest_tenant FOREIGN KEY(guest_id,restaurant_id)
-   REFERENCES public.nanapay_guests(id,restaurant_id) ON DELETE RESTRICT
+ CONSTRAINT nanapay_payment_guest_account_tenant FOREIGN KEY(guest_id,restaurant_id,account_id)
+   REFERENCES public.nanapay_guests(id,restaurant_id,account_id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS public.nanapay_audit_events (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -187,4 +189,13 @@ BEGIN
  END LOOP;
 END $$;
 REVOKE ALL ON SEQUENCE public.nanapay_audit_events_id_seq FROM anon, authenticated, PUBLIC;
+-- Service key belongs ONLY on trusted server. All other roles are denied.
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+ public.nanapay_restaurants, public.nanapay_staff, public.nanapay_tables,
+ public.nanapay_accounts, public.nanapay_guests, public.nanapay_items,
+ public.nanapay_returns, public.nanapay_orders, public.nanapay_payments,
+ public.nanapay_licenses TO service_role;
+REVOKE ALL ON public.nanapay_audit_events FROM service_role;
+GRANT SELECT, INSERT ON public.nanapay_audit_events TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.nanapay_audit_events_id_seq TO service_role;
 COMMIT;
