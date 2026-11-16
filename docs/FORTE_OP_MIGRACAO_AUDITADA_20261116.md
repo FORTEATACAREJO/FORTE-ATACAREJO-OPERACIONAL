@@ -42,3 +42,14 @@
 - Existem dependências com avisos de vulnerabilidade no npm audit; tratar antes de declarar homologação de segurança 100%.
 
 **Critério de conclusão:** nem deploy Live nem testes unitários isolados equivalem a migração 100% de dados/autenticação/arquivos; só declarar após confrontar origem e destino e homologar os perfis.
+
+## Verificações complementares em 16/11/2026
+
+- Reconferidos 38 snapshots originais em `frete_migracao.snapshots`, cada um com array de registros e checksum. Total: 151 registros; fonte atualmente também contém 151 registros nas mesmas 38 tabelas.
+- 36/38 tabelas com assinatura canônica dos registros idêntica. Uma assinatura difere apenas pelo campo `updated_at` de uma assinatura de notificações push; a outra pertence aos veículos e a comparação normalizada dos campos por ID não indicou divergência. A quantidade 151/151 isoladamente não equivale à validação de bytes.
+- Criada `public.forte_op_frete_identidades`, com 4 registros auditáveis: 2 CPFs compatíveis, 2 sem correspondência, sendo 1 Master e 1 Motorista. Nenhuma conta nova, senha, permissão ou papel foi concedido.
+- Simulação de RLS com perfis aprovados confirmou: Master lê 103 registros de arquivo, 4 identidades e 5 rotas; Operador Geral vê 5 rotas, mas não arquivo nem identidades; Vendedor Interno não acessa esses dados.
+- Criado componente `apps/web/src/ForteOpMigrationAudit.jsx`, exibido aos administradores no cadastro de motoristas. Consulta status de anexos, cadastros, veículos, rotas e acessos sem expor credenciais.
+- Criado `scripts/forte-op-migrate-storage.mjs`, executável mediante variáveis de ambiente de servidor separadas da aplicação cliente. Requer confirmação explícita no ambiente (`--execute` + `FORTE_OP_MIGRATION_ALLOWED=1`), calcula SHA-256, valida tamanhos, evita sobrescrita de arquivos diferentes e grava evidências de integridade. **Não foi executado com credenciais de origem e destino; os 6 arquivos físicos permanecem pendentes.**
+- Atalho antigo do Financeiro agora abre `/?app=financeiro` dentro da sessão do FORTE-OP. Manifesto Financeiro utiliza o mesmo ID de instalação `/` e os ícones FORTE-OP. Geração automática do APK Financeiro separado desativada (execução legada permanece manual), preservando instalações existentes.
+- Sem alteração das credenciais, da base do FORTE FISCAL ou de autorizações de produção.
