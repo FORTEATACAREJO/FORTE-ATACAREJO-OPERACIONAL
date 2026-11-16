@@ -202,12 +202,12 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
     <option value="produtor_rural">De produtor rural</option>
    </select>
   </div>
-  <div class="field full"><label for="purchaseInvoiceStatus">Você já tem a nota fiscal ou o XML do vendedor?</label>
+  <div class="field full"><label for="purchaseInvoiceStatus">Você já tem algum documento dessa compra? (opcional)</label>
    <select id="purchaseInvoiceStatus">
-    <option value="nao_sei">Ainda não</option>
-    <option value="xml">Sim, tenho o XML da NF-e</option>
-    <option value="danfe">Só tenho a DANFE ou uma foto da nota</option>
-    <option value="nao_emitida">A compra ainda não foi realizada</option>
+    <option value="nao_sei">Não tenho; quero orientação pela legislação</option>
+    <option value="xml">Tenho um XML para conferência opcional</option>
+    <option value="danfe">Tenho DANFE ou foto como referência</option>
+    <option value="nao_emitida">A operação ainda será realizada</option>
    </select>
   </div>
   <div class="field full" id="assetUseBlock" hidden>
@@ -375,7 +375,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  <div class="field full" id="priorStContainer" hidden>
   <label for="priorSt">ICMS-ST foi retido na compra anterior desta mercadoria?</label>
   <select id="priorSt">
-   <option value="unknown">Não sei / preciso consultar o XML</option>
+   <option value="unknown">Não sei / verificar regra e possível retenção</option>
    <option value="sim">Sim, consta da nota de compra</option>
    <option value="nao">Não consta retenção na nota de compra</option>
   </select>
@@ -441,8 +441,8 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
   <small>Atende mercadorias de todos os segmentos. Se o nome não identificar a classificação, o sistema pesquisará candidatos NCM.</small>
  </div>
  <details class="settings-group full" id="ncmDetails">
-  <summary>Já tenho o NCM no XML ou ficha técnica (opcional)</summary>
-  <div class="field"><label for="declaredNcm">NCM informado no documento do produto</label>
+  <summary>Já conheço o NCM do produto? (opcional)</summary>
+  <div class="field"><label for="declaredNcm">NCM conhecido (confira a descrição e características na legislação)</label>
    <input id="declaredNcm" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="Oito dígitos, por exemplo 10063021">
   </div>
   <p class="notice">A existência de um NCM na tabela não comprova seu enquadramento para o produto específico. CEST não é exigido para todas as mercadorias.</p>
