@@ -8,8 +8,8 @@ const legacyForm=source=>({
  nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
  email:source.email||'',cnh:digits(source.cnh_registro||source.cnh||''),categoria_cnh:source.categoria_cnh||'',
  validade_cnh:source.validade_cnh||'',rntrc:source.rntrc||'',proprietario_nome:source.proprietario_nome||'',
- proprietario_documento:digits(source.proprietario_cpf_cnpj||''),chave_pix:source.chave_pix||'',
- favorecido_pix:source.titular_pix||'',capacidade_operacional_kg:''
+ proprietario_documento:digits(source.proprietario_documento||source.proprietario_cpf_cnpj||''),chave_pix:source.chave_pix||'',
+ favorecido_pix:source.favorecido_pix||source.titular_pix||'',capacidade_operacional_kg:source.capacidade_operacional_kg??''
 });
 const cpfValido=value=>{
  const d=digits(value);
@@ -25,7 +25,7 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
  const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
-  .filter(m=>m.ativo!==false&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[existing,data,query]);
+  .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
  async function load(){
   if(!supabase)return;
   const [drivers,veiculos]=await Promise.all([
@@ -36,9 +36,11 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
   if(veiculos.error)throw new Error('Falha ao consultar veículos do FORTE-OP: '+veiculos.error.message);
   setExisting(drivers.data||[]);setVehicles(veiculos.data||[]);
   if(isAdmin){
-   const stored=await supabase.from('forte_op_frete_legado').select('id_origem,dados,situacao').eq('tabela_origem','motoristas').order('importado_em',{ascending:true}).limit(150);
-   if(stored.error)throw new Error('Falha ao conferir legado: '+stored.error.message);
-   setLegacy(stored.data||[]);
+   const stored=await supabase.from('forte_op_motoristas_pendentes')
+    .select('source_id,nome,cpf,whatsapp,email,cnh,categoria_cnh,validade_cnh,rntrc,proprietario_nome,proprietario_documento,chave_pix,favorecido_pix,capacidade_operacional_kg,situacao,requisitos_pendentes,veiculo_origem_id')
+    .order('nome').limit(150);
+   if(stored.error)throw new Error('Falha ao carregar motoristas pendentes: '+stored.error.message);
+   setLegacy((stored.data||[]).map(item=>({id_origem:item.source_id,dados:item,situacao:item.situacao,requisitos_pendentes:item.requisitos_pendentes||[]})));
   }
  }
  useEffect(()=>{let live=true;load().catch(e=>{if(live)setMessage(e.message)});return()=>{live=false}},[isAdmin]);
@@ -106,9 +108,9 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  <div className="flowTable"><table><thead><tr><th>Motorista</th><th>CPF</th><th>Capacidade</th><th>Status</th></tr></thead>
  <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td></tr>)}</tbody></table></div>
  {isAdmin&&<section><h3>Legado preservado — completar somente com documentos reais</h3>
- <p>Um registro legado não significa motorista aprovado. CPF, CNH, capacidade e Pix deverão ser conferidos antes da ativação.</p>
- <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Situação</th><th>Ação</th></tr></thead>
- <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{l.dados?.cnh_registro?'Informada':'PENDENTE'}</td><td>{l.situacao}</td>
+ <p>Os 23 cadastros antigos estão disponíveis para revisão no FORTE-OP e continuam inativos. Complete os dados reais, salve um rascunho e depois gere o cadastro definitivo inativo.</p>
+ <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Pendências</th><th>Situação</th><th>Ação</th></tr></thead>
+ <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{digits(l.dados?.cnh).length===11?'Informada':'PENDENTE'}</td><td>{l.requisitos_pendentes?.length||0}</td><td>{l.situacao}</td>
  <td>{existing.some(e=>e.id===l.id_origem)?'CADASTRO INATIVO CRIADO':<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR E COMPLETAR</button>}</td></tr>)}</tbody></table></div></section>}
  {isAdmin&&editor&&<form onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
  <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
