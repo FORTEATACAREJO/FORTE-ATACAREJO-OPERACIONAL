@@ -46,7 +46,7 @@ const natureMetadata=Object.freeze({
 });
 
 const profiles={
- revenda:{label:'Revenda',origin:'terceiros',help:'Revenda normalmente vende mercadoria adquirida de fornecedores. Confirme o XML e se houve ST na entrada.'},
+ revenda:{label:'Revenda',origin:'terceiros',help:'Revenda normalmente vende mercadoria adquirida de fornecedores. Consulte as regras legais sobre ST na operação anterior; o documento pode auxiliar, mas não comprova o enquadramento.'},
  industria:{label:'Indústria',origin:'propria',help:'Se você fabricou a mercadoria, marque fabricação própria. A indústria também pode vender itens comprados de terceiros: altere a origem quando for o caso.'},
  empresa:{label:'Empresa / serviços',origin:'desconhecida',help:'Empresas de serviços ou de outros setores podem comprar máquinas, materiais para uso e bens para seu patrimônio. A origem da mercadoria precisa ser confirmada no fornecedor.'},
  consumidor:{label:'Consumidor final',origin:'desconhecida',help:'Consumidor final informa o uso da mercadoria. A fabricação própria ou aquisição de terceiros se refere ao REMETENTE, não ao comprador.'}
@@ -78,7 +78,7 @@ function refreshProfileDetails(role,applyDefault){
  $('priorStContainer').hidden=!canAskRetention;
  if(!canAskRetention)$('priorSt').value='unknown';
  $('goodsOriginHelp').textContent=thirdParty?
-  'O fornecedor pode ser indústria, importador ou distribuidor; confirme origem fiscal e ICMS-ST no XML.':
+  'O fornecedor pode ser indústria, importador ou distribuidor; confirme a origem e a eventual responsabilidade por ICMS-ST na legislação aplicável.':
   $('goodsOrigin').value==='propria'?
    'Fabricação própria se refere ao estabelecimento remetente da NF-e.':
    'Se você é o destinatário, confirme se o remetente fabricou ou adquiriu a mercadoria.';
@@ -228,7 +228,7 @@ async function productInfo(label,selectedNcm){
   }
  }
  if(!code&&!results.length&&!(suggest?.options?.length))
-  issues.push('Nenhum NCM selecionado. Informe o NCM do XML/ficha técnica ou pesquise a classificação no Sistema Classif da Receita Federal.');
+  issues.push('Nenhum NCM selecionado. Identifique as características do produto e consulte notas legais, regras gerais e soluções de classificação no Sistema Classif da Receita Federal.');
  return {label,suggest,code,official,cests,issues,results,ncmSource:/^\d{8}$/.test(selected)?'informado_pelo_usuario':suggest?.ncm?'sugestao_catalogo':'nao_informado'};
 }
 function formatCompany(c){
@@ -266,7 +266,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(isPurchase)r.pending.push('Na compra, normalmente o fornecedor emite a NF-e de saída. O comprador confere o documento recebido e, quando aplicável, registra a entrada; não confundir CFOP do fornecedor com o de entrada da sua empresa.');
  if(ownership==='desconhecida')r.pending.push('Confirmar se a mercadoria foi adquirida de terceiros ou fabricada pelo remetente.');
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
-  r.pending.push('Conferir XML anterior: retenção de ST na aquisição foi declarada, mas pode não dispensar ST/DIFAL na operação atual ou no destino.');
+  r.pending.push('ST anterior declarada: verificar efeitos jurídicos dessa retenção, responsáveis e incidência na UF de destino. Um XML isolado não comprova o tratamento legal.');
  }
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='nao'){
   r.pending.push('Sem retenção de ST informada na compra anterior; verificar se havia obrigação de recolhimento antes da saída atual.');
@@ -274,7 +274,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  if(profile==='consumidor'&&meta.kind==='venda'){
   r.pending.push('Você indicou perfil consumidor final e operação de venda. Confirme quem é o emitente e a finalidade.');
  }
- if(!info.code||!info.official?.entry)r.pending.push('Confirmar NCM do produto conforme XML/ficha técnica; pesquisar código não certifica classificação.');
+ if(!info.code||!info.official?.entry)r.pending.push('Identificar tecnicamente o produto e aplicar regras gerais, notas legais, NESH e soluções de classificação da Receita Federal; NCM informado em nota não certifica enquadramento.');
  if(info.code&&info.suggest?.cest)r.pending.push('Confirmar CEST aplicável à descrição legal e vigência do produto.');
  if(isSale&&ownership!=='desconhecida'&&from.uf&&to.uf){
   const root=ownership==='propria'?'101':'102';
@@ -308,8 +308,8 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   else if(kind==='industrializacao')r.cfop=head+'101 ou '+head+'401';
   else r.cfop='Conferir finalidade';
   r.confidence='Alternativas conforme ST';
-  r.note='CFOP de entrada no destinatário: confirmar XML recebido e se há substituição tributária. A origem própria/de terceiros do fornecedor não define sozinha o CFOP da entrada.';
-  r.pending.push('Conferir XML e existência de ST na entrada para selecionar entre as alternativas de CFOP.');
+  r.note='CFOP de entrada do destinatário: aplicar a tabela oficial de CFOP e as normas de ST ao caso. O CFOP informado pelo fornecedor não determina automaticamente o CFOP de entrada.';
+  r.pending.push('Conferir legislação da UF de destino, tipo da aquisição e eventual ST para selecionar o CFOP de entrada.');
  }else{
   r.note='Operação especial ou finalidade desconhecida: documento original e natureza específica podem mudar o CFOP.';
   r.pending.push('Informar motivo/documento fiscal vinculado para determinar CFOP desta operação.');
@@ -358,7 +358,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
    'MG: produto relacionado na ST interna, mas UF de origem não listada no âmbito interestadual do grupo. O destinatário mineiro contribuinte poderá recolher ST na entrada, conforme art. 15, se o remetente não for responsável.';
   for(const src of mgEvidence.sources)sources.push({label:src.title,url:src.url});
   r.pending.push('Confirmar o NCM/CEST pelo produto real, IE do destinatário, regimes especiais e exceções legais de ST.');
-  r.pending.push('Verificar se o comprovante de ST anterior se refere à UF de destino; recolhimento na origem não prova quitação em MG.');
+  r.pending.push('Verificar pela legislação se ST anterior tem efeitos em MG; se o imposto tiver sido recolhido, o comprovante poderá auxiliar a demonstrar o pagamento, mas não substitui a lei.');
   if(buyer==='sim'){
    r.costWarning=mgAgreement?
     'MG: há previsão de ST interestadual para esse grupo; o remetente pode ter ICMS-ST adicional a recolher para MG. Conferir responsável, base, guia e prazo.':
@@ -410,7 +410,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.pending.push('Conferir o RICMS e os acordos aplicáveis na UF de destino para definir CFOP e responsável pela ST.');
  }
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
-  if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; verificar retenção no XML e se produz efeitos nesta operação e no destino.';
+  if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; determinar pela legislação se essa retenção produz efeitos na operação e na UF de destino.';
  }
  if(isPurchase&&journey?.mode==='compra'){
   r.purchaseReview={seller:journey.sellerType||'nao_sei',invoice:journey.invoiceStatus||'nao_sei',
@@ -428,11 +428,11 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
    r.pending.push('Confirmar se o fornecedor é empresa, pessoa física ou produtor rural e quem deve emitir o documento fiscal.');
   }
   if(journey.invoiceStatus==='xml'){
-   r.pending.push('O XML da aquisição foi informado como disponível, mas ainda não foi lido nesta consulta. Conferir chave, situação de autorização, emitente, itens, NCM e tributos no documento original.');
+   r.pending.push('O XML foi informado como disponível e poderá ser usado apenas como conferência auxiliar dos dados; a tributação correta será definida pela legislação, não pelo preenchimento anterior.');
   }else if(journey.invoiceStatus==='danfe'){
-   r.pending.push('A DANFE não substitui a validação do XML autorizado. Obter o XML para conferir os itens e a situação da NF-e.');
+   r.pending.push('A DANFE ou foto poderá auxiliar na identificação do produto, mas não é requisito da consulta nem fundamento para validar a tributação.');
   }else{
-   r.pending.push('Confirmar documentação que acompanhará a aquisição antes de registrar a entrada.');
+   r.pending.push('Não é necessário ter documento anterior para estudar a operação. Antes da operação efetiva, verificar o documento fiscal exigido na legislação.');
   }
   if(nature==='compra_ativo'){
    if(journey.assetUse==='nao'){
@@ -452,7 +452,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.cfop='Confirmar NCM do produto';
   r.confidence='Classificação do produto pendente';
   r.note='Não é possível concluir a orientação de impostos e CFOP sem confirmar a classificação fiscal, independentemente do setor.';
-  r.pending.push('Conferir o NCM do produto no XML/ficha técnica e no Sistema Classif da Receita; escolher uma das possibilidades apenas após essa conferência.');
+  r.pending.push('Determinar o NCM pelas características reais do produto, Regras Gerais Interpretativas, notas de Seção/Capítulo e soluções da Receita no Sistema Classif; notas de fornecedores são apenas informação auxiliar.');
  }
  if(r.certified===0)r.pending.push('Regra estadual específica ainda não homologada nesta consulta. Fontes das UFs estão disponíveis para conferência; não emitir apenas com base na sugestão.');
  r.pending.push('Para quantificar ST/DIFAL são necessários valor da operação, frete, alíquotas e eventuais reduções e regimes especiais.');
@@ -503,10 +503,10 @@ function resultHTML(input,from,to,info,fiscal,audit){
  ].filter(o=>/^\d{8}$/.test(String(o.ncm||'')));
  const uniqueNcm=[...new Map(ncmOptions.map(o=>[o.ncm,o])).values()].slice(0,12);
  const ncmQuestion=!info.code?
-  '<div class="ncm-choices"><strong>Confirme o NCM do produto</strong><p>Confira o XML do fabricante ou o <a target="_blank" rel="noopener noreferrer" href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif">Sistema Classif da Receita</a>. As opções abaixo são possibilidades, não classificação automática.</p>'+
+  '<div class="ncm-choices"><strong>Confirme o NCM do produto</strong><p>Consulte as características do produto, notas legais e soluções oficiais no <a target="_blank" rel="noopener noreferrer" href="https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/classif">Sistema Classif da Receita</a>. As opções abaixo são possibilidades, não classificação automática.</p>'+
   (uniqueNcm.length?'<div class="ncm-buttons">'+uniqueNcm.map(o=>
    '<button type="button" data-confirm-ncm="'+safe(o.ncm)+'">'+safe(ncmFmt(o.ncm))+' — '+safe(short(String(o.name||'').replace(/<[^>]*>/g,''),135))+'</button>').join('')+'</div>':
-   '<p>Nenhuma correspondência específica foi encontrada. Use o campo opcional de NCM conforme o documento do produto.</p>')+
+   '<p>Nenhuma correspondência específica foi encontrada. Se você já conhece um NCM, informe-o como hipótese a ser conferida com a classificação oficial.</p>')+
   '</div>':'';
 
  const scenarioSummary= input.triage?
@@ -519,7 +519,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
  const buyerFromIndividual=kind==='compra'&&['pessoa_fisica','produtor_rural'].includes(sellerKind);
  const stepText=kind==='compra'?[
   buyerFromIndividual?'Confirme na legislação da operação quem deve emitir o documento fiscal e se sua empresa terá de emitir nota de entrada; não presumir NF-e de saída de pessoa física ou produtor rural.':'Informe ao fornecedor como o bem será utilizado e solicite o documento fiscal exigível para seu estabelecimento.',
-  'Se houver NF-e, obtenha o XML autorizado e confira produto, NCM, estabelecimento e tributos; o CFOP de entrada do comprador não é necessariamente o CFOP de saída do fornecedor.',
+  'Aplique a legislação de entrada do comprador; documentos do vendedor podem ajudar a identificar o produto, mas não determinam automaticamente NCM, CFOP nem impostos.',
   input.nature==='compra_ativo'?
    'Se for equipamento de uso duradouro da empresa, verifique enquadramento no ativo, possível DIFAL e condições de crédito do ICMS/CIAP. Não presuma imposto devido ou crédito sem regra validada.':
    'Confirme a finalidade da compra, a eventual ST/antecipação e se haverá recolhimento adicional ao estado de destino.'
@@ -560,7 +560,7 @@ function resultHTML(input,from,to,info,fiscal,audit){
   (fiscal.costWarning?'<p class="tax-alert"><strong>Custo tributário adicional possível:</strong> '+safe(fiscal.costWarning)+'</p>':'')+
   '<article class="tax-situation"><h3>Tributação</h3><p><b>ICMS-ST:</b> '+safe(fiscal.st)+'</p>'+
   (input.profile==='revenda'&&input.goodsOrigin==='terceiros'?
-   '<p><b>ST na compra anterior:</b> '+safe(input.priorSt==='sim'?'Retenção declarada; confirmar no XML':input.priorSt==='nao'?'Sem retenção declarada':'Não informado')+'</p>':'')+
+   '<p><b>ST na compra anterior:</b> '+safe(input.priorSt==='sim'?'Retenção declarada; verificar efeito jurídico':input.priorSt==='nao'?'Sem retenção declarada':'Não informado')+'</p>':'')+
   (fiscal.difal!=='Não definido'?'<p><b>DIFAL:</b> '+safe(fiscal.difal)+'</p>':'')+
   '<p><b>Valores:</b> '+safe(fiscal.tax)+'. Sem valores da operação e regras confirmadas não há valor em R$.</p></article>'+
   '<details><summary>Detalhes técnicos da análise</summary><ul>'+fiscal.pending.map(p=>'<li>'+safe(p)+'</li>').join('')+'</ul></details>'+
@@ -706,7 +706,7 @@ async function onSubmit(event,registerIfAsked=true){
  const fromUfManual=$('fromUFManual').value,toUfManual=$('toUFManual').value;
  const product=$('product').value.trim(),nature=$('nature').value,goodsOrigin=$('goodsOrigin').value,priorSt=$('priorSt').value;
  const declaredNcm=$('declaredNcm').value.replace(/\D/g,'');
- if($('declaredNcm').value.trim()&&declaredNcm.length!==8){showError('O NCM opcional deve ter oito dígitos. Confira no XML do fabricante.');return;}
+ if($('declaredNcm').value.trim()&&declaredNcm.length!==8){showError('O NCM informado deve ter oito dígitos; confira suas regras e a descrição oficial no Classif.');return;}
  if(!goodsOrigin){showError('Selecione se a mercadoria foi adquirida de terceiros ou é de fabricação própria.');return}
  if(!nature){showError('Selecione a natureza da operação.');return}
  if(from&&!validPartyDoc(from)){showError('O CNPJ/CPF do fornecedor/remetente está inválido. Corrija ou deixe vazio e informe apenas a UF.');return}
