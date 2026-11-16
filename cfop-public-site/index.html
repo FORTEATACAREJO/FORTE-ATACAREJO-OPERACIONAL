@@ -65,6 +65,14 @@ p{line-height:1.55;margin:8px 0}small,.muted{color:#61748a;font-size:12px;line-h
 
 #results .tax-alert{border:1px solid #e1cc93;background:#fff9ec;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5;color:#6b4a13}
 
+
+.tax-triage{border:1px solid #bacbdd;border-radius:14px;padding:15px;margin:12px 0 20px;background:#f5f8fc;min-width:0}
+.tax-triage legend{font-size:16px;font-weight:750;color:#203c58;padding:0 6px}
+.tax-triage-intro{font-size:13px;line-height:1.55;margin:4px 0 12px;color:#536781}
+.tax-triage .field{min-width:0}
+.tax-triage .tax-conditional{background:#fff;border:1px solid #d0dce7;border-radius:11px;padding:12px}
+.tax-triage .notice{margin:10px 0 0;font-size:12px}
+
 #results .ncm-choices{border:1px solid #adc3d8;border-radius:11px;padding:14px;background:#f4f8fc;margin:12px 0}
 #results .ncm-choices strong{font-size:14px}
 #results .ncm-choices p{font-size:13px;margin:6px 0 11px;color:#526780}
@@ -139,6 +147,7 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
 <script src="/st-mg-evidencias.js?v=20261115b" defer></script>
 <script src="/classificacao.js?v=20261115c" defer></script>
 <script src="/ficha-exportacao.js?v=20261115a" defer></script>
+<script src="/triagem-fiscal.js?v=20261116a" defer></script>
 <script src="/consulta-automatica.js?v=20261115o" defer></script>
 <script src="/minha-ia.js?v=20261115a" defer></script>
 <script src="/pwa-actions.js?v=20261114a" defer></script>
@@ -158,6 +167,107 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
  <label class="opt-row" for="rememberMe"><input type="checkbox" id="rememberMe"><span>Lembrar meu CPF/CNPJ neste aparelho (opcional). <small>Sem cadastro ou envio ao servidor para guardar essa preferência.</small></span></label>
  <p class="notice" id="myDocStatus" role="status" aria-live="polite"></p>
 </details>
+<fieldset class="tax-triage" id="triageFiscal">
+ <legend>Antes de começar: qual é o cenário fiscal desta operação?</legend>
+ <p class="tax-triage-intro">Responda três perguntas. Outras aparecem somente quando necessárias. Se não souber, marque “Não sei”; o sistema não vai presumir um benefício.</p>
+ <div class="grid">
+  <div class="field full">
+   <label for="taxRegime">1. Qual o regime tributário do emitente da NF-e?</label>
+   <select id="taxRegime" required>
+    <option value="">Selecione o regime ou “Não sei”</option>
+    <option value="simples">Simples Nacional</option>
+    <option value="mei">MEI</option>
+    <option value="normal">Regime normal (lucro real ou presumido)</option>
+    <option value="excesso">Simples Nacional — excesso de sublimite</option>
+    <option value="rural">Produtor rural / pessoa física</option>
+    <option value="outro">Outro enquadramento</option>
+    <option value="nao_sei">Não sei — confirmar</option>
+   </select>
+   <small>O regime declarado será conferido com os cadastros e documentos disponíveis; não é prova automática do CRT.</small>
+  </div>
+  <div class="field full">
+   <label for="specialRegime">2. Existe regime especial ou benefício fiscal ativo que possa afetar esta operação?</label>
+   <select id="specialRegime" required>
+    <option value="">Selecione</option>
+    <option value="nao">Não, utilizo as regras gerais</option>
+    <option value="sim">Sim, existe regime especial / incentivo / benefício</option>
+    <option value="nao_sei">Não sei — preciso confirmar</option>
+   </select>
+  </div>
+  <div id="specialFields" class="tax-conditional full" hidden>
+   <div class="grid">
+    <div class="field full">
+     <label for="specialKind">Qual tributo ou obrigação o regime especial altera?</label>
+     <select id="specialKind">
+      <option value="">Selecione ou “Não sei”</option>
+      <option value="icms">ICMS — benefício, diferimento ou crédito</option>
+      <option value="st">ICMS-ST — substituto, responsabilidade ou dispensa</option>
+      <option value="pis_cofins">PIS/COFINS</option>
+      <option value="ipi">IPI</option>
+      <option value="ibs_cbs">IBS/CBS</option>
+      <option value="multiplos">Mais de um tributo</option>
+      <option value="outra">Outro tratamento</option>
+      <option value="nao_sei">Não sei qual</option>
+     </select>
+    </div>
+    <div class="field">
+     <label for="specialScope">O ato vale para esta mercadoria e operação?</label>
+     <select id="specialScope">
+      <option value="">Selecione</option>
+      <option value="sim">Sim, segundo o ato</option>
+      <option value="nao">Não</option>
+      <option value="nao_sei">Não sei</option>
+     </select>
+    </div>
+    <div class="field">
+     <label for="specialValidity">O ato está vigente nesta data?</label>
+     <select id="specialValidity">
+      <option value="">Selecione</option>
+      <option value="sim">Sim, segundo o ato</option>
+      <option value="nao">Não / está vencido</option>
+      <option value="nao_sei">Não sei</option>
+     </select>
+    </div>
+    <div class="field full">
+     <label for="specialAct">Referência do ato ou autorização (opcional)</label>
+     <input id="specialAct" autocomplete="off" maxlength="90" placeholder="Ex.: número da portaria ou do regime, sem senha ou documentos pessoais">
+     <small>Informação mantida nesta consulta no aparelho; o sistema não aplicará o benefício automaticamente.</small>
+    </div>
+   </div>
+  </div>
+  <div class="field full">
+   <label for="unusualOperation">3. Há alguma condição tributária diferente nesta operação?</label>
+   <select id="unusualOperation" required>
+    <option value="">Selecione</option>
+    <option value="nao">Não, operação comum</option>
+    <option value="sim">Sim, há uma particularidade</option>
+    <option value="nao_sei">Não sei — preciso confirmar</option>
+   </select>
+  </div>
+  <div class="field full tax-conditional" id="unusualFields" hidden>
+   <label for="unusualKind">Qual particularidade você conhece?</label>
+   <select id="unusualKind">
+    <option value="">Selecione ou “Não sei”</option>
+    <option value="retencao">ST já retida na compra anterior</option>
+    <option value="antecipacao">Antecipação tributária</option>
+    <option value="monofasico">Tributação monofásica</option>
+    <option value="isencao">Isenção, imunidade ou redução de tributo</option>
+    <option value="zfm">Zona Franca / área incentivada</option>
+    <option value="importacao">Importação</option>
+    <option value="exportacao">Exportação</option>
+    <option value="devolucao">Devolução ou retorno especial</option>
+    <option value="triangulacao">Triangular / entrega em terceiro</option>
+    <option value="outras">Outra condição</option>
+    <option value="nao_sei">Não sei qual</option>
+   </select>
+  </div>
+  <div class="field full">
+   <label for="operationDate">Data da operação (opcional; em branco = hoje)</label>
+   <input id="operationDate" type="date">
+  </div>
+ </div>
+ <p class="notice" id="triageStatus" role="status" aria-live="polite"></p>
+</fieldset>
 <div class="grid">
  <fieldset class="profile-chooser full" id="userProfileSelector">
   <legend>1. Qual é seu perfil nesta operação?</legend>
