@@ -191,7 +191,37 @@ footer{font-size:12px;text-align:center;color:#6a7b8d;padding:15px 12px 35px}
   <label for="journeyPurpose" id="journeyPurposeLabel">Para que será usada a mercadoria?</label>
   <select id="journeyPurpose"><option value="">Selecione a finalidade...</option></select>
  </div>
- <div id="journeyQuestionBlock" hidden>
+ <div id="purchaseChecks" class="tax-conditional" hidden>
+ <p class="guided-intro"><strong>Mais três detalhes simples sobre a compra</strong></p>
+ <div class="grid">
+  <div class="field full"><label for="purchaseSellerType">De quem você vai comprar?</label>
+   <select id="purchaseSellerType">
+    <option value="nao_sei">Ainda não sei</option>
+    <option value="empresa">De uma empresa / loja</option>
+    <option value="pessoa_fisica">De uma pessoa física</option>
+    <option value="produtor_rural">De produtor rural</option>
+   </select>
+  </div>
+  <div class="field full"><label for="purchaseInvoiceStatus">Você já tem a nota fiscal ou o XML do vendedor?</label>
+   <select id="purchaseInvoiceStatus">
+    <option value="nao_sei">Ainda não</option>
+    <option value="xml">Sim, tenho o XML da NF-e</option>
+    <option value="danfe">Só tenho a DANFE ou uma foto da nota</option>
+    <option value="nao_emitida">A compra ainda não foi realizada</option>
+   </select>
+  </div>
+  <div class="field full" id="assetUseBlock" hidden>
+   <label for="assetUse">A máquina será usada pela empresa por mais de um período, e não revendida?</label>
+   <select id="assetUse">
+    <option value="nao_sei">Ainda não sei</option>
+    <option value="sim">Sim, será um bem do patrimônio da empresa</option>
+    <option value="nao">Não, preciso escolher outra finalidade</option>
+   </select>
+  </div>
+ </div>
+ <p class="notice">Se comprar de pessoa física ou produtor rural, a emissão e o registro do documento podem seguir procedimentos diferentes. Não presumiremos que o vendedor emitirá NF-e.</p>
+</div>
+<div id="journeyQuestionBlock" hidden>
   <label for="journeyQuestion"><strong>Escreva sua dúvida como falaria com alguém</strong></label>
   <textarea id="journeyQuestion" rows="3" maxlength="350" placeholder="Ex.: Minha empresa é de Goiás. Quero comprar uma máquina em Minas Gerais. Como faço?"></textarea>
   <p class="notice">Você poderá continuar na consulta guiada ou utilizar o botão Minha IA. Não envie dados sigilosos na pergunta.</p>
