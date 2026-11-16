@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from './supabase.js';
+import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
@@ -116,5 +117,6 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
  </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
  <div className="rowActions"><button type="submit" disabled={busy}>SALVAR CADASTRO PARA HOMOLOGAÇÃO</button><button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
+ {isAdmin&&<ForteOpMigrationAudit/>}
  </section></div>;
 }
