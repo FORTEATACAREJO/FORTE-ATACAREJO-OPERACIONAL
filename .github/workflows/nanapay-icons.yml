@@ -2,11 +2,11 @@ name: Nanapay - atualizar icone aprovado
 on:
   push:
     branches:
-      - homolog/honesto-demo-isolada-20261113
+      - homolog/nanapay
     paths:
-      - "honesto-homologacao/assets/nanapay-selected.webp.base64"
-      - "honesto-homologacao/icon.svg"
-      - ".github/workflows/nana-pay-icons.yml"
+      - "nanapay/assets/nanapay-selected.webp.base64"
+      - "nanapay/icon.svg"
+      - ".github/workflows/nanapay-icons.yml"
   workflow_dispatch:
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
           import base64, hashlib, io
           from pathlib import Path
           from PIL import Image
-          root=Path("honesto-homologacao")
+          root=Path("nanapay")
           encoded=(root/"assets"/"nanapay-selected.webp.base64").read_text(encoding="ascii").strip()
           raw=base64.b64decode(encoded,validate=True)
           expected="d729dfcedd201b543292ce18fa087b82ccbe10cf7a96dba31be8471dddac376f"
@@ -49,7 +49,7 @@ jobs:
         run: |
           git config user.name "Nanapay GitHub Actions"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add honesto-homologacao/icon.svg honesto-homologacao/assets/icon-192.png.base64 honesto-homologacao/assets/icon-512.png.base64
+          git add nanapay/icon.svg nanapay/assets/icon-192.png.base64 nanapay/assets/icon-512.png.base64
           if git diff --cached --quiet; then
             echo "Icones ja correspondem a arte aprovada."
           else
