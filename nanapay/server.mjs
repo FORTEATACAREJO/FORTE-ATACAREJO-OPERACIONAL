@@ -51,7 +51,7 @@ function snapshot(s){
  let shared=0;for(const i of s.items){if(!i.active)continue;let v=i.qty*i.unit;if(i.person&&shares[i.person]!==undefined)shares[i.person]+=v;else shared+=v;}
  const sharedSplit=splitAmount(shared,s.people.map(p=>p.id));for(const [id,amt] of Object.entries(sharedSplit))shares[id]+=amt;
  const serviceBy=Object.fromEntries(s.people.map(p=>[p.id,p.service?Math.round(shares[p.id]/10):0]));
- const subtotal=Object.values(shares).reduce((a,b)=>a+b,0), service=Object.values(serviceBy).reduce((a,b)=>a+b,0);
+ const subtotal=s.items.filter(i=>i.active).reduce((sum,i)=>sum+i.qty*i.unit,0), service=Object.values(serviceBy).reduce((a,b)=>a+b,0);
  const paid=s.payments.filter(p=>p.status==='confirmed').reduce((a,p)=>a+p.amount,0);
  const balance=subtotal+service-paid;
  const individually=Object.fromEntries(s.people.map(p=>[p.id,Math.max(0,shares[p.id]+serviceBy[p.id]-s.payments.filter(x=>x.status==='confirmed'&&x.person===p.id).reduce((a,x)=>a+x.amount,0))]));
