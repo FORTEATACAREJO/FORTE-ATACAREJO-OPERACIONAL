@@ -140,7 +140,7 @@ function note(v,error=false){$('message').innerHTML='<div class="toast'+(error?'
 async function api(endpoint,body,needStaff=false){const r=await fetch(endpoint,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,token,memberToken}):undefined});let j=await r.json();if(!r.ok)throw Error(j.error||'Falha na operação');return j;}
 async function startNew(){try{if(es)es.close();const d=await api('/api/demo');token=d.token;establishmentId=d.establishmentId;memberToken='';visitorId='';history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));await connect()}catch(e){note(e.message,true)}}
 async function connect(){if(es)es.close();
- try{const saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('honesto-display-name'),lastTable=localStorage.getItem('honesto-last-table');if(lastName)$('joinName').value=lastName;if(lastTable&&!$('joinTable').value)$('joinTable').value=lastTable;}catch{}
+ try{const saved=JSON.parse(localStorage.getItem('nanapay-visitor:'+token)||'null');memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';const lastName=localStorage.getItem('nanapay-display-name'),lastTable=localStorage.getItem('nanapay-last-table');if(lastName)$('joinName').value=lastName;if(lastTable&&!$('joinTable').value)$('joinTable').value=lastTable;}catch{}
  $('inviteUrl').textContent=location.origin+'/?est='+encodeURIComponent(establishmentId);await refresh();
 try{es=new EventSource('/api/events/'+encodeURIComponent(token));es.addEventListener('change',()=>refresh());es.onerror=()=>{$('connection').textContent='Reconectando…';}}catch{}
 history.replaceState({},'',location.pathname+'?est='+encodeURIComponent(establishmentId)+'&token='+encodeURIComponent(token));}
@@ -170,7 +170,7 @@ function render(){const d=data,ids=names();$('restaurant').textContent=d.restaur
  const myMoves=d.transfers.filter(t=>t.person===visitorId);
  const awaiting=myMoves.find(t=>t.status==='pendente');
  $('movePending').textContent=awaiting?'Troca solicitada: '+awaiting.from+' → '+awaiting.to+' · Aguardando confirmação no sistema do restaurante':d.closed?'Comanda quitada e encerrada.':'';
- if(joined&&d.personalTable){try{localStorage.setItem('honesto-last-table',d.personalTable.replace(/^Mesa /,''));localStorage.setItem('honesto-current-comanda:'+establishmentId,JSON.stringify({token,memberToken,visitorId}))}catch{}}
+ if(joined&&d.personalTable){try{localStorage.setItem('nanapay-last-table',d.personalTable.replace(/^Mesa /,''));localStorage.setItem('nanapay-current-comanda:'+establishmentId,JSON.stringify({token,memberToken,visitorId}))}catch{}}
  const auditRows=[...d.timeline].reverse().map(e=>'<div class="row"><div><strong>'+escapeHtml(e.detail)+'</strong>'+timeInfo(e.at,'Movimentação')+'</div>'+(typeof e.amount==='number'?'<span class="value">'+fmt(e.amount)+'</span>':'')+'</div>').join('')||'<p class="small">Nenhuma movimentação registrada.</p>';
  $('accountHistory').innerHTML='<div class="row"><strong>Comanda aberta</strong><span>'+stamp(d.createdAt)+'</span></div>'+
  auditRows+(d.settledAt?'<div class="row"><strong>Quitação confirmada</strong><span>'+stamp(d.settledAt)+'</span></div>':'<div class="row"><strong>Status</strong><span class="pill warn">Aguardando quitação pelo caixa</span></div>');
@@ -206,13 +206,13 @@ function chooseMenu(id){
  if(!data.orderingEnabled){note('Este estabelecimento permite apenas visualizar o cardápio',true);return}
  $('orderProduct').value=id;displayOrderPrice();$('orderCard').scrollIntoView({behavior:'smooth',block:'center'})
 }
-async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.trim(),table=$('joinTable').value.trim().toUpperCase();
+async function joinNanapay(e){e.preventDefault();const name=$('joinName').value.trim(),table=$('joinTable').value.trim().toUpperCase();
  if(!/^[A-Z0-9]{1,6}$/.test(table)){note('Informe um número de mesa válido.',true);return}
  try{
   if(!establishmentId)throw Error('Abra o QR Code do estabelecimento primeiro');
   // A returning customer may have changed tables without changing the comanda.
   // Resume only if this device already owns a token for a comanda showing the selected current table.
-  let recent=null;try{recent=JSON.parse(localStorage.getItem('honesto-current-comanda:'+establishmentId)||'null')}catch{}
+  let recent=null;try{recent=JSON.parse(localStorage.getItem('nanapay-current-comanda:'+establishmentId)||'null')}catch{}
   if(recent?.token&&recent?.memberToken&&recent?.visitorId){
    try{
     const resumed=await fetch('/api/session/'+encodeURIComponent(recent.token)+'?memberToken='+encodeURIComponent(recent.memberToken));
@@ -226,12 +226,12 @@ async function joinHonesto(e){e.preventDefault();const name=$('joinName').value.
   const changed=token!==session.token;
   if(changed){
    token=session.token;
-   let saved=null;try{saved=JSON.parse(localStorage.getItem('honesto-visitor:'+token)||'null')}catch{}
+   let saved=null;try{saved=JSON.parse(localStorage.getItem('nanapay-visitor:'+token)||'null')}catch{}
    memberToken=saved?.memberToken||'';visitorId=saved?.visitorId||'';
   }
   if(memberToken&&visitorId){await connect();note('Sua comanda anterior foi retomada.');return}
   const j=await api('/api/client/join',{name});memberToken=j.memberToken;visitorId=j.person;
-  try{localStorage.setItem('honesto-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('honesto-display-name',name);localStorage.setItem('honesto-last-table',table)}catch{}
+  try{localStorage.setItem('nanapay-visitor:'+token,JSON.stringify({memberToken,visitorId}));localStorage.setItem('nanapay-display-name',name);localStorage.setItem('nanapay-last-table',table)}catch{}
   await connect();note('Bem-vindo(a), '+name+'! Mesa '+table+' confirmada.');}
  catch(ex){note(ex.message,true)}
 }
@@ -254,7 +254,7 @@ async function installNana(){
  if(nanaIsIos()){nanaBrowserInfo('Safari no iPhone: toque Compartilhar (quadrado com seta) → Adicionar à Tela de Início. Se estiver em outro aplicativo, copie o endereço e abra primeiro no Safari.');return}
  nanaBrowserInfo('Chrome no Android: toque ⋮ → Instalar aplicativo ou Adicionar à tela inicial. Se estiver no navegador interno de outro aplicativo, use Chrome / Safari acima.');
 }
-function installHonesto(){return installNana()}
+function installNanapay(){return installNana()}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 window.addEventListener('appinstalled',()=>{installPrompt=null;note('Nanapay instalado!')});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -270,7 +270,7 @@ async function contest(id){const reason=prompt('Por que deseja devolver ou conte
 async function changeSplit(){await action('/api/client/split',{mode:$('splitMode').value,count:Number($('splitCount').value)},false,'Divisão atualizada')}
 async function copyInvite(){const link=location.origin+'/?est='+encodeURIComponent(establishmentId);try{await navigator.clipboard.writeText(link);note('QR/link único do estabelecimento copiado. Informe a mesa ao abrir.')}catch{prompt('Copie o link único',link)}}
 $('newDemo').addEventListener('click',startNew);
-$('joinForm').addEventListener('submit',joinHonesto);
+$('joinForm').addEventListener('submit',joinNanapay);
 $('moveForm').addEventListener('submit',async e=>{e.preventDefault();
  const newTable=$('moveTable').value.trim().toUpperCase();
  if(!/^[A-Z0-9]{1,6}$/.test(newTable)){note('Informe a nova mesa corretamente',true);return}
@@ -288,7 +288,7 @@ $('orderForm').addEventListener('submit',async e=>{e.preventDefault();
 (async()=>{const qs=new URLSearchParams(location.search);
  if(qs.get('est'))establishmentId=qs.get('est');
  if(qs.get('token')){token=qs.get('token');try{await connect()}catch(e){note('Comanda expirada. Inicie outra demonstração.',true)}}
- else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('joinRestaurant').textContent='Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('honesto-last-table')||'';$('joinName').value=localStorage.getItem('honesto-display-name')||''}catch{}}
+ else if(establishmentId){$('joinPanel').classList.remove('hidden');$('installStrip').classList.remove('hidden');$('joinRestaurant').textContent='Restaurante Exemplo';try{$('joinTable').value=localStorage.getItem('nanapay-last-table')||'';$('joinName').value=localStorage.getItem('nanapay-display-name')||''}catch{}}
  else{await startNew()}
 })();
 setInterval(refresh,5000);
