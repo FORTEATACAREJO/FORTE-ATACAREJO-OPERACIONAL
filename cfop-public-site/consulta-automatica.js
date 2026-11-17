@@ -322,14 +322,8 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
   r.note='Operação especial ou finalidade desconhecida: documento original e natureza específica podem mudar o CFOP.';
   r.pending.push('Informar motivo/documento fiscal vinculado para determinar CFOP desta operação.');
  }
- if(isPurchase&&nature==='compra_ativo'&&from.uf==='MG'&&to.uf==='GO'){
-  r.pending.push('Máquina/equipamento para integrar o ativo imobilizado em GO: confirmar se a empresa é contribuinte de ICMS, o NCM, o regime e o uso efetivo do bem.');
-  sources.push({label:'Estado de Goiás — tabela de CFOP para entrada de bens no ativo (2.551 e 2.406, conforme operação com ST)',
-   url:'https://legisla.casacivil.go.gov.br/pesquisa_legislacao/106175'});
-  r.pending.push('Verificar eventual ICMS diferencial de alíquotas na aquisição interestadual para ativo imobilizado, responsabilidade, guia, prazo e créditos CIAP somente se o regime e os requisitos legais permitirem.');
-  sources.push({label:'SEFAZ-GO — Guia prático EFD 5.9: aquisição interestadual para ativo imobilizado e CIAP',
-    url:'https://goias.gov.br/economia/wp-content/uploads/sites/45/2026/03/Guia_pratico_5.9.pdf'});
-  r.note=(r.note?r.note+' ':'')+'Exemplo de compra MG → GO para uso como máquina da empresa: confira a NF-e emitida pelo vendedor e o registro de entrada do comprador; possível DIFAL e CIAP exigem apuração própria.';
+ if(isPurchase&&nature==='compra_ativo'&&different){
+  r.pending.push('Para compra interestadual de bem destinado ao ativo: conferir a legislação da UF de destino, possível DIFAL, regime da empresa, responsável, prazo e eventual direito a crédito sem presumir sua existência.');
  }
  const finalConsumer=/consumo|ativo/.test(nature)||nature==='venda_consumo';
  if(different&&finalConsumer&&(isSale||isPurchase)){
@@ -340,85 +334,15 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
  }else if(different&&isSale){
   r.difal=nature==='venda_revenda'?'Não é operação declarada de consumidor final; verificar ICMS-ST e finalidade real.':'DIFAL somente se operação for destinada a consumidor final, conforme condições legais.';
  }
-  const mgEvidence=window.FORTE_ST_MG_EVIDENCIAS?.evaluate({
-  from:from.uf,to:to.uf,ncm:info.code,cest:info.suggest?.cest
- })||null;
- const mgAgreement=mgEvidence?.status==='st_ambito_interestadual_por_acordo';
- const mgInternal=mgEvidence?.status==='st_ambito_interno'&&['0500100','1000200','1000300'].includes(mgEvidence?.base?.cest);
- if(mgInternal&&(isSale||isPurchase)){
-  r.mgLegalEvidence=mgEvidence;
-  r.st='MG: a mercadoria está relacionada na ST interna (Anexo VII). Confirmar o regime e a responsabilidade no caso específico.';
-  for(const src of mgEvidence.sources)sources.push({label:src.title,url:src.url});
-  r.pending.push('Conferir a NF-e de aquisição: retenção de ST para MG, condição de substituído ou substituto e eventuais exceções.');
-  if(isSale){
-   r.cfop=ownership==='terceiros'&&profile==='revenda'&&priorSt==='sim'?
-    '5.405 (hipótese, ST anterior em MG a comprovar)':'CFOP de ST interna a confirmar';
-   r.confidence='Orientação condicional à ST interna de MG';
-   r.note='Cimento/argamassa com ST interna pode exigir CFOP diferente de 5.102. O código depende de retenção anterior para MG e de quem é o responsável.';
-  }
- }
- const mgCimento=different&&mgEvidence?.base?.cest==='0500100';
- const mgArgamassa=different&&['1000200','1000300'].includes(mgEvidence?.base?.cest);
- if(mgCimento||mgArgamassa){
-  r.mgLegalEvidence=mgEvidence;
-  r.st=mgAgreement?
-   'MG: produto relacionado no Anexo VII, com UF de origem listada no âmbito interestadual deste grupo. Verificar a responsabilidade do remetente conforme arts. 13/14, regime e exceções.':
-   'MG: produto relacionado na ST interna, mas UF de origem não listada no âmbito interestadual do grupo. O destinatário mineiro contribuinte poderá recolher ST na entrada, conforme art. 15, se o remetente não for responsável.';
-  for(const src of mgEvidence.sources)sources.push({label:src.title,url:src.url});
-  r.pending.push('Confirmar o NCM/CEST pelo produto real, IE do destinatário, regimes especiais e exceções legais de ST.');
-  r.pending.push('Verificar pela legislação se ST anterior tem efeitos em MG; se o imposto tiver sido recolhido, o comprovante poderá auxiliar a demonstrar o pagamento, mas não substitui a lei.');
-  if(buyer==='sim'){
-   r.costWarning=mgAgreement?
-    'MG: há previsão de ST interestadual para esse grupo; o remetente pode ter ICMS-ST adicional a recolher para MG. Conferir responsável, base, guia e prazo.':
-    'MG: pode haver ICMS-ST adicional no momento da entrada, a cargo do destinatário contribuinte, quando a responsabilidade não couber ao remetente. Conferir guia e base.';
-   if(mgArgamassa&&mgAgreement&&isSale){
-    r.cfop=ownership==='propria'?'6.401 ou 6.101 (conforme ST)':'6.403 ou 6.102 (conforme ST)';
-    r.confidence='Alternativas — conferir responsabilidade do remetente pela ST';
-    r.note='Para argamassa com UF de origem incluída no acordo, confirmar se o remetente atua como substituto. O CFOP muda conforme a responsabilidade por ST.';
-   }
-   if(mgCimento&&isSale){
-    if(mgAgreement){
-     r.cfop=ownership==='propria'?'6.401 (hipótese ST)':ownership==='terceiros'?'6.403 (hipótese ST)':'CFOP depende da origem/ST';
-     r.confidence='CFOP condicionado à responsabilidade por ST';
-     r.note='O CFOP 6.401/6.403 pressupõe remetente substituto tributário. Confirme a operação e eventual exceção antes de parametrizar.';
-    }else{
-     r.cfop='CFOP a confirmar conforme retenção';
-     r.confidence='ST na entrada pode ser devida pelo destinatário';
-     r.note='Sem acordo interestadual listado para a origem, não presumir CFOP de remetente substituto. Conferir CFOP da saída e ST na entrada.';
-    }
-   }
-  }else if(buyer==='unknown'){
-   r.pending.push('Confirmar IE ativa ou não contribuinte do destinatário em MG; isso altera ST/DIFAL e CFOP.');
-   r.costWarning='MG: a operação pode gerar ST ou DIFAL a recolher no destino. Confirme a condição de contribuinte antes de atribuir quem paga.';
-   if(mgCimento&&isSale){r.cfop='Confirmar IE do destinatário';r.confidence='CFOP indefinido — ST ou DIFAL';}
-  }else if(buyer==='nao'&&isSale){
-   r.st='Operação destinada a não contribuinte: não presumir ST de operações subsequentes; avaliar DIFAL e condições legais.';
-   r.difal='Possível DIFAL ao estado de destino em operação interestadual para consumidor final não contribuinte.';
-   r.costWarning='MG: avaliar eventual DIFAL ao destino. Não afirmar ST de operações subsequentes sem confirmar a natureza da operação.';
-   if(mgCimento){
-    r.cfop=ownership==='propria'?'6.107 (hipótese)':'6.108 (hipótese)';
-    r.confidence='Hipótese de venda interestadual a não contribuinte';
-   }
-  }
- }else if(different&&nature==='venda_revenda'&&!r.costWarning){
-  r.pending.push('Verificar eventual ICMS-ST por NCM/CEST e acordos do estado de destino.');
-  r.costWarning='Se houver responsabilidade por ST no estado de destino, poderá haver recolhimento adicional. Ainda não verificado nesta consulta.';
- }
-
- // Para destino sem norma aprovada, não usar CFOP simples como resposta isolada
- // quando o cimento pode ter ST: XMLs autorizados MG→GO exibem tanto NCM/CEST
- // quanto CFOP 6.401 e ST, sem comprovar a regra vigente de todas as rotas.
- const otherDestCement=different&&to.uf!=='MG'&&buyer==='sim'&&isSale&&r.certified===0&&
-   /^2523\d{4}$/.test(info.code||'')&&String(info.suggest?.cest||'').replace(/\D/g,'')==='0500100';
- if(otherDestCement){
-  r.cfop=ownership==='propria'?'6.101 ou 6.401 (conforme ST do destino)':
-    ownership==='terceiros'?'6.102 ou 6.403 (conforme ST do destino)':'CFOP pendente de origem/ST';
-  r.confidence='Alternativas — ST do destino não homologada';
-  r.note='Acordos, responsabilidade e exceções do estado de destino não estão homologados nesta rota. A orientação exige conferência documental antes de parametrizar.';
-  r.pending.push('Conferir o RICMS e os acordos aplicáveis na UF de destino para definir CFOP e responsável pela ST.');
+ // Análise tributária de alcance nacional: nenhuma exceção codificada para um produto ou UF.
+ // ST/DIFAL só passam de hipótese a regra aplicável após norma oficial, vigência,
+ // tipo de operação, regime, exceções e revisão jurídica documentada.
+ if(different&&(isSale||isPurchase)){
+  r.pending.push('Verificar ICMS-ST, antecipação ou DIFAL de acordo com a norma vigente da UF de destino, a mercadoria e o enquadramento do adquirente.');
+  if(!r.costWarning)r.costWarning='Poderá existir imposto adicional no estado de destino; responsabilidade, incidência e valor ainda não estão juridicamente confirmados.';
  }
  if(profile==='revenda'&&ownership==='terceiros'&&priorSt==='sim'){
-  if(!mgCimento&&!mgArgamassa)r.note=(r.note?r.note+' ':'')+'ST anterior informada pelo usuário; determinar pela legislação se essa retenção produz efeitos na operação e na UF de destino.';
+  r.note=(r.note?r.note+' ':'')+'Eventual ST anterior exige análise dos efeitos jurídicos na operação atual e na UF envolvida; documento anterior não determina a norma.';
  }
  if(isPurchase&&journey?.mode==='compra'){
   r.purchaseReview={seller:journey.sellerType||'nao_sei',invoice:journey.invoiceStatus||'nao_sei',
@@ -428,10 +352,7 @@ function fiscalStatus(nature,from,to,info,ownership,buyerDeclaration,stateData,p
    r.confidence='Operação de compra com vendedor não empresarial típico';
    r.note='O documento fiscal e a pessoa responsável pela emissão dependem das regras aplicáveis ao vendedor e ao adquirente. Não pressupor que uma pessoa física ou produtor rural emita NF-e comum de saída.';
    r.pending.push('Verificar se o vendedor possui inscrição estadual/credenciamento e qual documento deve acobertar a operação; a empresa adquirente pode ter obrigação de documento de entrada conforme a UF e o caso concreto.');
-   if(to.uf==='GO'){
-    sources.push({label:'SEFAZ-GO — tipos de documentos fiscais e NF-e/NFA-e',url:'https://goias.gov.br/economia/documentos-fiscais/'});
-    if(journey.sellerType==='produtor_rural')sources.push({label:'SEFAZ-GO — cadastramento de produtor rural pessoa física',url:'https://goias.gov.br/economia/cadastramento-de-produtor-rural-ou-urbano-ou-extrator-mineral-pessoa-fisica/'});
-   }
+
   }else if(journey.sellerType==='nao_sei'){
    r.pending.push('Confirmar se o fornecedor é empresa, pessoa física ou produtor rural e quem deve emitir o documento fiscal.');
   }
