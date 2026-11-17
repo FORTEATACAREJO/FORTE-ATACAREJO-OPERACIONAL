@@ -6,11 +6,15 @@
 :root{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#19324d;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#102640;color:#fff;padding:15px max(16px,calc((100% - 1050px)/2));display:flex;gap:14px;align-items:center;justify-content:space-between}header a{color:#fff;text-decoration:none;border:1px solid #bccadc;border-radius:9px;padding:9px 11px;font-size:13px}header img{width:45px;height:45px}main{max-width:1070px;padding:25px 15px 60px;margin:auto}h1{font-size:clamp(24px,5vw,34px);margin:0 0 8px}h2{font-size:19px}p{line-height:1.55}.hint{color:#64758a;font-size:14px}.panel{background:#fff;border:1px solid #dee6ee;border-radius:12px;padding:19px;margin:15px 0;box-shadow:0 2px 9px #0c27340b}.notice{border-left:4px solid #cba34d;padding:11px 15px;background:#fff7e5;border-radius:5px;line-height:1.52;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px}.source{border:1px solid #dbe6f0;border-radius:11px;padding:15px;background:#fff}.source h3{font-size:17px;margin:8px 0}.source a{color:#1c547f;font-size:13px;text-underline-offset:3px;overflow-wrap:anywhere}.tag{display:inline-block;padding:5px 9px;border-radius:30px;font-size:11px;font-weight:700;background:#e7f2eb;color:#245a3a}.tag.warn{color:#8a5d18;background:#fff0d3}.tag.fail{color:#8d322e;background:#fff0ed}button{border:1px solid #102640;padding:10px 14px;border-radius:8px;background:#102640;color:#fff;font-weight:700;font-size:14px;cursor:pointer;min-height:40px}.status{font-size:12px;color:#66758b}.small{font-size:12px;color:#596d82}.events{padding-left:20px}.events li{margin:8px 0}footer{text-align:center;margin-top:18px;color:#6e7c8c;font-size:12px}
 </style></head><body>
 <header><div style="display:flex;gap:12px;align-items:center"><img src="/icon.svg" alt=""><div><strong>FORTECOMPANNY</strong><div style="font-size:12px;color:#cfddec">Fontes oficiais • Monitoramento fiscal</div></div></div><a href="/">Página inicial</a></header>
-<main><h1>Atualizações tributárias oficiais</h1>
-<p class="hint">Acompanhe as fontes públicas verificadas pela FORTECOMPANNY e veja quando uma página oficial mudou. Esta é a base para manter nossas classificações fiscais atualizadas.</p>
+<main><h1>Legislação tributária do Brasil — 27 UFs</h1>
+<p class="hint">Acompanhe as fontes oficiais e o andamento da análise jurídica nacional. O sistema deve revisar leis, atos e vigência antes de definir a tributação de qualquer produto ou operação.</p>
 <div class="notice"><strong>Importante:</strong> detectar mudança em uma página não significa que a lei mudou ou que a tributação esteja homologada. Uma alteração em NCM, CEST, CFOP, ICMS-ST, CST/CSOSN ou reforma tributária somente deve ser aplicada após conferir texto legal, vigência, UF, operação, produto e evidências.</div>
-<div class="panel"><h2>Monitoramento automático</h2><p>As fontes nacionais e as páginas legislativas de MG e GO são verificadas às <strong>08h de Brasília</strong>. Os demais portais estaduais são distribuídos em verificações horárias ao longo do dia, no Supabase próprio da FORTECOMPANNY.</p>
+<div class="panel"><h2>Monitoramento automático</h2><p>Fontes federais e estaduais são acompanhadas em verificações periódicas no Supabase exclusivo do FORTECOMPANNY. Uma resposta HTTP 200 confirma apenas acesso à página, não a validade ou interpretação de uma lei.</p>
 <p id="overall" class="status" role="status">Consultando o estado da coleta...</p><button type="button" id="refresh">Atualizar status</button></div>
+<section class="panel"><h2>13 áreas de legislação a revisar em todas as 27 UFs</h2>
+<p class="small">A organização começa pela norma e suas condições legais, independentemente de existir nota fiscal anterior. Nenhuma área desta lista equivale, por si só, a regras homologadas.</p>
+<div id="lawTopics" class="grid"><p>Carregando temas normativos...</p></div>
+</section>
 <section class="panel"><h2>Brasil inteiro — 27 UFs</h2>
 <p id="nationalSummary" class="notice">Consultando cobertura nacional e situação das regras fiscais...</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0">
@@ -26,29 +30,51 @@
 </section>
 <section class="panel"><h2>Portais e páginas oficiais acompanhados</h2>
 <div id="sources" class="grid"><p>Carregando fontes oficiais...</p></div></section>
-<section class="panel"><h2>São Paulo, Mato Grosso e Ceará — atos oficiais sob análise</h2>
-<p class="small">A coleta das fontes foi corrigida e o conteúdo de três decretos foi conferido nas publicações oficiais, com vigência e condições específicas. Ainda falta homologar a aplicação ao produto e à operação; nenhuma alíquota ou isenção é aplicada automaticamente.</p>
+<section class="panel"><h2>Atos oficiais identificados para revisão</h2>
+<p class="small">Atos identificados em qualquer estado precisam ser conferidos no texto integral, com alterações, vigência, abrangência e exceções. O cadastro não autoriza aplicar uma alíquota ou benefício automaticamente.</p>
 <div id="legalActs" class="grid"><p>Carregando os atos identificados...</p></div></section>
 <section class="panel"><h2>Alertas de alterações detectadas</h2><p class="small">São registros para revisão. Não alteram automaticamente os cálculos do aplicativo.</p>
 <div id="alerts" class="status">Consultando alertas...</div></section>
 <section class="panel"><h2>Integrações a ampliar</h2>
-<p>A cobertura cadastral já contempla as 27 UFs, seus portais estaduais e 729 combinações de origem/destino. O módulo de NF-e/Notas Técnicas, regras específicas por NCM/CEST, tabelas CFOP completas, PIS/COFINS, IBS/CBS e publicações estaduais que exigem autenticação ou CAPTCHA ainda necessitam de integração e homologação individual.</p>
+<p>A cobertura cadastral contempla as 27 UFs e suas fontes estaduais, sem priorizar combinações regionais. O módulo de NF-e/Notas Técnicas, regras específicas por NCM/CEST, tabelas CFOP completas, PIS/COFINS, IBS/CBS e publicações estaduais que exigem autenticação ou CAPTCHA ainda necessitam de integração e homologação individual.</p>
 <p><strong>Prioridade:</strong> monitorar alterações oficiais, registrar fonte e data de vigência, comparar conteúdo, gerar alerta para revisão e só depois publicar uma nova versão validada das regras fiscais.</p>
 <p class="small">A tabela NCM disponível no assistente é uma cópia sincronizada em uma data anterior; detectar alteração na página Classif não atualiza automaticamente a tabela NCM nem confirma a tributação. O mesmo vale para CEST e convênios.</p>
 </section><footer>FORTECOMPANNY • Consulta fiscal pública • Fonte e vigência devem ser conferidas antes de emissão fiscal</footer>
 </main>
+<script src="/base-normativa-nacional.js?v=20261116a"></script>
 <script>
 (function(){
 'use strict';
 const ENDPOINT='https://yzsxtgmasssoflgqhizm.supabase.co/functions/v1/cfop-fontes/status';
 const $=id=>document.getElementById(id);
+const topicNames={
+ ICMS_GERAL:'Regras gerais de ICMS',ICMS_ALIQUOTAS:'Alíquotas internas e interestaduais',
+ ICMS_ST_CEST:'Substituição tributária e CEST',ICMS_ANTECIPACAO:'Antecipação de ICMS',
+ DIFAL:'Diferencial de alíquotas',FCP:'Fundo de Combate à Pobreza',
+ BENEFICIOS_FISCAIS:'Isenções e benefícios fiscais',REGIMES_ESPECIAIS:'Regimes especiais',
+ CFOP_CST_CSOSN:'CFOP, CST e CSOSN',NCM_CLASSIFICACAO:'NCM e classificação oficial',
+ IPI:'IPI',PIS_COFINS:'PIS e COFINS',IBS_CBS:'IBS e CBS (Reforma Tributária)'
+};
+const topicContainer=$('lawTopics');
+const topics=window.FORTE_BASE_NORMATIVA?.TOPICS||[];
+topicContainer.replaceChildren();
+for(const key of topics){
+ const box=document.createElement('article');
+ box.className='source';
+ const title=document.createElement('h3');title.textContent=topicNames[key]||key;box.appendChild(title);
+ const detail=document.createElement('p');detail.className='small';
+ detail.textContent='Conferir atos oficiais, vigência, exceções e âmbito; homologação individual ainda pendente.';
+ box.appendChild(detail);topicContainer.appendChild(box);
+}
+if(!topics.length)topicContainer.textContent='Módulo de temas não disponível; não considerar regras aprovadas.';
+
 const date=v=>{if(!v)return 'Ainda não houve';const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})};
 const elem=(tag,txt,cls)=>{const el=document.createElement(tag);if(txt!==undefined)el.textContent=txt;if(cls)el.className=cls;return el};
 let latestData=null;
 function showStates(){
  const d=latestData;if(!d)return;
- const total=d.coverage?.registeredUFs||0,routes=d.coverage?.originDestinationRoutes||0,approved=d.coverage?.officiallyValidatedStateRules||0;
- $('nationalSummary').textContent=total+' unidades federativas registradas • '+routes+' rotas origem/destino • '+approved+' regras estaduais homologadas. A legislação específica por UF ainda requer revisão antes de calcular impostos.';
+ const total=d.coverage?.registeredUFs||0,approved=d.coverage?.officiallyValidatedStateRules||0;
+ $('nationalSummary').textContent=total+' unidades federativas registradas • '+approved+' regras estaduais homologadas. A legislação específica por UF ainda requer revisão antes de calcular impostos.';
  const filter=$('regionFilter').value;
  $('stateCards').replaceChildren();
  const states=(d.states||[]).filter(x=>!filter||x.regiao===filter);
