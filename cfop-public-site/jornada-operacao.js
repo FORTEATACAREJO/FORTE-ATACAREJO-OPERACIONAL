@@ -161,12 +161,14 @@ function forgetCompany(){
  ['myCompanyAlias','myCompanyUF','myCompanyRegime','myCompanySpecial','myCompanyActivity'].forEach(id=>{$(id).value=''});
  setStatus('Parâmetros empresariais locais apagados. Para esquecer também o CPF/CNPJ, desmarque “Lembrar meu CPF/CNPJ”.');
 }
-function exampleMachine(){
- selectMode('compra');$('journeyPurpose').value='ativo';applyPurpose();
+function exampleGenericPurchase(){
+ selectMode('compra');
+ $('journeyPurpose').value='ativo';applyPurpose();
  $('myRole').value='destino';
  $('fromCnpj').value='';$('toCnpj').value='';
- $('fromUFManual').value='MG';$('toUFManual').value='GO';
- $('product').value='Máquina para uso da empresa (modelo ainda não identificado)';
+ $('fromUFManual').value='';
+ $('toUFManual').value=$('myCompanyUF').value||'';
+ $('product').value='Equipamento para uso da empresa — identificar função e características';
  $('declaredNcm').value='';
  $('goodsOrigin').value='desconhecida';
  $('buyerTaxStatus').value='unknown';
@@ -177,7 +179,7 @@ function exampleMachine(){
   if(!$(id).value){$(id).value=value;notify($(id))}
  }
  window.FORTE_TRIAGEM_FISCAL?.refresh();
- $('journeyHelp').textContent='Demonstração MG → GO pronta: confirme a finalidade e a classificação da máquina, depois consulte. Não foram utilizados CNPJs reais nem presumida obrigação tributária.';
+ $('journeyHelp').textContent='Exemplo genérico: informe os estados, a função do equipamento e o regime da empresa; a legislação aplicável será conferida sem depender de notas fiscais anteriores.';
  clearCurrentOutput();
 }
 function init(){
@@ -197,7 +199,7 @@ function init(){
  });
  $('myCompanySave').addEventListener('click',saveCompany);
  $('myCompanyForget').addEventListener('click',forgetCompany);
- $('exampleMachine').addEventListener('click',exampleMachine);
+ $('exampleGeneric').addEventListener('click',exampleGenericPurchase);
  $('myCompanyUF').addEventListener('change',()=>applyRole($('journeyMode').value));
  $('myCompanyRegime').addEventListener('change',applyCompanyDefaults);
  $('myCompanySpecial').addEventListener('change',applyCompanyDefaults);
