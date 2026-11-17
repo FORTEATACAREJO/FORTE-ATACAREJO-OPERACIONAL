@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const code=readFileSync(new URL('../jornada-operacao.js',import.meta.url),'utf8');
-const ids='guidedStart journeyMode journeyPurposeBlock journeyPurpose journeyPurposeLabel purchaseChecks purchaseSellerType purchaseInvoiceStatus assetUse assetUseBlock journeyQuestionBlock journeyQuestion journeyHelp journeyAskIA exampleMachine myCompanyAlias myCompanyUF myCompanyRegime myCompanySpecial myCompanyActivity myCompanySave myCompanyForget myCompanyStatus fromUFManual toUFManual fromDocLabel toDocLabel goodsOrigin buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileEmpresa profileConsumidor myDoc myRole rememberMe taxRegime specialRegime results afterActions clear'.split(' ');
+const ids='guidedStart journeyMode journeyPurposeBlock journeyPurpose journeyPurposeLabel purchaseChecks purchaseSellerType purchaseInvoiceStatus assetUse assetUseBlock journeyQuestionBlock journeyQuestion journeyHelp journeyAskIA exampleGeneric myCompanyAlias myCompanyUF myCompanyRegime myCompanySpecial myCompanyActivity myCompanySave myCompanyForget myCompanyStatus fromUFManual toUFManual fromDocLabel toDocLabel goodsOrigin buyerTaxStatus nature fromCnpj toCnpj product declaredNcm profileRevenda profileIndustria profileEmpresa profileConsumidor myDoc myRole rememberMe taxRegime specialRegime results afterActions clear'.split(' ');
 function rig(store=new Map()){
  const E=()=>({value:'',checked:false,hidden:false,disabled:false,textContent:'',innerHTML:'',options:[],handlers:{},
   addEventListener(k,fn){(this.handlers[k]??=[]).push(fn)},
@@ -62,10 +62,10 @@ test('pergunta livre abre apenas a IA escolhida, sem enviar automaticamente o co
  assert.equal(x.e.journeyQuestion.value,'Como comprar uma máquina de Minas Gerais para Goiás?');
  assert.equal(x.e.journeyMode.value,'duvida');
 });
-test('exemplo MG → GO não inventa documentos nem NCM ou valor de DIFAL',()=>{
- const x=rig();x.e.exampleMachine.click();
- assert.equal(x.e.fromUFManual.value,'MG');
- assert.equal(x.e.toUFManual.value,'GO');
+test('exemplo genérico permite qualquer UF sem inventar documentos ou NCM',()=>{
+ const x=rig();x.e.exampleGeneric.click();
+ assert.equal(x.e.fromUFManual.value,'');
+ assert.equal(x.e.toUFManual.value,'');
  assert.equal(x.e.nature.value,'compra_ativo');
  assert.equal(x.e.fromCnpj.value,'');
  assert.equal(x.e.toCnpj.value,'');
