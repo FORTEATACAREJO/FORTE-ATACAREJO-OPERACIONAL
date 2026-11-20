@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import WhatsappInbox from './WhatsappInbox.jsx';
+import {jsPDF} from 'jspdf';
 import {supabase,getAuthContext} from './supabase.js';
 
 const PHONE='(64) 99917-2700';
@@ -14,6 +15,37 @@ const examples=[
 ];
 const tabs=[['mensagens','Mensagens','▣'],['campanhas','Campanhas','◉'],['agenda','Programações','◷'],['contatos','Contatos','♙'],['materiais','Apresentações','▤']];
 const d=v=>String(v||'').replace(/\D/g,'');
+function downloadPresentation(){
+ const doc=new jsPDF({unit:'mm',format:'a4'});
+ const navy=[14,41,72],gold=[241,174,53],ink=[38,55,75];
+ doc.setFillColor(...navy);doc.rect(0,0,210,52,'F');
+ doc.setFillColor(...gold);doc.rect(0,49,210,3,'F');
+ doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(22);doc.text('FORTE ATACAREJO',16,23);
+ doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text('DISTRIBUICAO DE CIMENTO E MATERIAIS DE CONSTRUCAO',16,33);
+ doc.setFontSize(10);doc.text('Equipe com mais de 25 anos de experiencia no setor',16,41);
+ doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('SOLUCOES PARA SUA OBRA',16,67);
+ doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+ const introduction='Atendimento comercial em Minas Gerais, Goias e Mato Grosso, com lojas fisicas, rede de pontos de apoio, frota propria e entregas ageis, sem burocracia.';
+ doc.text(doc.splitTextToSize(introduction,178),16,77);
+ doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('PRODUTOS',16,103);
+ doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+ const productsList=['Cimento CP II-F-32','Cimento CP V','Cimento CP IV','Cimento Extra Forte 40 kg','Argamassa AC1 / AC2 / AC3','Cal hidratada CH-III 15 kg'];
+ productsList.forEach((item,i)=>doc.text('- '+item,17,113+i*8));
+ doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('DIFERENCIAIS',16,171);
+ doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+ doc.text('- Frota propria e entregas programadas',17,181);
+ doc.text('- Mais de 70 pontos de apoio em Goias',17,189);
+ doc.text('- Mais de 80 pontos de apoio em Minas Gerais',17,197);
+ doc.text('- Pontos de apoio no Mato Grosso',17,205);
+ doc.setFillColor(245,248,251);doc.roundedRect(13,221,184,54,3,3,'F');
+ doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('DADOS CADASTRAIS',17,230);
+ doc.setFont('helvetica','normal');doc.setFontSize(9.8);
+ doc.text('Matriz: Monte Carmelo/MG | CNPJ 49.832.961/0001-51',17,240);
+ doc.text('Filial: Caldas Novas/GO | CNPJ 49.832.961/0002-32',17,249);
+ doc.text('WhatsApp comercial: (64) 99917-2700',17,259);
+ doc.text('www.forteatacarejo.com.br',17,267);
+ doc.save('FORTE_ATACAREJO_Apresentacao_Comercial.pdf');
+}
 function formatDate(value){if(!value)return 'Não definida';const x=new Date(value);return Number.isNaN(x.getTime())?'Não definida':x.toLocaleString('pt-BR');}
 function localInputDate(value){if(!value)return '';const x=new Date(value);if(Number.isNaN(x.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())+'T'+pad(x.getHours())+':'+pad(x.getMinutes());}
 function eligible(contacts,campaign){
@@ -110,7 +142,7 @@ export default function ForteAtende(){
       {tab==='agenda'&&<section className="at-card"><h2>Programações e transmissões</h2><p className="at-muted">Histórico das programações registradas, sujeitas à aprovação e ativação do processamento seguro.</p>{!scoped.length?<div className="at-empty">Ainda não há programações. Crie uma campanha e escolha data e horário.</div>:<div className="at-schedule">{scoped.map(c=><div className="at-schedule-item" key={c.id}><div><strong>{c.title}</strong><p>{c.channel} · {c.segment} · {formatDate(c.scheduled_at)}</p><small>{c.status==='PLANEJADA'?'Aguardando homologação do envio automático':c.status}</small></div><div className="at-actions"><button onClick={()=>edit(c)}>Editar</button>{c.status==='PLANEJADA'&&<button disabled={!isAdmin||busy} onClick={()=>task(()=>pause(c))}>Pausar</button>}</div></div>)}</div>}</section>}
       {tab==='contatos'&&<div className="at-columns"><section className="at-card"><h2>Cadastrar contato autorizado</h2><p className="at-muted">Cadastre somente contatos comerciais e registre autorização para marketing.</p><div className="at-form"><label>Nome<input value={contact.name} onChange={e=>setContact({...contact,name:e.target.value})}/></label><label>WhatsApp (com DDD)<input value={contact.whatsapp} onChange={e=>setContact({...contact,whatsapp:e.target.value})}/></label><label>E-mail<input type="email" value={contact.email} onChange={e=>setContact({...contact,email:e.target.value})}/></label><label>Segmento<select value={contact.segment} onChange={e=>setContact({...contact,segment:e.target.value})}><option value="CLIENTES">Clientes</option><option value="CONSTRUTORAS">Construtoras</option><option value="REVENDEDORAS">Revendas</option><option value="FORNECEDORES">Fornecedores</option></select></label><label className="at-checkbox"><input type="checkbox" checked={contact.consent_whatsapp} onChange={e=>setContact({...contact,consent_whatsapp:e.target.checked})}/> Autorizou comunicações comerciais por WhatsApp</label><label className="at-checkbox"><input type="checkbox" checked={contact.consent_email} onChange={e=>setContact({...contact,consent_email:e.target.checked})}/> Autorizou comunicações comerciais por e-mail</label><label>Origem da autorização<input value={contact.consent_source} onChange={e=>setContact({...contact,consent_source:e.target.value})} placeholder="Ex.: formulário do site / autorização documentada"/></label><button className="at-primary" disabled={!ready||!isAdmin||busy} onClick={()=>task(saveContact)}>Salvar contato</button></div></section>
       <section className="at-card at-list"><h2>Contatos ({contacts.length})</h2><input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Pesquisar nome, telefone ou e-mail"/>{contacts.filter(c=>(c.name+' '+c.whatsapp+' '+c.email).toLowerCase().includes(search.toLowerCase())).map(c=><div key={c.id} className="at-contact"><strong>{c.name}</strong><small>{c.whatsapp||'Sem telefone'} · {c.email||'Sem e-mail'}<br/>{c.segment}</small><div className="at-tags"><span>{c.consent_whatsapp&&!c.opted_out_whatsapp?'WhatsApp autorizado':'WhatsApp sem permissão'}</span><span>{c.consent_email&&!c.opted_out_email?'E-mail autorizado':'E-mail sem permissão'}</span></div><div className="at-actions">{c.consent_whatsapp&&!c.opted_out_whatsapp&&<button disabled={busy||!isAdmin} onClick={()=>task(()=>stopContact(c,'WHATSAPP'))}>Bloquear WhatsApp</button>}{c.consent_email&&!c.opted_out_email&&<button disabled={busy||!isAdmin} onClick={()=>task(()=>stopContact(c,'EMAIL'))}>Bloquear e-mail</button>}</div></div>)}</section></div>}
-      {tab==='materiais'&&<section className="at-card"><h2>Biblioteca comercial Forte Atacarejo</h2><p className="at-muted">Modelos editáveis para e-mail, WhatsApp e futuras transmissões.</p><div className="at-template-grid">{examples.map(ex=><article className="at-template" key={ex.title}><span className="at-eyebrow">{ex.kind}</span><h3>{ex.title}</h3><p>{ex.body}</p><button className="at-primary" onClick={()=>useExample(ex)}>Usar na campanha</button></article>)}</div><div className="at-products"><h3>Portfólio de produtos</h3><p>{products.join(' · ')}</p><p><strong>Frota própria, rapidez e atendimento sem burocracia.</strong></p><p className="at-muted">Material comercial anexo só poderá ser enviado automaticamente quando o canal estiver homologado. A caixa de mensagens oficial permanece no menu Mensagens.</p></div></section>}
+      {tab==='materiais'&&<section className="at-card"><h2>Biblioteca comercial Forte Atacarejo</h2><p className="at-muted">Modelos editáveis para e-mail, WhatsApp e futuras transmissões.</p><div className="at-actions" style={{marginBottom:18}}><button className="at-primary" onClick={downloadPresentation}>Baixar apresentação PDF</button></div><div className="at-template-grid">{examples.map(ex=><article className="at-template" key={ex.title}><span className="at-eyebrow">{ex.kind}</span><h3>{ex.title}</h3><p>{ex.body}</p><button className="at-primary" onClick={()=>useExample(ex)}>Usar na campanha</button></article>)}</div><div className="at-products"><h3>Portfólio de produtos</h3><p>{products.join(' · ')}</p><p><strong>Frota própria, rapidez e atendimento sem burocracia.</strong></p><p className="at-muted">Material comercial anexo só poderá ser enviado automaticamente quando o canal estiver homologado. A caixa de mensagens oficial permanece no menu Mensagens.</p></div></section>}
       <footer className="at-footer">FORTE ATENDE · Uso interno · Integração Meta existente preservada · E-mail corporativo pendente de habilitação</footer>
     </main>
   </div>;
