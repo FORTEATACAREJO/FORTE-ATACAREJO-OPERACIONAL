@@ -41,24 +41,24 @@ alter table public.forte_atende_contacts enable row level security;
 alter table public.forte_atende_campaigns enable row level security;
 drop policy if exists "atende_contacts_read" on public.forte_atende_contacts;
 create policy "atende_contacts_read" on public.forte_atende_contacts for select to authenticated
-using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO'));
+using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_contacts.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO'));
 drop policy if exists "atende_contacts_admin_insert" on public.forte_atende_contacts;
 create policy "atende_contacts_admin_insert" on public.forte_atende_contacts for insert to authenticated
-with check(created_by=(select auth.uid()) and exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
+with check(created_by=(select auth.uid()) and exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_contacts.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
 drop policy if exists "atende_contacts_admin_update" on public.forte_atende_contacts;
 create policy "atende_contacts_admin_update" on public.forte_atende_contacts for update to authenticated
-using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')))
-with check (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
+using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_contacts.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')))
+with check (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_contacts.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
 drop policy if exists "atende_campaigns_read" on public.forte_atende_campaigns;
 create policy "atende_campaigns_read" on public.forte_atende_campaigns for select to authenticated
-using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO'));
+using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_campaigns.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO'));
 drop policy if exists "atende_campaigns_admin_insert" on public.forte_atende_campaigns;
 create policy "atende_campaigns_admin_insert" on public.forte_atende_campaigns for insert to authenticated
-with check (created_by=(select auth.uid()) and exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
+with check (created_by=(select auth.uid()) and exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_campaigns.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
 drop policy if exists "atende_campaigns_admin_update" on public.forte_atende_campaigns;
 create policy "atende_campaigns_admin_update" on public.forte_atende_campaigns for update to authenticated
-using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')))
-with check (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
+using (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_campaigns.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')))
+with check (exists(select 1 from public.fc_perfis p where p.user_id=(select auth.uid()) and p.empresa_id=public.forte_atende_campaigns.empresa_id and p.ativo is true and p.status_aprovacao='APROVADO' and p.perfil::text in ('MASTER','ADMINISTRADOR','ADMIN')));
 revoke all on public.forte_atende_contacts from public, anon;
 revoke all on public.forte_atende_campaigns from public, anon;
 grant select,insert,update on public.forte_atende_contacts to authenticated;
