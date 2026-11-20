@@ -15,6 +15,7 @@ const examples=[
 const tabs=[['mensagens','Mensagens','▣'],['campanhas','Campanhas','◉'],['agenda','Programações','◷'],['contatos','Contatos','♙'],['materiais','Apresentações','▤']];
 const d=v=>String(v||'').replace(/\D/g,'');
 function formatDate(value){if(!value)return 'Não definida';const x=new Date(value);return Number.isNaN(x.getTime())?'Não definida':x.toLocaleString('pt-BR');}
+function localInputDate(value){if(!value)return '';const x=new Date(value);if(Number.isNaN(x.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())+'T'+pad(x.getHours())+':'+pad(x.getMinutes());}
 function eligible(contacts,campaign){
   return contacts.filter(c=>(campaign.segment==='TODOS'||c.segment===campaign.segment)&&(
     (campaign.channel==='WHATSAPP'&&c.consent_whatsapp&&!c.opted_out_whatsapp&&!!d(c.whatsapp))||
@@ -53,7 +54,7 @@ export default function ForteAtende(){
     let r;if(campaign.id)r=await supabase.from('forte_atende_campaigns').update(payload).eq('id',campaign.id).eq('empresa_id',empresa).select().single();
     else r=await supabase.from('forte_atende_campaigns').insert(payload).select().single();
     if(r.error)throw Error('Falha ao salvar campanha: '+r.error.message);
-    setCampaign({...r.data,scheduled_at:r.data.scheduled_at?r.data.scheduled_at.slice(0,16):''});
+    setCampaign({...r.data,scheduled_at:localInputDate(r.data.scheduled_at)});
     await load();
     setAlert(status==='PLANEJADA'?'Programação registrada para conferência. A execução automática ainda não está habilitada.':'Rascunho salvo com segurança.');
   }
@@ -75,7 +76,7 @@ export default function ForteAtende(){
     await load();setAlert('Preferência de não recebimento registrada.');
   }
   function useExample(ex){setCampaign({...blankCampaign(),title:ex.title,kind:ex.kind,subject:ex.subject,body:ex.body});setTab('campanhas');setAlert('Texto carregado. Ajuste e salve antes de qualquer envio.');}
-  function edit(c){setCampaign({...c,scheduled_at:c.scheduled_at?new Date(c.scheduled_at).toISOString().slice(0,16):''});setTab('campanhas');setAlert('Campanha carregada para edição.');}
+  function edit(c){setCampaign({...c,scheduled_at:localInputDate(c.scheduled_at)});setTab('campanhas');setAlert('Campanha carregada para edição.');}
   return <div className="at-shell">
     <aside className="at-sidebar">
       <div className="at-brand"><img src="/forte-atende-icon.svg" alt="FORTE ATENDE"/><div><b>FORTE ATENDE</b><small>Central comercial</small></div></div>
