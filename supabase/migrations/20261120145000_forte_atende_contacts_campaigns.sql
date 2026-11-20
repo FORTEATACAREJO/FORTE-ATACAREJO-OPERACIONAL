@@ -13,7 +13,7 @@ create table if not exists public.forte_atende_contacts (
  consent_at timestamptz,
  opted_out_whatsapp boolean not null default false,
  opted_out_email boolean not null default false,
- created_by uuid not null default (select auth.uid()),
+ created_by uuid not null default auth.uid(),
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
  constraint forte_atende_contact_evidence check(not (consent_whatsapp or consent_email) or (length(btrim(consent_source))>=3 and consent_at is not null))
@@ -31,7 +31,7 @@ create table if not exists public.forte_atende_campaigns (
  segment text not null default 'TODOS' check(segment in ('TODOS','CLIENTES','CONSTRUTORAS','REVENDEDORAS','FORNECEDORES')),
  scheduled_at timestamptz,
  status text not null default 'RASCUNHO' check(status in ('RASCUNHO','PLANEJADA','PAUSADA')),
- created_by uuid not null default (select auth.uid()),
+ created_by uuid not null default auth.uid(),
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now()
 );
