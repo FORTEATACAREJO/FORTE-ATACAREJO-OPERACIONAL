@@ -1,0 +1,19 @@
+{
+  "name": "FORTE ATENDE",
+  "short_name": "FORTE ATENDE",
+  "description": "Central profissional de mensagens, campanhas e atendimento da Forte Atacarejo.",
+  "id": "/atende.html",
+  "start_url": "/atende.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0e2948",
+  "icons": [
+    {
+      "src": "/forte-atende-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
