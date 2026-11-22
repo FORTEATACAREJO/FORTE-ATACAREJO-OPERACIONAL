@@ -90,7 +90,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <p className="ft-hint">O status verde confere a distribuição comercial por produto. Não equivale a nota fiscal autorizada ou boleto pago.</p>
   </Panel>
 
-  <Panel title="Resumo financeiro da carga" aside={<Pill tone={finance.completo?'good':'warn'}>{finance.modalidadeFrete}</Pill>}>
+  <Panel title="Resumo financeiro da carga" aside={<Pill tone={finance.completo&&r.status==='CONCILIADA'?'good':'warn'}>{finance.modalidadeFrete}</Pill>}>
    <Field label="Vendas de mercadorias" value={finance.receitaVendas===null?'Pendente':money(finance.receitaVendas)}/>
    <Field label="Compra do fornecedor" value={finance.custoFornecedor===null?'Pendente':money(finance.custoFornecedor)}/>
    <Field label="Diferença antes do frete" value={finance.diferencaAntesFrete===null?'Pendente':money(finance.diferencaAntesFrete)}/>
