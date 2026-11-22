@@ -74,3 +74,13 @@ test('ausencia de pedido ou carga e paletes pendentes nao geram aprovacao falsa'
  assert.equal(buildPedidosFTDossier(data,'inexistente'),null);
  assert.equal(quantityReconciliation([],[]).status,'PENDENTE');
 });
+
+test('mudança no cadastro não oculta a exigência de liberação já registrada na carga',()=>{
+ const data=fixture();
+ data.fornecedores[0].condicaoPaletes='SEM_PALETES';
+ data.cargas[0].regraPallets='Solicitar pallets com liberação do vendedor';
+ const d=buildPedidosFTDossier(data,'c1');
+ assert.equal(d.pallets.status,'DIVERGÊNCIA COM CADASTRO');
+ assert.equal(d.pallets.needsRelease,true);
+ assert.equal(d.pallets.rule,data.cargas[0].regraPallets);
+});

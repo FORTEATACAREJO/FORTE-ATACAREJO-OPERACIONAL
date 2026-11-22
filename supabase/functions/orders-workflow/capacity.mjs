@@ -26,6 +26,7 @@ export function workflowCapacityCheck(state,body) {
  if(['SUPPLIER_SEND','SUPPLIER_RECEIPT','SUPPLIER_EXTERNAL_SEND'].includes(body.action)){
   const order=orders.find(o=>o.id===body.id);if(!order)return null;
   driverId=order.motoristaId;weight=order.pesoKg;
+  if(!driverId)return null;
  }else if(body.action==='LOAD_ASSIGN'){
   const load=loads.find(c=>c.id===body.cargaId);if(!load)return null;weight=load.pesoKg;
  }else if(['LOAD_ADJUST','LOAD_SHIPMENT'].includes(body.action)){
@@ -42,6 +43,10 @@ export function workflowCapacityCheck(state,body) {
 export function supplierDispatchCapacity(state,job) {
  const order=(state.comprasFornecedor||[]).find(o=>o.id===job.compraFornecedorId);
  if(!order||order.status==='CANCELADO')throw Error('Pedido indisponível.');
+ if(!order.motoristaId){
+  if(job.snapshot!==purchaseSnapshot(order))throw Error('Pedido alterado após preparar envio. Confira e prepare o envio novamente.');
+  return null;
+ }
  const driver=(state.motoristas||[]).find(m=>m.id===order.motoristaId&&m.ativo!==false);
  const status=String(driver?.statusCadastro||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
  if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO|PRE_CADASTRO|REPROVADO|INATIVO/.test(status))throw Error('Motorista aguarda aprovação.');

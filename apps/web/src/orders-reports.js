@@ -16,10 +16,15 @@ export function purchaseReport(order,driver=false){return purchaseDocument(jsPDF
 export function loadReport(data,c){
  const d=buildPedidosFTDossier(data,c.id);
  const f=d?.finance;
+ const official=c.numeroPedidoFornecedor||d?.order?.numeroPedidoFornecedor||'';
+ const distribution=(d?.clients||[]).flatMap(client=>[
+  [client.nome,client.cidade,client.uf].filter(Boolean).join(' • '),
+  ...client.items.map(item=>[item.produto,item.qtd+' sacos',item.precoUnitario!=null?money(item.precoUnitario)+' / un.':'',item.condicaoPagamento].filter(Boolean).join(' • '))
+ ]);
  const amount=n=>n===null||n===undefined?'Pendente':money(n);
  return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
- {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
- {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
+ {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido oficial do fornecedor: '+(official||'Pendente'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
+ {title:'Distribuição aos clientes',rows:distribution},
  {title:'Resumo financeiro da carga',rows:f?[
   'Modalidade de frete: '+f.modalidadeFrete,
   'Vendas de mercadorias: '+amount(f.receitaVendas),
@@ -29,8 +34,8 @@ export function loadReport(data,c){
   'RESULTADO COMERCIAL APOS FRETE: '+amount(f.resultadoAposFrete),
   'Antes de impostos e demais despesas; nao representa lucro liquido.'
  ]:['Resumo financeiro indisponivel: conferir dossie da carga.']},
- {title:'Documentos vinculados',rows:(data.documentos||[]).filter(d=>d.cargaId===c.id).map(d=>d.categoria+' • '+d.filename+' • '+d.validationStatus)},
+ {title:'Documentos vinculados',rows:(d?.documents||[]).map(doc=>doc.categoria+' • '+doc.filename+' • '+doc.validationStatus)},
  {title:'Histórico de ajustes',rows:[...(c.ajustes||[]).map(a=>date(a.at)+' • '+a.motivo),...(data.vendas||[]).filter(v=>v.cargaId===c.id).flatMap(v=>(v.ajustes||[]).map(a=>v.numeroVenda+' • '+a.antes+' para '+a.depois+' • '+date(a.at)+' • '+a.motivo))]}
- ]);}
+ ],{primaryReference:official});}
 export function salesReport(groups){return reportPDF('PAINEL DE PEDIDOS DE VENDA',groups.map(g=>({title:g.numero+' • '+g.cliente,rows:g.rows.map(v=>v.produto+' • '+v.qtd+' unidades • '+money(v.totalGeral)+' • '+v.status+' • '+(v.cargaId||'Carga a definir'))})));}
 export function receiptReport(j){if(!j.reply)throw new Error('Não existe resposta do cliente.');return reportPDF('REGISTRO DE CONFIRMAÇÃO DE ENTREGA',[{title:'Identificação',rows:['Pedido: '+j.reference,'Carga: '+j.cargaId,'Cliente: '+(j.cliente||j.clienteId),'Telefone respondente: '+j.reply.from,'Mensagem original: '+j.providerId,'Resposta: '+j.reply.providerId,'Recebido em: '+date(j.reply.receivedAt)]},{title:'Resposta registrada: '+j.reply.answer,rows:j.reply.items.map(i=>i.qtd+' de '+i.produto)},{title:'Registro comercial',rows:['Resposta vinculada à mensagem original e à quantidade apresentada ao cliente. Este registro preserva a resposta recebida; não substitui automaticamente o canhoto fiscal.']}]);}
