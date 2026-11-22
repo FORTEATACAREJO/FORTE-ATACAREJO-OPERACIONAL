@@ -804,13 +804,14 @@ export default function App() {
       .catch(()=>{if(active)setFinanceGranted(false)});
     return()=>{active=false;};
   },[]);
+  const pedidosFtMode = window.location.pathname === "/pedidos-ft.html";
   const financeMode=new URLSearchParams(window.location.search).get("app")==="financeiro",navigationRoot=financeMode?"group:financeiro":"home";
   const [data, setData] = useState(() => applyAuthUser(loadData(seed)));
   const cloudReady = useRef(false);
   const [cloudError,setCloudError]=useState("");
   useEffect(()=>{const listener=e=>setCloudError(e.detail||"");window.addEventListener("forte-cloud-status",listener);return()=>window.removeEventListener("forte-cloud-status",listener)},[]);
   const cloudTimer = useRef(null);
-  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(financeMode?"financeiro":"vendas",navigationRoot);
+  const [requestedTab, setRouteTab, tabHistory] = useForteNavigation(financeMode?"financeiro":pedidosFtMode?"pedidos-ft":"vendas",navigationRoot,pedidosFtMode?"comprasFornecedor":navigationRoot);
   const setTab=(screen,options)=>setRouteTab(financeMode&&screen==="home"?navigationRoot:screen,options);
   const [globalSearch, setGlobalSearch] = useState("");
   const [selectedSales, setSelectedSales] = useState([]);
@@ -841,7 +842,7 @@ export default function App() {
   const [reportEnd, setReportEnd] = useState(todayISO());
   const [mobileMenu, setMobileMenu] = useState(false);
   const workflowBusy = useRef(false);
-  const [workflowInitialTab,setWorkflowInitialTab]=useState("fornecedor");
+  const [workflowInitialTab,setWorkflowInitialTab]=useState(pedidosFtMode?"dossie":"fornecedor");
   const [counterInitialMode,setCounterInitialMode]=useState("VENDA");
   useEffect(() => {let active=true;if(!supabaseConfigured)return;loadCloudState().then(remote=>{if(!active)return;cloudReady.current=true;if(remote){const funcionarios=[...(remote.funcionarios||[])];for(const oficial of seed.funcionarios||[])if(!funcionarios.some(x=>x.id===oficial.id||String(x.cpf||"").replace(/\D/g,"")===oficial.cpf))funcionarios.push(oficial);setData(applyAuthUser({...remote,settings:{...seed.settings,...(remote.settings||{})},funcionarios,unidadesFiscaisHistoricas:remote.unidadesFiscaisHistoricas||seed.unidadesFiscaisHistoricas}))}else saveCloudState(data).catch(e=>console.error("FALHA AO ENVIAR BASE INICIAL AO SUPABASE",e))}).catch(e=>console.error("FALHA AO CARREGAR BASE SUPABASE",e));return()=>{active=false}},[]);
   useEffect(() => {saveData(data);if(!supabaseConfigured||!cloudReady.current||workflowBusy.current)return;clearTimeout(cloudTimer.current);cloudTimer.current=setTimeout(()=>saveCloudState(data).catch(e=>console.error("FALHA AO SALVAR BASE SUPABASE",e)),800);return()=>clearTimeout(cloudTimer.current)}, [data]);
