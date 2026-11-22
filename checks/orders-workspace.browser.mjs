@@ -24,6 +24,9 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('heading',{name:'6. Faturamento — Juliana'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'7. Fechamento — Pedro'}).count(),1);
  assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
+ await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');
+ await page.getByRole('button',{name:'PEDIDOS FT • Dossiê',exact:true}).click();
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');assert.deepEqual(errors,[]);console.log('PASS: independent supplier/sale/order tabs, real filtered fixture catalogs, approved sale, no invented matching, no overflow: '+size.width);
  await page.close();
 }
