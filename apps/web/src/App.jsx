@@ -10865,6 +10865,7 @@ const META = {
       ["emailBusca", "E-MAIL BUSCA IA", "email"],
       ["limiteCredito", "LIMITE DE CRÉDITO R$", "number"],
       ["formaPagamentoPadrao", "FORMA PADRÃO DE PAGAMENTO"],
+      ["modalidadeFrete", "FRETE PADRÃO — CIF OU FOB"],
       ["condicaoPaletes", "CONDIÇÃO DE PALETES"],
     ],
   },
@@ -11203,6 +11204,7 @@ function CadModal({
     if (!f[main]) return alert("PREENCHA O CAMPO PRINCIPAL.");
     let obj = { ...f };
     if(type==='fornecedores'){
+      if(!['CIF','FOB'].includes(String(obj.modalidadeFrete||'').trim().toUpperCase()))return alert('CONFIGURE CIF OU FOB NO CADASTRO DO FORNECEDOR.');
       if(!validSupplierPalletPreference(obj.condicaoPaletes)) return alert('SELECIONE UMA CONDIÇÃO DE PALETES VÁLIDA.');
       obj.codigosPorCnpj={...(f.codigosPorCnpj||{})};
     }
@@ -11577,6 +11579,12 @@ function CadModal({
                     <option>VENDA BRUTA</option>
                     <option>VENDA LÍQUIDA</option>
                     <option>MARGEM / LUCRO</option>
+                  </select>
+                ) : type === "fornecedores" && k === "modalidadeFrete" ? (
+                  <select aria-label="MODALIDADE DE FRETE DO FORNECEDOR" value={f[k] || ""} onChange={(e) => setF((x) => ({...x,[k]:e.target.value}))}>
+                    <option value="">NÃO CONFIGURADO — SELECIONE</option>
+                    <option value="CIF">CIF — Frete incluído na compra</option>
+                    <option value="FOB">FOB — Frete contratado pela Forte</option>
                   </select>
                 ) : type === "fornecedores" && k === "condicaoPaletes" ? (
                   <select
@@ -12147,7 +12155,7 @@ function CadModal({
             key={x.id}
           >
             <div>
-              <b>{(type === "clientes" ? customerName(x) : x.nome) || x.descricao || x.email}</b>{type === "produtos" && <small>{upper(x.finalidade || "REVENDA")} • {upper(x.categoria || "OUTROS")}</small>}{type === "fornecedores" && <small>PALETES: {SUPPLIER_PALLET_OPTIONS.find(option => option.value === x.condicaoPaletes)?.label || "NÃO CONFIGURADO"}</small>}
+              <b>{(type === "clientes" ? customerName(x) : x.nome) || x.descricao || x.email}</b>{type === "produtos" && <small>{upper(x.finalidade || "REVENDA")} • {upper(x.categoria || "OUTROS")}</small>}{type === "fornecedores" && <small>FRETE: {["CIF","FOB"].includes(x.modalidadeFrete)?x.modalidadeFrete:"NÃO CONFIGURADO"} • PALETES: {SUPPLIER_PALLET_OPTIONS.find(option => option.value === x.condicaoPaletes)?.label || "NÃO CONFIGURADO"}</small>}
               <small>
                 {Object.entries(x)
                   .filter(
