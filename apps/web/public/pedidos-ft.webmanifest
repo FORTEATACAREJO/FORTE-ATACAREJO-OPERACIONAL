@@ -1,0 +1,24 @@
+{
+  "name": "Pedidos FT",
+  "short_name": "Pedidos FT",
+  "id": "/pedidos-ft.html",
+  "start_url": "/pedidos-ft.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef4fa",
+  "theme_color": "#121011",
+  "icons": [
+    {
+      "src": "/icons/pedidos-ft-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pedidos-ft-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
