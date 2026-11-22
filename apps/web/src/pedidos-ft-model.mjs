@@ -59,9 +59,10 @@ export function buildPedidosFTDossier(state,cargaId){
   else if(d.vendaId){const match=[...clients.values()].find(x=>x.items.some(i=>i.id===d.vendaId));if(match)match.documents.push(d);}
  }
  const preferenceRule=supplierPalletRule(supplier);
- const rule=preferenceRule||c.regraPallets||order?.regraPallets||'';
+ const recordedRule=c.regraPallets||order?.regraPallets;
+ const rule=recordedRule||preferenceRule||'';
  const pallets=typeof c.palletQuantidade==='number'?c.palletQuantidade:typeof order?.palletQuantidade==='number'?order.palletQuantidade:null;
- const palletMismatch=Boolean(preferenceRule&&c.regraPallets&&preferenceRule!==c.regraPallets);
+ const palletMismatch=Boolean(preferenceRule&&recordedRule&&preferenceRule!==recordedRule);
  const requested=rule.startsWith('Solicitar');
  const evidence=c.liberacaoPalletsFornecedor?.evidencia||order?.liberacaoPalletsFornecedor?.evidencia||null;
  const palletStatus=!preferenceRule?'PREFERÊNCIA NÃO CONFIGURADA':palletMismatch?'DIVERGÊNCIA COM CADASTRO':requested&&!evidence?'AGUARDANDO LIBERAÇÃO':pallets==null?'QUANTIDADE NÃO CONFERIDA':'REGRA CADASTRADA';

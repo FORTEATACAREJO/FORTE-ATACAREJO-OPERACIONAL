@@ -104,3 +104,38 @@ test('RF06: pedido de 800 sacos em conjunto 38t exige aviso e preserva 800 ao ex
  assert.throws(()=>execute(state,{action:'LOAD_SHIPMENT',cargaId:load.id,motoristaId:'m',itens:[{produtoId:'p',qtd:801}],motivo:'Excesso não permitido'}),/superar/);
  assert.throws(()=>capacityCheck(original.motoristas[0],40000),/acima da capacidade/);
 });
+
+test('pedido ao fornecedor pode entrar na fila e ter comprovante sem motorista',()=>{
+ const initial=base();
+ initial.fornecedores[0].emailPedidos='fornecedor@example.invalid';
+ let s=execute(initial,{...supplier,motoristaId:''}).state;
+ const o=s.comprasFornecedor[0];
+ const send={action:'SUPPLIER_SEND',id:o.id,canal:'EMAIL'};
+ assert.throws(()=>execute(s,send),/espelho/);
+ s=execute(s,{action:'SUPPLIER_PREVIEW',id:o.id}).state;
+ s=execute(s,send).state;
+ const job=s.comunicacoes[0];
+ assert.equal(job.state,'QUEUED');
+ assert.equal(supplierDispatchCapacity(s,job),null);
+ assert.throws(()=>supplierDispatchCapacity(s,{...job,snapshot:'desatualizado'}),/alterado/);
+ assert.throws(()=>execute(s,{action:'DRIVER_SEND',cargaId:o.cargaId}),/oficial|motorista|Revise|ordem/i);
+ s.documentos.push({id:'comprovante',compraFornecedorId:o.id,categoria:'COMPROVANTE ENVIO FORNECEDOR'});
+ s=execute(s,{action:'SUPPLIER_RECEIPT',id:o.id,canal:'EMAIL',destinatario:'fornecedor@example.invalid',documentoId:'comprovante'}).state;
+ assert.equal(s.comprasFornecedor[0].envioDocumentoId,'comprovante');
+ assert.equal(s.cargas[0].motoristaId,'');
+});
+
+test('paletes seguem o cadastro e edição mantém as condições de frete e paletes do mesmo pedido',()=>{
+ const initial=base();
+ initial.fornecedores[0].condicaoPaletes='COM_PALETES_SOLICITADOS_AO_VENDEDOR';
+ assert.throws(()=>execute(initial,supplier),/regra de paletes/);
+ let s=execute(initial,{...supplier,regraPallets:undefined}).state;
+ const order=s.comprasFornecedor[0];
+ assert.equal(order.regraPallets,'Solicitar pallets com liberação do vendedor');
+ assert.equal(order.palletQuantidade,16);
+ assert.equal(order.nfPalletsAplica,true);
+ Object.assign(s.fornecedores[0],{condicaoPaletes:'SEM_PALETES',modalidadeFrete:'CIF'});
+ s=execute(s,{...supplier,action:'SUPPLIER_EDIT',id:order.id,motivo:'Ajuste no endereço',regraPallets:order.regraPallets}).state;
+ assert.equal(s.comprasFornecedor[0].modalidadeFrete,'FOB');
+ assert.equal(s.comprasFornecedor[0].regraPallets,order.regraPallets);
+});

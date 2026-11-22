@@ -57,7 +57,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   </Panel>
 
   <Panel title="2. Paletes da carga" aside={<Pill tone={needsPalletAttention?'warn':'good'}>{pallets.label}</Pill>}>
-   <Field label="Origem da regra" value={supplier?.condicaoPaletes?'Cadastro do fornecedor':'Condição do pedido — conferir fornecedor'}/>
+   <Field label="Origem da regra" value={(c.regraPallets||order?.regraPallets)?'Condição registrada no pedido ou na carga':supplier?.condicaoPaletes?'Cadastro do fornecedor':'Aguardando configuração'}/>
    <Field label="Quantidade registrada" value={pallets.quantity===null?'Pendente':number(pallets.quantity)+' paletes'}/>
    <Field label="Situação" value={pallets.status}/>
    {pallets.needsRelease&&<p className="ft-warning" role="status">Solicitação de paletes: comprovação de liberação do vendedor pendente antes da expedição.</p>}
@@ -94,7 +94,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <Field label="Vendas de mercadorias" value={finance.receitaVendas===null?'Pendente':money(finance.receitaVendas)}/>
    <Field label="Compra do fornecedor" value={finance.custoFornecedor===null?'Pendente':money(finance.custoFornecedor)}/>
    <Field label="Diferença antes do frete" value={finance.diferencaAntesFrete===null?'Pendente':money(finance.diferencaAntesFrete)}/>
-   <Field label={finance.modalidadeFrete==='FOB'?'(-) Frete FOB da carga':'Frete CIF incluído na compra'} value={finance.freteDescontado===null?'Frete pendente de registro':money(finance.freteDescontado)}/>
+   <Field label={finance.modalidadeFrete==='FOB'?'(-) Frete FOB da carga':finance.modalidadeFrete==='CIF'?'Frete CIF incluído na compra':'Modalidade do frete'} value={finance.statusFrete==='MODALIDADE_PENDENTE'?'Pendente':finance.freteDescontado===null?'Frete pendente de registro':money(finance.freteDescontado)}/>
    <div className={'ft-financial-result'+(finance.resultadoAposFrete!==null&&finance.resultadoAposFrete<0?' ft-loss':'')}><span>RESULTADO COMERCIAL APÓS FRETE</span><strong>{finance.resultadoAposFrete===null?'PENDENTE':money(finance.resultadoAposFrete)}</strong></div>
    {finance.statusFrete==='FRETE_PENDENTE'&&<p className="ft-warning" role="status">Carga FOB: registre e confira o valor do frete da carga para calcular o resultado. Não considerar frete ausente como zero.</p>}
    {finance.statusFrete==='INCLUSO_NO_PRECO'&&<p className="ft-hint">Frete CIF já incluído no custo do fornecedor: não descontar duas vezes.</p>}
