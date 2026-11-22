@@ -1,5 +1,6 @@
 import ConnectMirror from './ConnectMirror.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
+import {SUPPLIER_PALLET_OPTIONS,validSupplierPalletPreference} from './supplier-pallet-preferences.mjs';
 import WhatsappInbox,{inboxCall} from './WhatsappInbox.jsx';
 import {counterDraftKey,readCounterDraft,counterCancellationBlock} from './counter-draft.js';
 import {useForteNavigation,useForteLayer} from './use-forte-navigation.js';
@@ -10864,6 +10865,7 @@ const META = {
       ["emailBusca", "E-MAIL BUSCA IA", "email"],
       ["limiteCredito", "LIMITE DE CRÉDITO R$", "number"],
       ["formaPagamentoPadrao", "FORMA PADRÃO DE PAGAMENTO"],
+      ["condicaoPaletes", "CONDIÇÃO DE PALETES"],
     ],
   },
   motoristas: {
@@ -11200,7 +11202,10 @@ function CadModal({
     const main = type === "produtos" ? "nome" : meta.fields[0][0];
     if (!f[main]) return alert("PREENCHA O CAMPO PRINCIPAL.");
     let obj = { ...f };
-    if(type==='fornecedores')obj.codigosPorCnpj={...(f.codigosPorCnpj||{})};
+    if(type==='fornecedores'){
+      if(!validSupplierPalletPreference(obj.condicaoPaletes)) return alert('SELECIONE UMA CONDIÇÃO DE PALETES VÁLIDA.');
+      obj.codigosPorCnpj={...(f.codigosPorCnpj||{})};
+    }
     if(type==='clientes'){
       const error=customerAddressError(obj);if(error)return alert(error);
       obj=normalizeCustomerAddress(obj);
@@ -11572,6 +11577,17 @@ function CadModal({
                     <option>VENDA BRUTA</option>
                     <option>VENDA LÍQUIDA</option>
                     <option>MARGEM / LUCRO</option>
+                  </select>
+                ) : type === "fornecedores" && k === "condicaoPaletes" ? (
+                  <select
+                    aria-label="CONDIÇÃO DE PALETES"
+                    value={f[k] || ""}
+                    onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))}
+                  >
+                    <option value="">NÃO CONFIGURADO — SELECIONE</option>
+                    {SUPPLIER_PALLET_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                 ) : type === "fornecedores" && k === "formaPagamentoPadrao" ? (
                   <select
