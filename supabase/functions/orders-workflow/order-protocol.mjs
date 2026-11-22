@@ -1,4 +1,4 @@
-// Protocolo amigável do PEDIDOS FT: nome do motorista + data do pedido (DDMMAA).
+// Protocolo do PEDIDOS FT: apenas o PRIMEIRO nome do motorista + DDMMAA, tudo junto.
 // Identificador secundário: nunca substitui o ID imutável da carga ou o número oficial.
 function dateParts(value){
  if(/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))){
@@ -13,7 +13,8 @@ function dateParts(value){
  return {day:parts.day,month:parts.month,year:parts.year};
 }
 export function protocolBase(name,date){
- const clean=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toLowerCase();
+ const first=String(name||'').trim().split(/[\s-]+/u)[0]||'';
+ const clean=first.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toLowerCase();
  if(!clean)return '';
  const formatted=clean.charAt(0).toUpperCase()+clean.slice(1);
  const {day,month,year}=dateParts(date);
@@ -23,15 +24,18 @@ export function assignOrderProtocol(state,order,load,driver,at){
  if(!driver?.id||!driver?.nome||!load) return '';
  const existing=load.protocolo||order?.protocolo||'';
  const existingDriver=load.protocoloMotoristaId||order?.protocoloMotoristaId||'';
- if(existing&&existingDriver===driver.id){
+ const reference=order?.criadaEm||load.criadaEm||at;
+ const base=protocolBase(driver.nome,reference);
+ if(!base)throw new Error('Nome do motorista ou data inválidos para o protocolo.');
+ // Preserva os protocolos já despachados; corrige padrões anteriores só antes do despacho.
+ const dispatched=!!(load.ordemEnviadaEm||load.fretePublicadaId||load.finalizadaEm);
+ const currentFormat=existing===base||(existing.startsWith(base)&&/^\d{2,}$/.test(existing.slice(base.length)));
+ if(existing&&existingDriver===driver.id&&(currentFormat||dispatched)){
   if(!load.protocolo)load.protocolo=existing;
   if(order&&!order.protocolo)order.protocolo=existing;
   return existing;
  }
- if(existing&&(load.ordemEnviadaEm||load.fretePublicadaId||load.finalizadaEm))throw new Error('O protocolo de uma ordem já enviada não pode ser alterado.');
- const reference=order?.criadaEm||load.criadaEm||at;
- const base=protocolBase(driver.nome,reference);
- if(!base)throw new Error('Nome do motorista ou data inválidos para o protocolo.');
+ if(existing&&dispatched)throw new Error('O protocolo de uma ordem já enviada não pode ser alterado.');
  const occupied=new Set();
  for(const c of state.cargas||[]){
   if(c.id===load.id)continue;
@@ -39,7 +43,7 @@ export function assignOrderProtocol(state,order,load,driver,at){
   for(const h of c.protocoloHistorico||[])if(h.valor)occupied.add(h.valor);
  }
  let candidate=base,serial=2;
- while(occupied.has(candidate))candidate=base+'-'+String(serial++).padStart(2,'0');
+ while(occupied.has(candidate))candidate=base+String(serial++).padStart(2,'0');
  const history=[...(load.protocoloHistorico||[])];
  if(existing&&existing!==candidate)history.push({valor:existing,motoristaId:existingDriver,substituidoEm:at});
  const generatedAt=at||new Date().toISOString();
