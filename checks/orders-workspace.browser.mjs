@@ -17,6 +17,16 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.getByRole('button',{name:'Pedido de Venda',exact:true}).click();await page.getByRole('combobox',{name:'Cliente, fantasia ou CPF/CNPJ',exact:true}).selectOption('c');await page.getByRole('combobox',{name:'Vendedor',exact:true}).selectOption('v');await page.getByRole('combobox',{name:'Marca 1',exact:true}).selectOption('CSN');await page.getByRole('combobox',{name:'Produto 1',exact:true}).selectOption('p');await page.getByLabel('Quantidade 1',{exact:true}).fill('10');await page.getByRole('combobox',{name:'Forma de recebimento',exact:true}).selectOption('PIX');await page.getByLabel('Condição / prazo do cliente',{exact:true}).fill('À VISTA');await page.getByRole('button',{name:'Registrar venda aprovada',exact:true}).click();await page.getByRole('status').filter({hasText:'Gravação confirmada'}).waitFor();assert.equal(await page.evaluate(()=>window.fixtureState.vendas[0].status),'APROVADO');
  await page.getByRole('button',{name:'Ajustar quantidade',exact:true}).click();await page.getByLabel('Quantidade final',{exact:true}).fill('8');await page.getByRole('button',{name:'Salvar ajuste e preparar aviso',exact:true}).click();await page.getByRole('status').filter({hasText:'Gravação confirmada'}).waitFor();assert.equal(await page.evaluate(()=>window.fixtureState.vendas[0].qtd),8);assert.equal(await page.evaluate(()=>window.fixtureState.vendas.length),1);
  await page.getByRole('button',{name:'Ordem de Carregamento',exact:true}).click();assert.equal(await page.locator('fieldset input').first().getAttribute('aria-label'),'1. Número oficial do pedido do fornecedor');await page.getByLabel('1. Número oficial do pedido do fornecedor',{exact:true}).fill('P-123');await page.getByRole('combobox',{name:'Fornecedor do pedido',exact:true}).selectOption('f');await page.getByRole('button',{name:'Buscar pedido confirmado',exact:true}).click();await page.getByRole('alert').filter({hasText:'Não foi possível encontrar'}).waitFor();assert.equal(await page.evaluate(()=>window.fixtureState.cargas.length),1);
+ await page.getByRole('button',{name:'PEDIDOS FT • Dossiê',exact:true}).click();
+ await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
+ assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').count(),1);
+ assert.equal(await page.getByRole('heading',{name:'2. Paletes da carga'}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'6. Faturamento — Juliana'}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'7. Fechamento — Pedro'}).count(),1);
+ assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
+ await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');
+ await page.getByRole('button',{name:'PEDIDOS FT • Dossiê',exact:true}).click();
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');assert.deepEqual(errors,[]);console.log('PASS: independent supplier/sale/order tabs, real filtered fixture catalogs, approved sale, no invented matching, no overflow: '+size.width);
  await page.close();
 }
