@@ -37,7 +37,7 @@ test('protocolo é único por carga e preserva histórico na troca de motorista'
 const actor={user_id:'master',empresa_id:'e',nome:'MASTER',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};
 const data=()=>({
  settings:{},unidades:[{id:'u',nome:'Filial',cnpj:'11111111000191'}],
- fornecedores:[{id:'f',nome:'CSN',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'}],
+ fornecedores:[{id:'f',nome:'CSN',modalidadeFrete:'FOB',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'}],
  produtos:[{id:'p',nome:'Cimento 50kg',marca:'CSN',pesoKg:50,precoNegociado:22,palletQtd:40}],
  locais:[{id:'l',nome:'Arcos',ativo:true}],
  custosFornecedor:[{fornecedorId:'f',produtoId:'p',condicaoPagamento:'14 DIAS',custoUnitario:22}],
