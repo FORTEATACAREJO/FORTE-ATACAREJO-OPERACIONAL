@@ -22,7 +22,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
  const go=target=>onGo?.(target,d?.carga?.id||'');
  if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><h2>PEDIDOS FT</h2><p>Dossiê operacional por carga • visualização ligada ao FORTE-OP</p></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor no FORTE-OP para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
- const {carga:c,order,supplier,driver,clients,reconciliation:r,pallets,documents,items,timeline}=d;
+ const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
  const supplierDocs=documents.filter(doc=>!doc.clienteId&&!doc.vendaId);
  const customerDocs=documents.filter(doc=>doc.clienteId||doc.vendaId);
  const statusTone=r.status==='CONCILIADA'?'good':r.status==='DIVERGENTE'?'bad':'warn';
@@ -88,6 +88,18 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    </div>
    {r.details.map(item=><div className="ft-line" key={item.produtoId}><span>{item.produto}</span><b>{number(item.comprado)} / {number(item.distribuido)} • saldo {number(item.saldo)}</b></div>)}
    <p className="ft-hint">O status verde confere a distribuição comercial por produto. Não equivale a nota fiscal autorizada ou boleto pago.</p>
+  </Panel>
+
+  <Panel title="Resumo financeiro da carga" aside={<Pill tone={finance.completo?'good':'warn'}>{finance.modalidadeFrete}</Pill>}>
+   <Field label="Vendas de mercadorias" value={finance.receitaVendas===null?'Pendente':money(finance.receitaVendas)}/>
+   <Field label="Compra do fornecedor" value={finance.custoFornecedor===null?'Pendente':money(finance.custoFornecedor)}/>
+   <Field label="Diferença antes do frete" value={finance.diferencaAntesFrete===null?'Pendente':money(finance.diferencaAntesFrete)}/>
+   <Field label={finance.modalidadeFrete==='FOB'?'(-) Frete FOB da carga':'Frete CIF incluído na compra'} value={finance.freteDescontado===null?'Frete pendente de registro':money(finance.freteDescontado)}/>
+   <div className={'ft-financial-result'+(finance.resultadoAposFrete!==null&&finance.resultadoAposFrete<0?' ft-loss':'')}><span>RESULTADO COMERCIAL APÓS FRETE</span><strong>{finance.resultadoAposFrete===null?'PENDENTE':money(finance.resultadoAposFrete)}</strong></div>
+   {finance.statusFrete==='FRETE_PENDENTE'&&<p className="ft-warning" role="status">Carga FOB: registre e confira o valor do frete da carga para calcular o resultado. Não considerar frete ausente como zero.</p>}
+   {finance.statusFrete==='INCLUSO_NO_PRECO'&&<p className="ft-hint">Frete CIF já incluído no custo do fornecedor: não descontar duas vezes.</p>}
+   {finance.statusFrete==='MODALIDADE_PENDENTE'&&<p className="ft-warning">Modalidade do frete ainda não definida; resultado pendente.</p>}
+   <p className="ft-hint">Estimativa comercial antes de impostos, despesas e conciliação de pagamentos. Não equivale a lucro líquido.</p>
   </Panel>
 
   <Panel title="6. Faturamento — Juliana" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
