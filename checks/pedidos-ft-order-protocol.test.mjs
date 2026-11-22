@@ -37,7 +37,7 @@ const data=()=>({
  motoristas:[{id:'m',nome:'Cleuber Júnior',placa1:'ABC1D23',capacidadeMaximaKg:40000}],
  usuarios:[],clientes:[],cargas:[],comprasFornecedor:[],vendas:[],documentos:[]
 });
-const purchase={action:'SUPPLIER_CREATE',fornecedorId:'f',unidadeId:'u',pagamento:'14 DIAS',motoristaId:'m',itens:[{produtoId:'p',qtd:200}],regraPallets:'Sem pallets',palletQuantidade:0,origem:'Arcos',destino:'Galpão',destinoTipo:'GALPÃO',modalidadeFrete:'FOB'};
+const purchase={action:'SUPPLIER_CREATE',fornecedorId:'f',unidadeId:'u',pagamento:'14 DIAS',motoristaId:'m',itens:[{produtoId:'p',qtd:800}],regraPallets:'Sem pallets',palletQuantidade:0,origem:'Arcos',destino:'Galpão',destinoTipo:'GALPÃO',modalidadeFrete:'FOB'};
 let sequence=0;
 const run=(s,payload)=>applyWorkflow(s,{...payload,requestId:'proto-test-'+(++sequence)},actor,{id:'event-'+sequence,at:'2027-11-22T12:00:00Z'}).state;
 
