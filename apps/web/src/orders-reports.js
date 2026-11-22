@@ -13,7 +13,7 @@ export function reportPDF(title,sections,{generatedAt=new Date().toISOString(),p
 }
 export function purchaseReport(order,driver=false){return purchaseDocument(jsPDF,order,driver);}
 export function loadReport(data,c){return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
- {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
+ {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
  {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
  {title:'Documentos vinculados',rows:(data.documentos||[]).filter(d=>d.cargaId===c.id).map(d=>d.categoria+' • '+d.filename+' • '+d.validationStatus)},
  {title:'Histórico de ajustes',rows:[...(c.ajustes||[]).map(a=>date(a.at)+' • '+a.motivo),...(data.vendas||[]).filter(v=>v.cargaId===c.id).flatMap(v=>(v.ajustes||[]).map(a=>v.numeroVenda+' • '+a.antes+' para '+a.depois+' • '+date(a.at)+' • '+a.motivo))]}
