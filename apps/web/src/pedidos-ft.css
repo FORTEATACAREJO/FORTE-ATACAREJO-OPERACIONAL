@@ -21,3 +21,17 @@
 
 .ft-financial-result{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 13px;border-radius:10px;background:#e0f5e8;color:#116235;font-weight:800;overflow-wrap:anywhere}
 .ft-financial-result>span{font-size:12px}.ft-financial-result>strong{font-size:21px}.ft-financial-result.ft-loss{background:#fee9e9;color:#a02a2a}
+
+.ft-title{display:flex;align-items:center;gap:12px}
+.ft-title img{display:block;flex:none;border-radius:13px;object-fit:cover}
+
+.ft-top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ft-options{position:relative}
+.ft-options summary{list-style:none;display:grid;place-items:center;width:44px;height:44px;border-radius:9px;font-size:24px;cursor:pointer}
+.ft-options summary::-webkit-details-marker{display:none}
+.ft-options-list{position:absolute;right:0;top:calc(100% + 6px);z-index:3;min-width:168px;border:1px solid #d2dfe9;border-radius:10px;padding:4px;background:#fff;box-shadow:0 6px 18px #122a402b}
+.ft-options-list button{display:block;width:100%;border:0;background:#fff;color:#09549b;text-align:left}
+.ft-options-list button:hover,.ft-options-list button:focus-visible{background:#edf5fb}
+.ft-load-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+.ft-load-list li{flex-wrap:wrap}
+@media(max-width:520px){.ft-load-filters{grid-template-columns:1fr;gap:0}}

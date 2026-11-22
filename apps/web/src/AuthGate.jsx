@@ -5,7 +5,7 @@ import {supabase,setAuthContext} from './supabase.js';
 import {accessTimeout} from './access-standard.js';
 import {loadForteOpGrants,preferredForteOpGrant} from './forte-op-grants.js';
 
-export default function AuthGate(){
+export default function AuthGate({renderWorkspace, title='FORTE-OP'}={}){
  const [ready,setReady]=useState(false),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
  const [scope,setScope]=useState(null);
  useEffect(()=>{
@@ -34,8 +34,9 @@ export default function AuthGate(){
   return()=>{active=false;setAuthContext(null)};
  },[attempt]);
  if(!ready)return <section role={error?'alert':undefined} style={{padding:24}}>
-  <p>{error||'Conferindo acesso FORTE-OP…'}</p>
+  <p>{error||'Conferindo acesso '+title+'…'}</p>
   {error&&<button type="button" onClick={()=>setAttempt(x=>x+1)}>TENTAR NOVAMENTE</button>}
  </section>;
+ if(renderWorkspace)return renderWorkspace(scope);
  return scope?.restricted?<UnifiedRoleWorkspace grants={scope.grants} profile={scope.profile}/>:<App/>;
 }
