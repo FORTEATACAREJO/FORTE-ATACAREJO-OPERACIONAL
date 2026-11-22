@@ -20,7 +20,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  const cargaId=cargas.some(c=>c.id===selection)?selection:(cargas.some(c=>c.id===initialCargaId)?initialCargaId:cargas[0]?.id||'');
  const d=useMemo(()=>buildPedidosFTDossier(data,cargaId),[data,cargaId]);
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
- const go=target=>onGo?.(target);
+ const go=target=>onGo?.(target,d?.carga?.id||'');
  if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><h2>PEDIDOS FT</h2><p>Dossiê operacional por carga • visualização ligada ao FORTE-OP</p></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor no FORTE-OP para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,pallets,documents,items,timeline}=d;
  const supplierDocs=documents.filter(doc=>!doc.clienteId&&!doc.vendaId);
