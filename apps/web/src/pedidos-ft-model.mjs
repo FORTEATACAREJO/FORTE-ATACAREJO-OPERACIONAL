@@ -1,4 +1,5 @@
 import {supplierPalletRule,SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
+import {financialSummary} from './pedidos-ft-finance.mjs';
 
 const rows=(state,key)=>Array.isArray(state?.[key])?state[key]:[];
 const numeric=v=>Number.isFinite(Number(v))&&Number(v)>=0?Number(v):0;
@@ -41,6 +42,7 @@ export function buildPedidosFTDossier(state,cargaId){
  ));
  const items=order?.itens?.length?order.itens:c.itensPedido?.length?c.itensPedido:c.itens||[];
  const reconciliation=quantityReconciliation(items,sold);
+ const finance=financialSummary({carga:c,order,sales:sold});
  const docs=rows(state,'documentos').filter(d=>pertainsToLoad(d,c,order));
  const chats=rows(state,'comunicacoes').filter(j=>pertainsToLoad(j,c,order));
  const returns=rows(state,'retornosFornecedor').filter(r=>pertainsToLoad(r,c,order));
@@ -73,7 +75,7 @@ export function buildPedidosFTDossier(state,cargaId){
  timeline.sort((a,b)=>Date.parse(b.when)-Date.parse(a.when));
  return {
   carga:c,order,supplier,driver,items,sales:sold,clients:[...clients.values()],
-  documents:docs,communications:chats,returns,reconciliation,
+  documents:docs,communications:chats,returns,reconciliation,finance,
   pallets:{rule,label:palletLabel(rule),quantity:pallets,status:palletStatus,needsRelease:requested&&!evidence},
   timeline:timeline.slice(0,30)
  };
