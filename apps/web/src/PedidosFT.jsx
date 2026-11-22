@@ -104,6 +104,6 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="8. Histórico desta carga">
    {timeline.length?<ol className="ft-timeline">{timeline.map((event,i)=><li key={i}><time>{when(event.when)}</time><span>{event.label}</span></li>)}</ol>:<p className="ft-hint">Nenhum evento com data registrada para esta carga.</p>}
   </Panel>
-  <div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((c.codigo||c.id)+'-DOSSIE.pdf')}>Gerar PDF do dossiê</button><button type="button" className="ft-outline" onClick={()=>go('cargas')}>Painel de cargas</button></div>
+  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((c.codigo||c.id)+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>go('cargas')}>Painel de cargas</button></div>
  </section>;
 }
