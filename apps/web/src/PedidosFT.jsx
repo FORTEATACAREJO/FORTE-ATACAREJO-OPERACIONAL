@@ -38,6 +38,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <div><small>FORNECEDOR</small><strong>{text(supplier?.nome||c.fornecedor)}</strong></div>
    <div><small>PEDIDO OFICIAL</small><strong>{text(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||'Aguardando')}</strong></div>
   </div>
+  <div className="ft-protocol" aria-label="Protocolo do pedido"><span>PROTOCOLO DO PEDIDO</span><strong>{c.protocolo||order?.protocolo||"Aguardando identificação do motorista"}</strong><small>Motorista + data do pedido (DDMMAA) • código exclusivo desta carga</small></div>
   <div className="ft-status">
    <Pill tone={statusTone}>{r.status==='CONCILIADA'?'Comercial conciliado':r.status==='DIVERGENTE'?'Quantidade divergente':'Comercial em aberto'}</Pill>
    <Pill tone="warn">Faturamento: conferir</Pill>
@@ -46,6 +47,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
 
   <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
    <Field label="Número interno" value={order?.numero||c.codigo}/>
+   <Field label="Protocolo PEDIDOS FT" value={c.protocolo||order?.protocolo||"Aguardando motorista"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||supplier?.condicaoPagamento}/>
    <Field label="Expedição / retirada" value={c.localCarregamento||c.origem}/>
    <Field label="Destino" value={c.destino}/>
