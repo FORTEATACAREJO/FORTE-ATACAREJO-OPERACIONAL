@@ -1,4 +1,5 @@
 import {purchaseDocument} from '../../../supabase/functions/order-communications/order-document.mjs';
+import {buildPedidosFTDossier} from './pedidos-ft-model.mjs';
 import {jsPDF} from 'jspdf';
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'—';
@@ -12,9 +13,22 @@ export function reportPDF(title,sections,{generatedAt=new Date().toISOString(),p
  return d;
 }
 export function purchaseReport(order,driver=false){return purchaseDocument(jsPDF,order,driver);}
-export function loadReport(data,c){return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
+export function loadReport(data,c){
+ const d=buildPedidosFTDossier(data,c.id);
+ const f=d?.finance;
+ const amount=n=>n===null||n===undefined?'Pendente':money(n);
+ return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
  {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
  {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
+ {title:'Resumo financeiro da carga',rows:f?[
+  'Modalidade de frete: '+f.modalidadeFrete,
+  'Vendas de mercadorias: '+amount(f.receitaVendas),
+  'Compra do fornecedor: '+amount(f.custoFornecedor),
+  'Diferenca antes do frete: '+amount(f.diferencaAntesFrete),
+  f.modalidadeFrete==='FOB'?'(-) Frete FOB da carga: '+amount(f.freteDescontado):f.modalidadeFrete==='CIF'?'Frete CIF: incluido na compra; desconto adicional R$ 0,00':'Modalidade de frete pendente',
+  'RESULTADO COMERCIAL APOS FRETE: '+amount(f.resultadoAposFrete),
+  'Antes de impostos e demais despesas; nao representa lucro liquido.'
+ ]:['Resumo financeiro indisponivel: conferir dossie da carga.']},
  {title:'Documentos vinculados',rows:(data.documentos||[]).filter(d=>d.cargaId===c.id).map(d=>d.categoria+' • '+d.filename+' • '+d.validationStatus)},
  {title:'Histórico de ajustes',rows:[...(c.ajustes||[]).map(a=>date(a.at)+' • '+a.motivo),...(data.vendas||[]).filter(v=>v.cargaId===c.id).flatMap(v=>(v.ajustes||[]).map(a=>v.numeroVenda+' • '+a.antes+' para '+a.depois+' • '+date(a.at)+' • '+a.motivo))]}
  ]);}

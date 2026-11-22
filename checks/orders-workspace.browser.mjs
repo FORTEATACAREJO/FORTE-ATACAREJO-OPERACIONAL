@@ -23,6 +23,8 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('heading',{name:'2. Paletes da carga'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'6. Faturamento — Juliana'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'7. Fechamento — Pedro'}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
+ assert.equal(await page.getByText('Frete pendente de registro',{exact:true}).count(),1);
  assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
  await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');

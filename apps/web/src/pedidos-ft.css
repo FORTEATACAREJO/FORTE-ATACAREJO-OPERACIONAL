@@ -18,3 +18,6 @@
 @media(max-width:600px){.ft-app{padding:8px;gap:10px}.ft-top{padding:14px}.ft-top h2{font-size:22px!important}.ft-card{padding:12px}.ft-summary>div{padding:10px 5px}.ft-summary small{font-size:9px}.ft-summary strong{font-size:12px}.ft-status .ft-pill{flex:1;text-align:center;justify-content:center}.ft-card-heading h3{font-size:16px}.ft-line b{max-width:46%}.ft-footer{grid-template-columns:1fr}}
 
 .ft-protocol{display:flex;flex-direction:column;gap:4px;padding:13px;background:#dfeefd;border:1px solid #b7cfe6;border-radius:13px;overflow-wrap:anywhere}.ft-protocol>span{color:#3b6086;font-size:10px;letter-spacing:.06em;font-weight:800}.ft-protocol>strong{font-size:20px;color:#084477;overflow-wrap:anywhere}.ft-protocol>small{font-size:11px;color:#59718a}
+
+.ft-financial-result{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 13px;border-radius:10px;background:#e0f5e8;color:#116235;font-weight:800;overflow-wrap:anywhere}
+.ft-financial-result>span{font-size:12px}.ft-financial-result>strong{font-size:21px}.ft-financial-result.ft-loss{background:#fee9e9;color:#a02a2a}
