@@ -12147,7 +12147,7 @@ function CadModal({
             key={x.id}
           >
             <div>
-              <b>{(type === "clientes" ? customerName(x) : x.nome) || x.descricao || x.email}</b>{type === "produtos" && <small>{upper(x.finalidade || "REVENDA")} • {upper(x.categoria || "OUTROS")}</small>}
+              <b>{(type === "clientes" ? customerName(x) : x.nome) || x.descricao || x.email}</b>{type === "produtos" && <small>{upper(x.finalidade || "REVENDA")} • {upper(x.categoria || "OUTROS")}</small>}{type === "fornecedores" && <small>PALETES: {SUPPLIER_PALLET_OPTIONS.find(option => option.value === x.condicaoPaletes)?.label || "NÃO CONFIGURADO"}</small>}
               <small>
                 {Object.entries(x)
                   .filter(
