@@ -3,6 +3,7 @@ import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
+import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import './driver-directory-mobile.css';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
@@ -22,9 +23,10 @@ const cpfValido=value=>{
 };
 const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(3,6)}.${d.slice(6,9)}-**`:'PENDENTE';};
 
-export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false}){
+export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false,onDataRefresh}){
  const [query,setQuery]=useState('');
  const [view,setView]=useState('motoristas');
+ const [reviewId,setReviewId]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
@@ -171,6 +173,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <span>CPF: {maskCpf(m.cpf)} · CNH: {m.cnh||m.cnhNumero?'Informada':'A conferir'}</span>
   
   <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
+  {isAdmin&&(data?.motoristas||[]).some(d=>d.id===m.id)&&<button type="button" className="ft-driver-approve-button" disabled={busy} onClick={()=>setReviewId(old=>old===m.id?'':m.id)}>{reviewId===m.id?'FECHAR CONFERÊNCIA':isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'REVISAR DOCUMENTOS':'CONFERIR / LIBERAR MOTORISTA'}</button>}
+  {reviewId===m.id&&<OperationalDriverApproval driver={(data?.motoristas||[]).find(d=>d.id===m.id)||m} onCancel={()=>setReviewId('')} onSaved={async result=>{setMessage(result?.warning||'Conferência gravada.');if(onDataRefresh)await onDataRefresh();setReviewId('');}}/>}
   {onPick&&(isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))
     ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
     :<small>Cadastro disponível para conferência. Não habilitado para emissão de ordem.</small>)}
