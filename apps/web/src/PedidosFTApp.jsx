@@ -6,6 +6,8 @@ export default function PedidosFTApp({profile,grants}){
  const allowed=profile.perfil==='MASTER'&&grants.vendas?.allowed;
  const [data,setData]=useState(null);
  const [notice,setNotice]=useState('');
+ const [channels,setChannels]=useState(null);
+ const [checkingChannels,setCheckingChannels]=useState(false);
  const refresh=useCallback(async()=>{
   const state=await loadCloudState();
   if(!state)throw Error('Base do Pedidos FT indisponível. Tente novamente.');
@@ -47,6 +49,19 @@ export default function PedidosFTApp({profile,grants}){
   try{await refresh();}catch{setNotice('A operação foi recebida. Atualize as cargas para conferir.');}
   return receipt;
  }
+ async function checkChannels(){
+  setCheckingChannels(true);setChannels(null);
+  try{
+   const {data:out,error}=await supabase.functions.invoke('order-communications',{body:{action:'CHANNEL_STATUS'}});
+   if(error||out?.error){
+    let detail=out?.error||error?.message||'Não foi possível conferir os canais.';
+    if(error?.context)try{detail=(await error.context.clone().json()).error||detail;}catch{}
+    throw Error(detail);
+   }
+   setChannels(out);
+  }catch(e){setChannels({error:e.message||'Falha ao consultar os canais.'});}
+  finally{setCheckingChannels(false);}
+ }
  async function signOut(){
   const {error}=await supabase.auth.signOut();
   if(error)setNotice('Não foi possível sair. Tente novamente.');
@@ -59,11 +74,13 @@ export default function PedidosFTApp({profile,grants}){
     <summary aria-label="Ferramentas e cadastros">⚙ Ferramentas</summary>
     <div data-forte-top-actions/>
    </details>
+   {allowed&&<button type="button" disabled={checkingChannels} onClick={checkChannels}>{checkingChannels?'Conferindo canais…':'✉ Conferir e-mail / WhatsApp'}</button>}
    <button type="button" onClick={signOut}>Sair</button>
   </header>
   {!allowed?<section className="ft-guard" role="alert"><h1>Pedidos FT</h1><p>Acesso exclusivo para usuários Master autorizados.</p></section>:
    <>
     {notice&&<p role="alert" className="ft-warning">{notice}</p>}
+    {channels&&<section className="ft-channel-check" role="status"><header><h3>Verificação de e-mail e WhatsApp Business</h3><button type="button" onClick={()=>setChannels(null)}>Fechar</button></header>{channels.error?<p className="ft-warning">{channels.error}</p>:<><p><strong>E-mail Hostinger:</strong> {channels.email?.ready?'✓ Caixa autorizada':'⚠ Verificação pendente'} — {channels.email?.detail}</p><p><strong>WhatsApp Business:</strong> {channels.whatsapp?.connected?'✓ Conexão cadastrada':'⚠ Conexão não confirmada'}</p><p><strong>Pedido ao fornecedor em PDF:</strong> {channels.whatsapp?.fornecedor?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.fornecedor?.detail}</p><p><strong>Ordem ao motorista em PDF:</strong> {channels.whatsapp?.motorista?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.motorista?.detail}</p><small>Essa conferência não dispara mensagens. O aceite de envio não comprova a entrega ao destinatário.</small></>}</section>}
     {data?<OrdersWorkspace standalone initialTab="dossie" data={data}
      currentUser={data.usuarios.find(user=>user.id===data.currentUserId)||profile}
      onRefresh={refresh} onCommit={commit} onSaveRegistry={saveRegistry} onManageUsers={openUsers}
