@@ -45,6 +45,11 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert(await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).isVisible());
  assert.equal(await driverModal.getByRole('button',{name:'Motoristas',exact:true}).count(),1);
   assert.equal(await driverModal.getByRole('button',{name:'Veículos',exact:true}).count(),1);
+  await driverModal.getByRole('button',{name:'Veículos',exact:true}).click();
+  await driverModal.getByText('Cadastro de veículos',{exact:true}).waitFor();
+  assert.equal(await driverModal.getByRole('form',{name:'Cadastro do veículo com transportadora'}).count(),1);
+  assert.equal(await driverModal.getByRole('form',{name:'Vincular motorista a veículo'}).count(),1);
+  await driverModal.getByRole('button',{name:'Motoristas',exact:true}).click();
   await driverModal.getByLabel('Buscar motorista pelo nome ou CPF').fill('nao encontrado');
  assert.equal(await driverModal.locator('.ft-driver-card').count(),0);
  await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).click();
