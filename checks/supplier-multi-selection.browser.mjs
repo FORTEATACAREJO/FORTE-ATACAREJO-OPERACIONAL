@@ -53,7 +53,20 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  await modal.waitFor();
  assert.equal(await modal.getByRole('checkbox',{name:'14 dias',exact:true}).isChecked(),true);
  await modal.getByRole('combobox',{name:'Forma de pagamento',exact:true}).selectOption('BOLETO');
- for(const day of ['7 dias','21 dias','28 dias'])await modal.getByRole('checkbox',{name:day,exact:true}).check();
+ const custom=modal.getByLabel('Outros prazos em dias');
+ await custom.fill('7,14,21,28');
+ assert.equal(await custom.inputValue(),'7,14,21,28');
+ await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
+ assert.equal(await custom.inputValue(),'');
+ for(const day of ['7 dias','14 dias','21 dias','28 dias'])assert.equal(await modal.getByRole('checkbox',{name:day,exact:true}).isChecked(),true);
+ // Outras sintaxes acrescentam só os vencimentos ainda não presentes.
+ await custom.fill('7/14/21');
+ await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
+ await custom.fill('7,abc');
+ await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
+ assert.equal(await modal.getByRole('alert').count(),1);
+ assert.match(await modal.getByRole('alert').innerText(),/Use números separados/);
+ await custom.fill('');
  await page.waitForFunction(()=>document.querySelector('.ft-supplier-due-summary')?.textContent?.includes('7/14/21/28 dias'));
  assert.match(await modal.locator('.ft-supplier-due-summary').innerText(),/7\/14\/21\/28 dias/);
  await modal.getByLabel('Pesquisar produtos para vincular').fill('CIPLAN');

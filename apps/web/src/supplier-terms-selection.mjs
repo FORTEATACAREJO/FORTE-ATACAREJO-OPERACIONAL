@@ -50,3 +50,22 @@ export function toggleSupplierDueDay(current,day){
  if(original.includes(Number(day)))return original.filter(x=>x!==Number(day));
  return normalizeDueDays(Number(day)===0?[0]:[...original.filter(x=>x!==0),Number(day)]);
 }
+
+/**
+ * Interpreta vários vencimentos informados de uma vez no campo do celular.
+ * Exemplos válidos: "7", "7,14,21", "7/14/21", "7; 14; 21".
+ * Valores inválidos nunca são parcialmente adicionados.
+ */
+export function parseCustomSupplierDueDays(input){
+ const text=String(input??'').trim().replace(/\s*dias?\s*$/i,'').trim();
+ if(!text)return {days:[],error:'Informe um ou mais prazos em dias.'};
+ const parts=text.split(/\s*[,;/]\s*/);
+ if(parts.some(part=>!/^\d{1,3}$/.test(part))){
+  return {days:[],error:'Use números separados por vírgula, barra ou ponto e vírgula. Ex.: 7,14,21.'};
+ }
+ const values=parts.map(Number);
+ if(values.some(n=>n<1||n>365)){
+  return {days:[],error:'Cada prazo deve ter de 1 a 365 dias. Para pagamento à vista, marque a opção À vista.'};
+ }
+ return {days:normalizeDueDays(values),error:''};
+}
