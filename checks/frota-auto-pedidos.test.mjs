@@ -1,0 +1,31 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {validDriver} from '../supabase/functions/orders-workflow/domain.mjs';
+const s={motoristas:[{id:'driver-a',nome:'Motorista de teste',ativo:true,statusCadastro:'APROVADO',placa1:'OLD1234',placa2:'OLD5678',capacidadeMaximaKg:60000}]};
+const linked={motoristaId:'driver-a',id:'vehicle-1',vinculoId:'link-1',placa:'NEW1B23',capacidade_kg:25000,transportadora_nome:'Transportadora de teste'};
+test('servidor usa placa e capacidade do vínculo, sem gravar placa no cadastro do motorista',()=>{
+ const driver=validDriver(s,'driver-a',20000,false,linked);
+ assert.equal(driver.placa1,'NEW1B23');
+ assert.equal(driver.placa2,'');
+ assert.equal(driver.capacidadeMaximaKg,25000);
+ assert.equal(driver.veiculoId,'vehicle-1');
+ assert.equal(driver.vinculoFrotaId,'link-1');
+ assert.equal(s.motoristas[0].placa1,'OLD1234');
+ assert.equal(s.motoristas[0].capacidadeMaximaKg,60000);
+ assert.throws(()=>validDriver(s,'driver-a',26000,false,linked),/acima da capacidade/);
+ assert.equal(validDriver(s,'driver-a',20000,false).placa1,'OLD1234');
+});
+test('app busca vínculo ativo ao selecionar motorista e exibe veículo automaticamente',()=>{
+ const src=readFileSync(new URL('../apps/web/src/OrdersWorkspace.jsx',import.meta.url),'utf8');
+ const api=readFileSync(new URL('../supabase/functions/orders-workflow/index.ts',import.meta.url),'utf8');
+ assert.match(src,/activeVehicleForDriver\(/);
+ assert.match(src,/selectDriver\(form,set,motoristaId\)/);
+ assert.match(src,/veiculoId:binding\?\.vehicle\.id/);
+ assert.match(src,/Veículo vinculado automaticamente/);
+ assert.match(api,/delete b\.internalFleetVehicle/);
+ assert.match(api,/\.from\('fc_frota_vinculos'\)/);
+ assert.match(api,/\.is\('fim_em',null\)/);
+ assert.match(api,/\.from\('fc_veiculos'\)/);
+ assert.match(api,/O vínculo deste motorista mudou/);
+});
