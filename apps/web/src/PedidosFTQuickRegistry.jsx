@@ -5,6 +5,7 @@ const DriverDirectory=lazy(()=>import('./DriverDirectory.jsx'));
 import {SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
 import {customerAddressError,normalizeCustomerAddress,CUSTOMER_UFS} from './customer-address.js';
 import './pedidos-ft-quick-registry.css';
+import {customerDisplayName,customerMatches} from './customer-search.mjs';
 
 const fields={
  fornecedores:[
@@ -34,9 +35,10 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  const selected=collection.find(r=>r.id===recordId);
  const [draft,setDraft]=useState(()=>mode==='new'?{ativo:true}:{...(selected||{})});
  const [error,setError]=useState('');
+ const [recordQuery,setRecordQuery]=useState('');
  const [busy,setBusy]=useState(false);
  useEffect(()=>{const close=e=>{if(e.key==='Escape'&&!busy)onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);},[onClose,busy]);
- function pick(row){setRecordId(row.id);setDraft(structuredClone(row));setEditing(false);setError('');}
+ function pick(row){setRecordId(row.id);setDraft(structuredClone(row));setEditing(false);setError('');setRecordQuery('');}
  function create(){setRecordId('');setDraft({ativo:true});setEditing(true);setError('');}
  function edit(){if(!selected)return;setDraft(structuredClone(selected));setEditing(true);setError('');}
  function setValue(key,value){setDraft(row=>({...row,[key]:value}));}
@@ -75,9 +77,9 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label={'Cadastro rápido de '+labels[kind]}>
    <header><div><h2>{editing?(recordId?'Corrigir cadastro':'Novo cadastro'):'Consultar cadastro'} — {labels[kind]}</h2><p>Os campos já preenchidos no pedido serão mantidos.</p></div><button type="button" onClick={onClose} disabled={busy}>← Voltar ao pedido</button></header>
-   {!recordId&&mode!=='new'&&!editing&&<label>Buscar {labels[kind].toLowerCase()}<input autoFocus placeholder="Digite o nome ou documento" onChange={e=>{const t=e.target.value.toLowerCase();document.querySelectorAll('.ft-quick-record').forEach(el=>{el.hidden=!el.textContent.toLowerCase().includes(t);});}} /></label>}
-   {!recordId&&!editing&&<div className="ft-quick-list">{collection.filter(x=>x.ativo!==false).map(x=><button className="ft-quick-record" key={x.id} type="button" onClick={()=>pick(x)}>{x.nome||x.nomeFantasia||x.razaoSocial||'Sem nome'}</button>)}</div>}
-   {recordId&&!editing&&<div className="ft-quick-summary"><strong>{selected?.nome||'Cadastro selecionado'}</strong><p>{selected?.cnpj||selected?.documento||''} · {selected?.telefone||selected?.whatsapp||''}</p><div className="ft-quick-actions"><button type="button" onClick={edit}>Editar cadastro</button><button type="button" onClick={create}>+ Novo</button><button type="button" className="secondary" onClick={()=>setRecordId('')}>Buscar outro</button></div></div>}
+   {!recordId&&mode!=='new'&&!editing&&<label>Buscar {labels[kind].toLowerCase()}<input autoFocus placeholder={kind==='clientes'?'Nome fantasia, razão social ou CPF/CNPJ':'Digite o nome ou documento'} value={recordQuery} onChange={e=>setRecordQuery(e.target.value)}/></label>}
+   {!recordId&&!editing&&<div className="ft-quick-list">{collection.filter(x=>x.ativo!==false&&(kind==='clientes'?customerMatches(x,recordQuery):[x.nome,x.razaoSocial,x.cnpj,x.documento].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(recordQuery.trim().toLocaleLowerCase('pt-BR'))))).map(x=><button className="ft-quick-record" key={x.id} type="button" onClick={()=>pick(x)}>{kind==='clientes'?customerDisplayName(x):x.nome||x.razaoSocial||'Sem nome'}</button>)}</div>}
+   {recordId&&!editing&&<div className="ft-quick-summary"><strong>{kind==='clientes'?customerDisplayName(selected||{}):selected?.nome||'Cadastro selecionado'}</strong><p>{selected?.cnpj||selected?.documento||''} · {selected?.telefone||selected?.whatsapp||''}</p><div className="ft-quick-actions"><button type="button" onClick={edit}>Editar cadastro</button><button type="button" onClick={create}>+ Novo</button><button type="button" className="secondary" onClick={()=>setRecordId('')}>Buscar outro</button></div></div>}
    {editing&&<form onSubmit={save}>
     <div className="ft-quick-grid">
      {(fields[kind]||[]).map(([key,label,type])=><label key={key}>{label}<input type={type||'text'} value={fieldValue(draft,key)} onChange={e=>setValue(key,e.target.value)}/></label>)}
