@@ -26,7 +26,8 @@ test('primeiro pedido recebe OS-000001, novos pedidos seguem sem reiniciar por a
  const a=commit(s,purchase);s=a.state;
  assert.equal(a.result.numero,'OS-000001');
  assert.equal(s.comprasFornecedor[0].numero,'OS-000001');
- assert.equal(s.cargas[0].numero,'OS-000001');
+ assert.equal(s.cargas[0].numeroOS,'OS-000001');
+ assert.match(s.cargas[0].codigo,/^FC-000001$/);
  const b=commit(s,purchase,'2026-12-31T23:50:00.000Z');s=b.state;
  assert.equal(b.result.numero,'OS-000002');
  const c=commit(s,purchase,'2027-01-01T00:01:00.000Z');s=c.state;
