@@ -104,3 +104,15 @@ test('RF06: pedido de 800 sacos em conjunto 38t exige aviso e preserva 800 ao ex
  assert.throws(()=>execute(state,{action:'LOAD_SHIPMENT',cargaId:load.id,motoristaId:'m',itens:[{produtoId:'p',qtd:801}],motivo:'Excesso não permitido'}),/superar/);
  assert.throws(()=>capacityCheck(original.motoristas[0],40000),/acima da capacidade/);
 });
+
+test('pedido usa o catálogo, custo e condição de paletes do fornecedor',()=>{
+ const data=base();
+ data.fornecedores[0].produtosNegociados=[{produtoId:'p',custoUnitario:26.75}];
+ data.fornecedores[0].condicaoPaletes='COM_PALETES';
+ assert.throws(()=>execute(data,supplier),/condição de paletes/);
+ const order=execute(data,{...supplier,regraPallets:undefined}).state.comprasFornecedor[0];
+ assert.equal(order.regraPallets,'Com pallets');
+ assert.equal(order.palletQuantidade,16);
+ assert.equal(order.custoTotal,21400);
+ assert.throws(()=>execute(data,{...supplier,regraPallets:undefined,itens:[{produtoId:'q',qtd:1}]}),/não vinculado/);
+});

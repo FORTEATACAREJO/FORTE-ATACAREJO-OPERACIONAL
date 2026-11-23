@@ -1,3 +1,4 @@
+import SupplierProductCatalog,{validSupplierCatalog} from './SupplierProductCatalog.jsx';
 import ConnectMirror from './ConnectMirror.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
 import {SUPPLIER_PALLET_OPTIONS,validSupplierPalletPreference} from './supplier-pallet-preferences.mjs';
@@ -10866,6 +10867,8 @@ const META = {
       ["emailBusca", "E-MAIL BUSCA IA", "email"],
       ["limiteCredito", "LIMITE DE CRÉDITO R$", "number"],
       ["formaPagamentoPadrao", "FORMA PADRÃO DE PAGAMENTO"],
+      ["condicaoPagamento", "PRAZO PADRÃO NEGOCIADO"],
+      ["localCarregamentoPadrao", "LOCAL PADRÃO DE EXPEDIÇÃO"],
       ["modalidadeFrete", "FRETE PADRÃO — CIF OU FOB"],
       ["condicaoPaletes", "CONDIÇÃO DE PALETES"],
     ],
@@ -11208,6 +11211,8 @@ function CadModal({
       if(!['CIF','FOB'].includes(String(obj.modalidadeFrete||'').trim().toUpperCase()))return alert('CONFIGURE CIF OU FOB NO CADASTRO DO FORNECEDOR.');
       if(!validSupplierPalletPreference(obj.condicaoPaletes)) return alert('SELECIONE UMA CONDIÇÃO DE PALETES VÁLIDA.');
       obj.codigosPorCnpj={...(f.codigosPorCnpj||{})};
+      if(!validSupplierCatalog(obj.produtosNegociados,data.produtos||[]))return alert('Confira o produto e o custo unitário de cada item vinculado.');
+      if(obj.produtosNegociados)obj.produtosNegociados=obj.produtosNegociados.map(({produtoId,custoUnitario})=>({produtoId,custoUnitario:Number(custoUnitario)}));
     }
     if(type==='clientes'){
       const error=customerAddressError(obj);if(error)return alert(error);
@@ -11481,7 +11486,7 @@ function CadModal({
             </div>
           )}
           {type === 'clientes' && cnpjStatus && <p className="note" role="status">{cnpjStatus}</p>}
-          {type==='fornecedores'&&<SupplierBuyerCodes supplier={f} units={data.unidades||[]} onChange={setF}/>}
+          {type==='fornecedores'&&<><SupplierBuyerCodes supplier={f} units={data.unidades||[]} onChange={setF}/><SupplierProductCatalog supplier={f} products={data.produtos||[]} onChange={setF}/></>}
           <div className="miniGrid">
             {meta.fields.map(([k, l, t]) => (
               <Field key={k} label={l}>
@@ -11597,6 +11602,11 @@ function CadModal({
                     {SUPPLIER_PALLET_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
+                  </select>
+                ) : type === "fornecedores" && k === "localCarregamentoPadrao" ? (
+                  <select value={f[k] || ""} onChange={(e) => setF((x) => ({...x,[k]:e.target.value}))}>
+                    <option value="">SEM PADRÃO</option>
+                    {(data.locais||[]).filter(l=>l.ativo!==false||l.nome===f[k]).map(l=><option key={l.id}>{l.nome}</option>)}
                   </select>
                 ) : type === "fornecedores" && k === "formaPagamentoPadrao" ? (
                   <select
