@@ -1,7 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {jsPDF} from '../apps/web/node_modules/jspdf/dist/jspdf.es.min.js';
-import {purchaseDocument} from '../supabase/functions/order-communications/order-document.mjs';
+import {purchaseReport} from '../apps/web/src/orders-reports.js';
 
 const purchase=()=>({
  id:'pedido-1',numero:'OS-000001',status:'RASCUNHO — NÃO ENVIADO',
@@ -20,7 +19,7 @@ const purchase=()=>({
 });
 
 test('modelo aprovado: PDF A4 de uma página com OS, comprador, fornecedor, itens, valores e confirmação',()=>{
- const pdf=purchaseDocument(jsPDF,purchase(),false);
+ const pdf=purchaseReport(purchase(),false);
  const raw=pdf.output();
  assert.equal(pdf.getNumberOfPages(),1);
  assert.match(raw,/PEDIDO DE COMPRA AO FORNECEDOR/);
@@ -40,13 +39,13 @@ test('modelo aprovado: PDF A4 de uma página com OS, comprador, fornecedor, iten
 test('preços ausentes não são inventados e não geram zero financeiro',()=>{
  const order=purchase();
  delete order.itens[0].custoUnitario;delete order.itens[0].total;
- const raw=purchaseDocument(jsPDF,order,false).output();
+ const raw=purchaseReport(order,false).output();
  assert.match(raw,/CONFERIR PRE.OS ANTES DE ENVIAR/);
  assert.match(raw,/R\$ a confirmar/);
 });
 test('número do pedido da indústria permanece separado da OS interna',()=>{
  const order=purchase();order.numeroPedidoFornecedor='INDUSTRIA-7788';
- const raw=purchaseDocument(jsPDF,order,false).output();
+ const raw=purchaseReport(order,false).output();
  assert.match(raw,/OS-000001/);
  assert.match(raw,/INDUSTRIA-7788/);
 });
@@ -57,16 +56,16 @@ test('pedidos maiores são paginados sem descartar produtos',()=>{
   qtd:40,pesoKg:2000,custoUnitario:27,total:1080
  }));
  order.pesoKg=28000;
- const pdf=purchaseDocument(jsPDF,order,false);
+ const pdf=purchaseReport(order,false);
  assert(pdf.getNumberOfPages()>1);
  const raw=pdf.output();
  for(let n=1;n<=14;n++)assert(raw.includes('LOTE '+String(n).padStart(2,'0')));
 });
 test('ordem de carregamento permanece documento separado, exigindo pedido oficial',()=>{
  const order=purchase();
- assert.throws(()=>purchaseDocument(jsPDF,order,true),/número oficial/);
+ assert.throws(()=>purchaseReport(order,true),/número oficial/);
  order.numeroPedidoFornecedor='INDUSTRIA-7788';
- const raw=purchaseDocument(jsPDF,order,true).output();
+ const raw=purchaseReport(order,true).output();
  assert.match(raw,/ORDEM DE CARREGAMENTO/);
  assert.match(raw,/INDUSTRIA-7788/);
  assert.doesNotMatch(raw,/PEDIDO DE COMPRA AO FORNECEDOR/);
