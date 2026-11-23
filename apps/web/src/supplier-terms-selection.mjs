@@ -16,7 +16,7 @@ export function parseDueDays(raw){
  return match?normalizeDueDays(match[1].split(/\s*[/,;]\s*/).map(Number)):[];
 }
 export function supplierSelectedDueDays(supplier={}){
- if(Array.isArray(supplier.prazosNegociadosDias)&&supplier.prazosNegociadosDias.length){
+ if(Array.isArray(supplier.prazosNegociadosDias)){
   return normalizeDueDays(supplier.prazosNegociadosDias);
  }
  const direct=parseDueDays(supplier.condicaoPagamento);
