@@ -73,10 +73,10 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  const customerDocs=documents.filter(doc=>doc.clienteId||doc.vendaId);
  const statusTone=r.status==='CONCILIADA'?'good':r.status==='DIVERGENTE'?'bad':'warn';
  const needsPalletAttention=pallets.status!=='REGRA CADASTRADA';
- return <section className="ft-app" aria-label="PEDIDOS FT">
+ return <section className="ft-app ft-overview" aria-label="PEDIDOS FT">
   <header className="ft-top">
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
-   <div className="ft-top-actions"><button type="button" className="ft-outline" onClick={()=>go('fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={setLoadView}/></div>
+   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={setLoadView}/></div>
   </header>
   <div className="ft-picker"><label htmlFor="ft-carga">Selecionar carga</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>setSelection(e.target.value)}>{cargas.map(x=><option key={x.id} value={x.id}>{x.codigo||x.id} • {x.fornecedor||'Fornecedor a definir'}</option>)}</select></div>
   <div className="ft-summary">
