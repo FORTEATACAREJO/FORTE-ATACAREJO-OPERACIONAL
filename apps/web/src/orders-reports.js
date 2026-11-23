@@ -18,7 +18,7 @@ export function loadReport(data,c){
  const f=d?.finance;
  const amount=n=>n===null||n===undefined?'Pendente':money(n);
  return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
- {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
+ {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Nossa OS: '+(c.numeroOS||'Não vinculada'),'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
  {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
  {title:'Resumo financeiro da carga',rows:f?[
   'Modalidade de frete: '+f.modalidadeFrete,
