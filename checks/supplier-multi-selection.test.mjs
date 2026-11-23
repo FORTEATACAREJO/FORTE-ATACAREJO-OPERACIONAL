@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  supplierSelectedDueDays,parseDueDays,normalizeDueDays,formatSupplierDueDays,
- supplierWithSelectedTerms,toggleSupplierDueDay,supplierPaymentMethod
+ supplierWithSelectedTerms,toggleSupplierDueDay,supplierPaymentMethod,parseCustomSupplierDueDays
 } from '../apps/web/src/supplier-terms-selection.mjs';
 import {linkSupplierProductsInBulk} from '../apps/web/src/supplier-products-bulk.mjs';
 import {supplierTerms} from '../supabase/functions/orders-workflow/domain.mjs';
@@ -80,4 +80,22 @@ test('cadastro rápido tem seleção múltipla e mantém custo por produto',()=>
  assert.match(catalog,/type="checkbox"/);
  assert.match(catalog,/Custo unitário negociado/);
  assert.match(terms,/Marque|marque um ou vários/);
+});
+
+test('campo de prazo aceita vários dias separados por vírgula, barra ou ponto e vírgula',()=>{
+ for(const input of ['7,14,21','7/14/21','7;14;21','7, 14, 21','7,14,21 dias']){
+  const result=parseCustomSupplierDueDays(input);
+  assert.equal(result.error,'',input);
+  assert.deepEqual(result.days,[7,14,21],input);
+ }
+ assert.deepEqual(parseCustomSupplierDueDays('56').days,[56]);
+ assert.deepEqual(parseCustomSupplierDueDays('7,14,14,21').days,[7,14,21]);
+ assert.deepEqual(normalizeDueDays([14,...parseCustomSupplierDueDays('7,14,21').days]),[7,14,21]);
+});
+test('campo rejeita valor inválido inteiro, sem salvar prazos parcialmente',()=>{
+ for(const input of ['','7,,14','7/abc/21','7;367','0,14','7.14','7,','14, 0']){
+  const result=parseCustomSupplierDueDays(input);
+  assert.notEqual(result.error,'',input);
+  assert.deepEqual(result.days,[],input);
+ }
 });
