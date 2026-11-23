@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
-import {applyAuthUser,loadCloudState,supabase} from './supabase.js';
+import {applyAuthUser,loadCloudState,saveCloudState,supabase} from './supabase.js';
 
 export default function PedidosFTApp({profile,grants}){
  const allowed=profile.perfil==='MASTER'&&grants.vendas?.allowed;
@@ -15,6 +15,28 @@ export default function PedidosFTApp({profile,grants}){
   if(allowed)refresh().catch(error=>setNotice(error.message));
  },[allowed,refresh]);
 
+ const saveRegistry=useCallback(async(kind,item,original)=>{
+  if(!['fornecedores','clientes'].includes(kind))throw Error('Cadastro não permitido neste atalho.');
+  const latest=await loadCloudState();
+  if(!latest)throw Error('Base indisponível. Nenhum cadastro foi modificado.');
+  const records=latest[kind]||[];
+  if(original){
+   const current=records.find(r=>r.id===original.id);
+   if(!current)throw Error('Cadastro foi removido por outro usuário. Atualize e confira.');
+   if(JSON.stringify(current)!==JSON.stringify(original))throw Error('Outro usuário alterou este cadastro. Reabra a edição para não sobrescrever alterações.');
+  }else if(records.some(r=>r.id===item.id))throw Error('Identificação de cadastro em uso. Tente novamente.');
+  const next={...latest,[kind]:original?records.map(r=>r.id===item.id?item:r):[...records,item]};
+  const saved=await saveCloudState(next);
+  if(!saved)throw Error('Servidor não confirmou o cadastro.');
+  setData(applyAuthUser(saved));
+  return saved;
+ },[]);
+ function openUsers(){
+  const details=document.querySelector('.ft-admin-tools');
+  if(details)details.open=true;
+  const button=document.querySelector('.ft-admin-tools .fa-admin-button');
+  button?.click();
+ }
  async function commit(body){
   const {data:receipt,error}=await supabase.functions.invoke('orders-workflow',{body});
   let message=receipt?.error;
@@ -32,7 +54,11 @@ export default function PedidosFTApp({profile,grants}){
  }
  return <main className="pedidos-ft-standalone">
   <header className="pedidos-ft-toolbar">
-   <div data-forte-top-actions/>
+   <span className="ft-toolbar-label">Gestão de pedidos e cargas</span>
+   <details className="ft-admin-tools">
+    <summary aria-label="Ferramentas e cadastros">⚙ Ferramentas</summary>
+    <div data-forte-top-actions/>
+   </details>
    <button type="button" onClick={signOut}>Sair</button>
   </header>
   {!allowed?<section className="ft-guard" role="alert"><h1>Pedidos FT</h1><p>Acesso exclusivo para usuários Master autorizados.</p></section>:
@@ -40,7 +66,7 @@ export default function PedidosFTApp({profile,grants}){
     {notice&&<p role="alert" className="ft-warning">{notice}</p>}
     {data?<OrdersWorkspace standalone initialTab="dossie" data={data}
      currentUser={data.usuarios.find(user=>user.id===data.currentUserId)||profile}
-     onRefresh={refresh} onCommit={commit}
+     onRefresh={refresh} onCommit={commit} onSaveRegistry={saveRegistry} onManageUsers={openUsers}
      onNavigate={()=>setNotice('Esta operação está disponível no Forte OP.')}
      onBilling={()=>setNotice('As cobranças são emitidas no Forte OP.')}/>:<section className="ft-guard">
      <h1>Pedidos FT</h1>
