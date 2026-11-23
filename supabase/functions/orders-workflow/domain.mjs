@@ -55,9 +55,9 @@ export function validDriver(s,id,weight,pedido=false,linkedVehicle=null){
   transportadoraCnpj:linkedVehicle.transportadora_cnpj||''
  }:original;
  if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO/.test(norm(m.statusCadastro)))fail('Motorista aguarda aprovação.');
+ if(m.documentosConferidos===true&&!linkedVehicle)fail('Motorista aprovado sem veículo vinculado. Vincule o veículo na aba Veículos antes de emitir ordem.');
  const capacity=num(m.capacidadeMaximaKg||m.capacidadeAlvoKg,'capacidade do conjunto');
  if(weight>capacity&&!pedido)fail('Peso acima da capacidade do conjunto.');
- if(m.documentosConferidos===true&&!linkedVehicle)fail('Motorista aprovado sem veículo vinculado. Vincule o veículo na aba Veículos antes de emitir ordem.');
  if(!m.placa1)fail('Cadastre a placa do conjunto.');
  return m;
 }
