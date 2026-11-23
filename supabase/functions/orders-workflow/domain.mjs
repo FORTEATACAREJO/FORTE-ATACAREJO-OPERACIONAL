@@ -125,7 +125,13 @@ export function applyWorkflow(original,b,p,{id,at}){
    'Motorista habilitado documentalmente. Para gerar ordem, vincule um veículo ativo na aba Veículos.':
    'Cadastro salvo como pendente, sem liberar motorista para ordens.'};
  }else if(b.action==='DRIVERS_IMPORTED'){
-  const imported=b.internalDrivers||[];s.motoristas=[...arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'),...imported];result={count:imported.length};
+  const imported=b.internalDrivers||[];
+  // A sincronização de frete não pode apagar a aprovação documental feita
+  // por um administrador no FORTE OP nem reativar cadastros não conferidos.
+  const preserved=arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'||m.documentosConferidos===true&&m.aprovacaoOperacional?.responsavel);
+  const preservedIds=new Set(preserved.map(m=>m.id));
+  s.motoristas=[...preserved,...imported.filter(m=>!preservedIds.has(m.id))];
+  result={count:imported.length};
  }else if(b.action==='FRETE_PUBLISHED'){
   const c=load();if(palletReleaseNeeded(c))fail('Liberação de pallets pendente.');Object.assign(c,{fretePublicadaId:b.internalReceipt.id,fretePublicadaEm:at,ordemMotoristaEnviada:true,ordemEnviadaEm:b.internalReceipt.enviadaEm,ordemCanal:'FORTE FRETE',ordemDestinatario:b.internalReceipt.motoristaId,fase:'ORDEM DISPONÍVEL NO FORTE FRETE'});result={cargaId:c.id,freteId:b.internalReceipt.id};
  }else if(['SUPPLIER_CREATE','SUPPLIER_EDIT'].includes(b.action)){
