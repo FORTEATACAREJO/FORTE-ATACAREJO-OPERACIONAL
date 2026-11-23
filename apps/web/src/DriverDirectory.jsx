@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
+import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
@@ -19,7 +20,7 @@ const cpfValido=value=>{
 };
 const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(3,6)}.${d.slice(6,9)}-**`:'PENDENTE';};
 
-export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
+export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false}){
  const [query,setQuery]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
@@ -142,7 +143,7 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
   ['rntrc','RNTRC',false],['email','E-mail',false,'email']
  ];
  return <div className="modalBackdrop"><section className="modal wide" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
- <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>FECHAR</button></div>
+ <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
  <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
  <div className="rowActions">
  <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
@@ -150,9 +151,11 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
  </div>
  <p role="status" aria-live="polite">{message}</p>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Registros antigos para conferência:</b> {isAdmin?legacy.length:'restritos à administração'}</p>
+ {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
+ {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Sincronizando motoristas aprovados…');try{await onSync();setMessage('Sincronização solicitada. Confira a lista atualizada de motoristas habilitados.');}catch(e){setMessage(e.message||'Falha na sincronização.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
  <label>BUSCAR MOTORISTA<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, CPF ou placa"/></label>
- <div className="flowTable"><table><thead><tr><th>Motorista</th><th>CPF</th><th>Capacidade</th><th>Status</th></tr></thead>
- <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td></tr>)}</tbody></table></div>
+ <div className="flowTable"><table><thead><tr><th>Motorista</th><th>CPF</th><th>Capacidade</th><th>Status</th>{onPick&&<th>Ação</th>}</tr></thead>
+ <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td>{onPick&&<td>{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>Selecionar para o pedido</button>:<small>Não habilitado</small>}</td>}</tr>)}</tbody></table></div>
  {isAdmin&&<section><h3>Legado preservado — completar somente com documentos reais</h3>
  <p>Os 23 cadastros antigos estão disponíveis para revisão no FORTE-OP e continuam inativos. Complete os dados reais, salve um rascunho e depois gere o cadastro definitivo inativo.</p>
  <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Veículo</th><th>Pendências</th><th>Situação</th><th>Ação</th></tr></thead>
