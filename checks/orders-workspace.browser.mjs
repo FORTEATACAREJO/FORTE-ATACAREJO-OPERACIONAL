@@ -5,7 +5,7 @@ import path from 'node:path';
 const root=process.cwd();
 const fixture={settings:{},unidades:[{id:'u',nome:'Filial',cnpj:'11111111000191'}],fornecedores:[{id:'f',nome:'CSN',modalidadeFrete:'FOB',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'},{id:'g',nome:'CIPLAN',modalidadeFrete:'CIF',condicaoPaletes:'COM_PALETES',localCarregamentoPadrao:'Arcos',produtosNegociados:[{produtoId:'q',custoUnitario:27}],codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'}],produtos:[{id:'p',nome:'Cimento CSN 50 KG',marca:'CSN',pesoKg:50,precoNegociado:22,palletQtd:50,precoTabela:34},{id:'q',nome:'Cimento Ciplan 50 KG',marca:'CIPLAN',pesoKg:50,precoNegociado:23,palletQtd:40,precoTabela:35}],locais:[{id:'l',nome:'Arcos',ativo:true}],custosFornecedor:[{fornecedorId:'f',produtoId:'p',condicaoPagamento:'14 DIAS',custoUnitario:22}],motoristas:[{id:'m',nome:'Motorista',cpf:'123',placa1:'ABC1D23',capacidadeMaximaKg:40000,ativo:true,statusCadastro:'APROVADO'}],usuarios:[{id:'v',nome:'Vendedor'}],clientes:[{id:'c',nome:'Cliente',nomeFantasia:'Loja Teste',limiteCredito:100000,endereco:'Rua da Obra'}],cargas:[],vendas:[],documentos:[]};
 const source=`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import Orders from './apps/web/src/OrdersWorkspace.jsx';import {applyWorkflow} from './supabase/functions/orders-workflow/domain.mjs';const profile={user_id:'actor',empresa_id:'e',nome:'Admin',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};function Harness(){const [standalone,setStandalone]=useState(false);window.openStandalone=()=>setStandalone(true);window.disableDrivers=()=>setData(old=>({...old,motoristas:old.motoristas.map(m=>({...m,ativo:false,statusCadastro:'LEGADO'}))}));const [data,setData]=useState(${JSON.stringify(fixture)});return <Orders key={String(standalone)} standalone={standalone} initialTab={standalone?'dossie':'fornecedor'} data={data} currentUser={profile} onNavigate={()=>{}} onBilling={()=>{}} onCommit={async body=>{const out=applyWorkflow(data,body,profile,{id:crypto.randomUUID(),at:new Date().toISOString()});setData(out.state);window.fixtureState=out.state;return out.result;}}/>;}createRoot(document.getElementById('root')).render(<Harness/>);`;
-const result=await build({stdin:{contents:source,resolveDir:root,sourcefile:'browser-harness.jsx',loader:'jsx'},bundle:true,jsx:'automatic',write:false,format:'iife',outfile:'harness.js',plugins:[{name:'mock-supabase',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'mock',namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const supabase=null;export const getAuthContext=()=>null;'}));}}]});
+const result=await build({stdin:{contents:source,resolveDir:root,sourcefile:'browser-harness.jsx',loader:'jsx'},bundle:true,jsx:'automatic',write:false,format:'iife',outfile:'harness.js',plugins:[{name:'mock-supabase',setup(b){b.onResolve({filter:/^\.\/supabase(?:\.js)?$/},()=>({path:'mock',namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const supabase=null;export const getAuthContext=()=>null;'}));}}]});
 const js=result.outputFiles.find(f=>f.path.endsWith('.js')).text,css=result.outputFiles.find(f=>f.path.endsWith('.css')).text;
 const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,args:['--no-sandbox']});
 for(const size of [{width:390,height:844},{width:1440,height:1000}]){
@@ -36,6 +36,16 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.getByText('Nenhum motorista habilitado para pedidos',{exact:true}).waitFor();
  assert.equal(await page.getByRole('combobox',{name:'Motorista, CPF ou placa',exact:true}).locator('option').count(),1);
  assert.equal(await page.getByRole('button',{name:'Conferir motoristas',exact:true}).count(),1);
+ await page.getByRole('button',{name:'Conferir motoristas',exact:true}).click();
+ const driverModal=page.getByRole('dialog',{name:'Motoristas FORTE-OP'});
+ await driverModal.waitFor();
+ assert.equal(await driverModal.locator('.ft-driver-card .ft-driver-name').first().innerText(),'Motorista');
+ assert.equal(await driverModal.getByRole('button',{name:'SELECIONAR PARA O PEDIDO',exact:true}).count(),0);
+ assert.equal(await driverModal.locator('.ft-driver-card').count(),1);
+ assert(await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).isVisible());
+ await driverModal.getByLabel('Buscar motorista pelo nome, CPF ou placa').fill('nao encontrado');
+ assert.equal(await driverModal.locator('.ft-driver-card').count(),0);
+ await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).click();
  assert.equal(await page.getByRole('button',{name:'Sincronizar aprovados',exact:true}).count(),1);
  await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
  assert.equal(await page.getByRole('region',{name:'PEDIDOS FT'}).count(),1);

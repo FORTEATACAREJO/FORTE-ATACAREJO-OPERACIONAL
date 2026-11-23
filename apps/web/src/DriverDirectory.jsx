@@ -1,7 +1,8 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
+import './driver-directory-mobile.css';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
@@ -25,8 +26,11 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
+ const editorRef=useRef(null);
+ useEffect(()=>{if(editor&&editorRef.current)editorRef.current.scrollIntoView({block:'start',behavior:'instant'});},[editor,selected]);
  const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
-  .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
+  .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
+ const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
  async function load(){
   if(!supabase)return;
   const [drivers,veiculos]=await Promise.all([
@@ -46,7 +50,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  }
  useEffect(()=>{let live=true;load().catch(e=>{if(live)setMessage(e.message)});return()=>{live=false}},[isAdmin]);
  async function refresh(){
-  setBusy(true);try{await load();setMessage('Consulta de motoristas e veículos atualizada.')}catch(e){setMessage(e.message||String(e))}finally{setBusy(false)}
+  setBusy(true);try{await load();setMessage('Consulta de motoristas e veículos atualizada. Motoristas pendentes continuam indisponíveis para expedição.')}catch(e){setMessage(e.message||String(e))}finally{setBusy(false)}
  }
  function begin(row=null){
   setSelected(row?.id_origem||null);
@@ -142,8 +146,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   ['favorecido_pix','Favorecido Pix',true],['capacidade_operacional_kg','Capacidade operacional (kg)',true,'number'],
   ['rntrc','RNTRC',false],['email','E-mail',false,'email']
  ];
- return <div className="modalBackdrop"><section className="modal wide" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
- <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
+ return <div className="modalBackdrop ft-driver-backdrop"><section className="modal wide ft-driver-dialog" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
+ <div className="modalHead ft-driver-head"><h2>MOTORISTAS — PEDIDOS FT</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
  <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
  <div className="rowActions">
  <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
@@ -152,22 +156,38 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  <p role="status" aria-live="polite">{message}</p>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Registros antigos para conferência:</b> {isAdmin?legacy.length:'restritos à administração'}</p>
  {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
- {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Sincronizando motoristas aprovados…');try{await onSync();setMessage('Sincronização solicitada. Confira a lista atualizada de motoristas habilitados.');}catch(e){setMessage(e.message||'Falha na sincronização.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
- <label>BUSCAR MOTORISTA<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, CPF ou placa"/></label>
- <div className="flowTable"><table><thead><tr><th>Motorista</th><th>CPF</th><th>Capacidade</th><th>Status</th>{onPick&&<th>Ação</th>}</tr></thead>
- <tbody>{rows.map(m=><tr key={m.id}><td>{m.nome}</td><td>{maskCpf(m.cpf)}</td><td>{Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</td><td>{m.ativo===false?'INATIVO — REVISÃO':'ATIVO'}</td>{onPick&&<td>{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>Selecionar para o pedido</button>:<small>Não habilitado</small>}</td>}</tr>)}</tbody></table></div>
- {isAdmin&&<section><h3>Legado preservado — completar somente com documentos reais</h3>
- <p>Os 23 cadastros antigos estão disponíveis para revisão no FORTE-OP e continuam inativos. Complete os dados reais, salve um rascunho e depois gere o cadastro definitivo inativo.</p>
- <div className="flowTable"><table><thead><tr><th>Nome original</th><th>CPF</th><th>CNH</th><th>Veículo</th><th>Pendências</th><th>Situação</th><th>Ação</th></tr></thead>
- <tbody>{legacy.map(l=><tr key={l.id_origem}><td>{l.dados?.nome||'SEM NOME'}</td><td>{maskCpf(l.dados?.cpf)}</td><td>{digits(l.dados?.cnh).length===11?'Informada':'PENDENTE'}</td><td>{vehicles.find(v=>v.id===l.dados?.veiculo_origem_id)?.placa||'Não identificado'}</td><td>{l.requisitos_pendentes?.length||0}</td><td>{l.situacao}</td>
- <td>{existing.some(e=>e.id===l.id_origem)?'CADASTRO INATIVO CRIADO':<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR E COMPLETAR</button>}</td></tr>)}</tbody></table></div></section>}
- {isAdmin&&editor&&<form onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
+ {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Conferindo motoristas do Forte Frete…');try{const result=await onSync();await load();setMessage('Sincronização concluída. '+(result?.count??'Os')+' registro(s) consultados; a seleção exige ativação e aprovação operacional.');}catch(e){setMessage(e.message||'Falha na sincronização. Nenhum motorista foi liberado.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
+ <label className="ft-driver-search">BUSCAR MOTORISTA<input aria-label="Buscar motorista pelo nome, CPF ou placa" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Digite o nome, CPF ou placa"/></label>
+ <h3 className="ft-driver-section-title">Motoristas do cadastro operacional ({rows.length})</h3>
+ <div className="ft-driver-cards">{rows.map(m=><article className="ft-driver-card" key={m.id}>
+  <strong className="ft-driver-name">{m.nome||'NOME NÃO INFORMADO'}</strong>
+  <span>CPF: {maskCpf(m.cpf)} · Placa: {m.placa1||'Não cadastrada'}</span>
+  <span>Capacidade: {Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</span>
+  <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':'INATIVO — NECESSITA APROVAÇÃO'}</span>
+  {onPick&&(isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))
+    ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
+    :<small>Cadastro disponível para conferência. Não habilitado para emissão de ordem.</small>)}
+ </article>)}</div>
+ {rows.length===0&&<p role="status">Nenhum motorista do cadastro operacional corresponde à busca.</p>}
+ {isAdmin&&<section className="ft-driver-legacy"><h3 className="ft-driver-section-title">Cadastros antigos para regularizar ({legacyRows.length})</h3>
+ <p>Os nomes estão disponíveis para consulta. Cada cadastro permanece <b>inativo</b> até a validação de CNH, documentos e aprovação. Nenhum motorista é liberado apenas por abrir o cadastro.</p>
+ {editor&&<p role="status">Formulário de conferência aberto logo abaixo, antes da lista de nomes.</p>}
+ </section>}
+ {isAdmin&&editor&&<form ref={editorRef} className="ft-driver-form" onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
  <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10}}>
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
  </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
  <div className="rowActions"><button type="submit" disabled={busy}>GERAR CADASTRO INATIVO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
- {isAdmin&&<ForteOpMigrationAudit/>}
+ {isAdmin&&<section className="ft-driver-legacy-list"><div className="ft-driver-cards">{legacyRows.map(l=><article className="ft-driver-card" key={l.id_origem}>
+  <strong className="ft-driver-name">{l.dados?.nome||'NOME NÃO INFORMADO'}</strong>
+  <span>CPF: {maskCpf(l.dados?.cpf)} · CNH: {digits(l.dados?.cnh).length===11?'Informada':'Pendente'}</span>
+  <span>Veículo: {vehicles.find(v=>v.id===l.dados?.veiculo_origem_id)?.placa||'Não identificado'}</span>
+  <span className="ft-driver-status">DOCUMENTAÇÃO PENDENTE ({l.requisitos_pendentes?.length||0} itens)</span>
+  {existing.some(e=>e.id===l.id_origem)?<small>Cadastro inativo já criado</small>:<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR CADASTRO</button>}
+ </article>)}</div>
+ {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
+  {isAdmin&&<ForteOpMigrationAudit/>}
  </section></div>;
 }
