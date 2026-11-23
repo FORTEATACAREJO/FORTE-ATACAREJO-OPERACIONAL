@@ -33,7 +33,19 @@ const dataCnh = value=>{
 };
 
 const privileged = p => ['MASTER','ADMINISTRADOR'].includes(p.perfil);
-export function supplierTerms(s,id){const f=arr(s,'fornecedores').find(x=>x.id===id)||{};return [...new Set([f.condicaoPagamento,f.formaPagamentoPadrao,...(f.prazosPagamento||[]),...arr(s,'custosFornecedor').filter(c=>active(c)&&c.fornecedorId===id).map(c=>c.condicaoPagamento)].filter(Boolean))];}
+export function supplierTerms(s,id){
+ const f=arr(s,'fornecedores').find(x=>x.id===id)||{};
+ // Historicamente formaPagamentoPadrao também continha "14 DIAS". Preservar
+ // esse legado como prazo, mas não incluir BOLETO/PIX como vencimentos.
+ const legacy=norm(f.formaPagamentoPadrao);
+ const isMethod=/^(BOLETO|PIX|TRANSFERENCIA|DEPOSITO|DINHEIRO|CARTAO|A COMBINAR|A PRAZO)$/.test(legacy);
+ return [...new Set([
+  f.condicaoPagamento,
+  ...(f.prazosPagamento||[]),
+  ...(!isMethod?[f.formaPagamentoPadrao]:[]),
+  ...arr(s,'custosFornecedor').filter(c=>active(c)&&c.fornecedorId===id).map(c=>c.condicaoPagamento)
+ ].filter(Boolean))];
+}
 export function supplierCost(s,id,product,mode='PADRAO') {
  const negotiated=supplierProductTerms(s,id,product);
  if(negotiated)return negotiated.custoUnitario;
