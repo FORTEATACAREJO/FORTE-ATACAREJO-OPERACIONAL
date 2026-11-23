@@ -8,10 +8,11 @@ const initialCarrier={razao_social:'',nome_fantasia:'',cnpj:'',whatsapp:''};
 const onlyDigits=v=>String(v||'').replace(/\D/g,'');
 const pretty=stamp=>stamp?new Date(stamp).toLocaleString('pt-BR'):'';
 export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculos'}){
- const [vehicles,setVehicles]=useState([]),[carriers,setCarriers]=useState([]),[links,setLinks]=useState([]);
+ const [vehicles,setVehicles]=useState([]),[carriers,setCarriers]=useState([]),[links,setLinks]=useState([]),[registeredDrivers,setRegisteredDrivers]=useState([]);
  const [vehicle,setVehicle]=useState(initialVehicle),[carrier,setCarrier]=useState(initialCarrier);
  const [choice,setChoice]=useState({motorista_operacional_id:'',veiculo_id:'',transportadora_id:'',observacao:''});
  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
+ const allDrivers=useMemo(()=>[...new Map([...drivers,...registeredDrivers].map(d=>[d.id,d])).values()],[drivers,registeredDrivers]);
  const vehicleById=useMemo(()=>new Map(vehicles.map(v=>[v.id,v])),[vehicles]);
  const carrierById=useMemo(()=>new Map(carriers.map(c=>[c.id,c])),[carriers]);
  const ordered=useMemo(()=>[...links].sort((a,b)=>String(b.inicio_em).localeCompare(String(a.inicio_em))),[links]);
@@ -19,13 +20,14 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculo
  const history=ordered.filter(x=>!activeLink(x));
  async function load(){
   if(!supabase)throw Error('Supabase não está configurado.');
-  const [vr,cr,lr]=await Promise.all([
+  const [vr,cr,lr,dr]=await Promise.all([
    supabase.from('fc_veiculos').select('id,empresa_id,placa,tipo,marca_modelo,capacidade_kg,proprietario_nome,proprietario_documento,crlv_referencia,ativo').order('placa').limit(500),
    supabase.from('fc_transportadoras').select('id,empresa_id,razao_social,nome_fantasia,cnpj,ativo').order('razao_social').limit(500),
-   supabase.from('fc_frota_vinculos').select('id,empresa_id,motorista_operacional_id,veiculo_id,transportadora_id,inicio_em,fim_em,observacao').order('inicio_em',{ascending:false}).limit(1000)
+   supabase.from('fc_frota_vinculos').select('id,empresa_id,motorista_operacional_id,veiculo_id,transportadora_id,inicio_em,fim_em,observacao').order('inicio_em',{ascending:false}).limit(1000),
+   supabase.from('fc_motoristas').select('id,nome,ativo').order('nome').limit(500)
   ]);
-  for(const response of [vr,cr,lr])if(response.error)throw Error('Não foi possível consultar a frota: '+response.error.message);
-  setVehicles(vr.data||[]);setCarriers(cr.data||[]);setLinks(lr.data||[]);setLoading(false);
+  for(const response of [vr,cr,lr,dr])if(response.error)throw Error('Não foi possível consultar a frota: '+response.error.message);
+  setVehicles(vr.data||[]);setCarriers(cr.data||[]);setLinks(lr.data||[]);setRegisteredDrivers(dr.data||[]);setLoading(false);
  }
  useEffect(()=>{let active=true;load().catch(e=>{if(active){setMessage(e.message);setLoading(false);}});return()=>{active=false}},[]);
  async function admin(){
@@ -81,7 +83,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculo
   event.preventDefault();
   await transact(async()=>{
    const {empresaId,userId}=await admin();
-   const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers,vehicles});
+   const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers:allDrivers,vehicles});
    if(!check.ok)throw Error(check.reason);
    if(choice.transportadora_id&&!carriers.some(c=>c.id===choice.transportadora_id&&c.ativo!==false))
     throw Error('Transportadora inativa ou não encontrada.');
@@ -140,7 +142,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculo
    {isAdmin&&<form className="ft-fleet-form" onSubmit={linkDriver}>
     <label>Motorista<select required value={choice.motorista_operacional_id} onChange={e=>setChoice(v=>({...v,motorista_operacional_id:e.target.value}))}>
      <option value="">Selecione motorista cadastrado</option>
-     {drivers.map(d=><option key={d.id} value={d.id}>{d.nome}{d.ativo===false?' · pré-cadastro/inativo':''}</option>)}
+     {allDrivers.map(d=><option key={d.id} value={d.id}>{d.nome}{d.ativo===false?' · pré-cadastro/inativo':''}</option>)}
     </select></label>
     <label>Veículo<select required value={choice.veiculo_id} onChange={e=>setChoice(v=>({...v,veiculo_id:e.target.value}))}>
      <option value="">Selecione uma placa</option>
@@ -155,7 +157,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculo
    </form>}
    <h3>Vínculos atuais ({current.length})</h3>
    <div className="ft-fleet-items">{current.map(l=><article key={l.id}>
-    <b>{driverName(drivers,l.motorista_operacional_id)}</b>
+    <b>{driverName(allDrivers,l.motorista_operacional_id)}</b>
     <span>{vehicleById.get(l.veiculo_id)?.placa||'Veículo não encontrado'} · {carrierById.get(l.transportadora_id)?.razao_social||'Transportadora não informada'}</span>
     <small>Vinculado: {pretty(l.inicio_em)} · não é liberação para expedição</small>
     {isAdmin&&<button type="button" onClick={()=>unlinkDriver(l.id)} disabled={busy}>DESVINCULAR E MANTER HISTÓRICO</button>}
@@ -163,7 +165,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,mode='vinculo
    {current.length===0&&<p>Nenhum vínculo ativo. O sistema não escolherá motorista automaticamente pela placa.</p>}
    <h3>Histórico de vínculos ({history.length})</h3>
    <div className="ft-fleet-items">{history.map(l=><article key={l.id}>
-    <b>{driverName(drivers,l.motorista_operacional_id)}</b>
+    <b>{driverName(allDrivers,l.motorista_operacional_id)}</b>
     <span>{vehicleById.get(l.veiculo_id)?.placa||'Veículo não encontrado'} · {carrierById.get(l.transportadora_id)?.razao_social||'Sem transportadora'}</span>
     <small>{pretty(l.inicio_em)} até {pretty(l.fim_em)}</small>
    </article>)}</div>
