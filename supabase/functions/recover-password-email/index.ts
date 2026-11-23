@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-const origins = new Set(["https://forte-vendas.onrender.com", "https://forte-vendas-app.onrender.com", "https://forte-financeiro.onrender.com", "https://forte-venda-externa.onrender.com", "https://forte-carga-direta.onrender.com", "https://forte-operador-patio.onrender.com", "https://site-forte-atacarejo.onrender.com", "http://localhost:5178"]);
+const origins = new Set(["https://forte-vendas.onrender.com", "https://pedidos-ft.onrender.com", "https://forte-vendas-app.onrender.com", "https://forte-financeiro.onrender.com", "https://forte-venda-externa.onrender.com", "https://forte-carga-direta.onrender.com", "https://forte-operador-patio.onrender.com", "https://site-forte-atacarejo.onrender.com", "http://localhost:5178"]);
 const originDefault = "https://forte-vendas.onrender.com";
 const normalizePhone = (v: unknown) => {const d=String(v??"").replace(/\D/g, "");return d.length===10||d.length===11?"55"+d:d;};
 const generic = "Se os dados corresponderem ao cadastro autorizado, enviaremos o link pelo canal escolhido.";
