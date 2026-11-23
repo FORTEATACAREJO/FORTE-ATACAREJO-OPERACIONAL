@@ -69,14 +69,15 @@ export default function OrdersWorkspace({data,onCommit,currentUser,initialTab='f
  async function readAI(file,target){if(!file)return;if(file.size>5*1024*1024){setError('Leitura por IA: limite de 5 MB.');return;}setBusy(true);setError('');try{const contentBase64=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=reject;r.readAsDataURL(file);});const {data:out,error}=await supabase.functions.invoke('orders-workflow',{body:{action:'AI_EXTRACT',filename:file.name,mimeType:file.type,contentBase64}});if(error||out?.error)throw new Error(out?.error||'Não foi possível ler o documento por IA.');setPreview({...out,target});}catch(e){setError(e.message);}finally{setBusy(false);}}
  const aiButton=target=><label className="ow-upload">Preencher com IA — anexar PDF ou print<input aria-label={'Preencher com IA '+target} type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={e=>readAI(e.target.files?.[0],target)}/></label>;
  async function openDoc(d){try{const {data:r,error}=await supabase.storage.from(d.storageBucket).createSignedUrl(d.storagePath,60);if(error)throw error;window.open(r.signedUrl,'_blank','noopener,noreferrer');}catch(e){setError(e.message);}}
- async function sendBusiness(order,driver){
+ async function sendBusiness(order,driver,channel='WHATSAPP'){
   if(!driver)await run({action:'SUPPLIER_PREVIEW',id:order.id});
-  const queued=await run(driver?{action:'DRIVER_SEND',cargaId:order.id}:{action:'SUPPLIER_SEND',id:order.id,canal:'WHATSAPP',deferDispatch:true});
+  const queued=await run(driver?{action:'DRIVER_SEND',cargaId:order.id}:{action:'SUPPLIER_SEND',id:order.id,canal:channel,deferDispatch:true});
   const id=queued.jobIds?.[0];if(!id)throw new Error('Envio não foi preparado. Atualize a carga antes de continuar.');
   const {data:out,error}=await supabase.functions.invoke('order-communications',{body:{action:'DISPATCH',jobId:id}});
   if(error||out?.error)throw new Error(out?.error||'Não foi possível confirmar o resultado. Confira o histórico antes de reenviar.');
   if(onRefresh)try{await onRefresh();}catch{}
   const result=out.outcomes?.find(j=>j.id===id);
+  if(channel==='EMAIL'&&result?.state==='SENT')return 'Hostinger aceitou o e-mail com PDF. Confira a pasta Enviados; a entrega ao destinatário ainda não está comprovada.';
   if(['SENT','DELIVERED','READ'].includes(result?.state))return ({SENT:'WhatsApp Business aceitou o envio do PDF. A entrega será exibida quando confirmada.',DELIVERED:'PDF entregue pelo WhatsApp Business.',READ:'WhatsApp Business confirmou a leitura.'})[result.state];
   return result?.reason||out.message||'Envio preparado. Confira a situação no acompanhamento.';
  }
