@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from './supabase.js';
-import {activeLink,canLink,driverName,plateKey,validPlate} from './frota-vinculos.mjs';
+import {activeLink,activeVehicleForDriver,canLink,driverName,plateKey,validPlate} from './frota-vinculos.mjs';
 import './frota-vinculos.css';
 
 const emptyVehicle={placa:'',tipo:'CAVALO MECÂNICO',marca_modelo:'',capacidade_kg:'',proprietario_nome:'',proprietario_documento:'',crlv_referencia:'',transportadora_nome:'',transportadora_cnpj:'',transportadora_whatsapp:''};
@@ -18,6 +18,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false}){
  const vehicleById=useMemo(()=>new Map(vehicles.map(v=>[v.id,v])),[vehicles]);
  const ordered=useMemo(()=>[...links].sort((a,b)=>String(b.inicio_em).localeCompare(String(a.inicio_em))),[links]);
  const current=ordered.filter(activeLink),history=ordered.filter(l=>!activeLink(l));
+ const selectedBinding=activeVehicleForDriver({links:current,vehicles,driverId:choice.motorista_operacional_id});
  async function load(){
   if(!supabase)throw Error('Supabase não configurado.');
   const [vr,lr,dr]=await Promise.all([
@@ -143,19 +144,20 @@ export default function FleetLinkManager({drivers=[],isAdmin=false}){
    {isAdmin&&<button type="button" disabled={busy} onClick={()=>editExisting(v)}>EDITAR VEÍCULO / TRANSPORTADORA</button>}
   </article>)}</div>
   <h3>Vincular motorista a um veículo</h3>
-  <p>Selecione o motorista e a placa. O vínculo é manual; a transportadora é a informada no veículo. Desvincular não apaga cadastros nem históricos.</p>
+  <p>O vínculo permanece ativo até você clicar em <strong>Desvincular</strong>. Nos pedidos, ao escolher o motorista, a placa deste vínculo será preenchida automaticamente. Desvincular não apaga cadastros nem o histórico.</p>
   {isAdmin&&<form className="ft-fleet-form" onSubmit={linkDriver} aria-label="Vincular motorista a veículo">
    <label>Motorista<select required value={choice.motorista_operacional_id} onChange={e=>setChoice(v=>({...v,motorista_operacional_id:e.target.value}))}>
     <option value="">Selecione motorista cadastrado</option>
     {allDrivers.map(d=><option key={d.id} value={d.id}>{d.nome}{d.ativo===false?' · pré-cadastro/inativo':''}</option>)}
    </select></label>
-   <label>Veículo<select required value={choice.veiculo_id} onChange={e=>setChoice(v=>({...v,veiculo_id:e.target.value}))}>
+   {selectedBinding&&<p role="status" className="ft-fleet-linked">Motorista já vinculado: <strong>{selectedBinding.vehicle.placa}</strong>. Esse vínculo permanece até a desvinculação manual.</p>}
+   <label>Veículo<select required disabled={!!selectedBinding} value={selectedBinding?.vehicle.id||choice.veiculo_id} onChange={e=>setChoice(v=>({...v,veiculo_id:e.target.value}))}>
     <option value="">Selecione uma placa</option>
     {vehicles.filter(v=>v.ativo!==false).map(v=><option key={v.id} value={v.id}>{v.placa} · {v.tipo}{current.some(l=>l.veiculo_id===v.id)?' · já vinculado':''}</option>)}
    </select></label>
    <label>Transportadora do veículo<input readOnly value={vehicleById.get(choice.veiculo_id)?.transportadora_nome||'Não informada no veículo'} aria-label="Transportadora do veículo"/></label>
    <label>Observação<input value={choice.observacao} onChange={e=>setChoice(v=>({...v,observacao:e.target.value}))} placeholder="Ex.: substituição de motorista"/></label>
-   <button type="submit" disabled={busy}>VINCULAR MOTORISTA</button>
+   <button type="submit" disabled={busy||!!selectedBinding}>VINCULAR MOTORISTA</button>
   </form>}
   <h3>Vínculos atuais ({current.length})</h3>
   <div className="ft-fleet-items">{current.map(l=><article key={l.id}>

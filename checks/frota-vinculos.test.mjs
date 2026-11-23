@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {validPlate,plateKey,activeLink,vehicleDriver,canLink} from '../apps/web/src/frota-vinculos.mjs';
+import {validPlate,plateKey,activeLink,vehicleDriver,activeVehicleForDriver,canLink} from '../apps/web/src/frota-vinculos.mjs';
 const drivers=[{id:'m1',nome:'Motorista antigo',ativo:false},{id:'m2',nome:'Motorista novo',ativo:false}];
 const vehicles=[{id:'v1',placa:'AAA1B23',ativo:true},{id:'v2',placa:'BBB1234',ativo:true}];
 const past={id:'l0',veiculo_id:'v1',motorista_operacional_id:'m1',inicio_em:'2026-01-01',fim_em:'2026-09-20'};
@@ -23,4 +23,19 @@ test('não permite vincular motorista inexistente, veículo inexistente ou inati
  assert.equal(canLink({links:[],vehicleId:'v1',driverId:'desconhecido',drivers,vehicles}).ok,false);
  assert.equal(canLink({links:[],vehicleId:'ausente',driverId:'m1',drivers,vehicles}).ok,false);
  assert.equal(canLink({links:[],vehicleId:'v2',driverId:'m1',drivers,vehicles:[{...vehicles[1],ativo:false}]}).ok,false);
+});
+
+test('após vincular, a escolha do motorista recupera sempre a placa até desvincular',()=>{
+ const linked=activeVehicleForDriver({links:[past,current],vehicles,driverId:'m2'});
+ assert.equal(linked.vehicle.placa,'AAA1B23');
+ assert.equal(linked.link.id,'l1');
+ assert.equal(activeVehicleForDriver({links:[past],vehicles,driverId:'m2'}),null);
+ assert.equal(activeVehicleForDriver({links:[past,current],vehicles,driverId:'m1'}),null);
+ assert.equal(activeVehicleForDriver({links:[past,current],vehicles:[{...vehicles[0],ativo:false}],driverId:'m2'}),null);
+});
+test('um motorista não pode estar vinculado simultaneamente a dois veículos',()=>{
+ const result=canLink({links:[past,current],vehicleId:'v2',driverId:'m2',vehicles,drivers});
+ assert.equal(result.ok,false);
+ assert.match(result.reason,/já está vinculado a outro veículo/);
+ assert.equal(canLink({links:[past],vehicleId:'v2',driverId:'m1',vehicles,drivers}).ok,true);
 });
