@@ -43,7 +43,9 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await driverModal.getByRole('button',{name:'SELECIONAR PARA O PEDIDO',exact:true}).count(),0);
  assert.equal(await driverModal.locator('.ft-driver-card').count(),1);
  assert(await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).isVisible());
- await driverModal.getByLabel('Buscar motorista pelo nome, CPF ou placa').fill('nao encontrado');
+ assert.equal(await driverModal.getByRole('button',{name:'Motoristas',exact:true}).count(),1);
+  assert.equal(await driverModal.getByRole('button',{name:'Veículos',exact:true}).count(),1);
+  await driverModal.getByLabel('Buscar motorista pelo nome ou CPF').fill('nao encontrado');
  assert.equal(await driverModal.locator('.ft-driver-card').count(),0);
  await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).click();
  assert.equal(await page.getByRole('button',{name:'Sincronizar aprovados',exact:true}).count(),1);
