@@ -2,10 +2,11 @@ import {useState} from 'react';
 import {
  SUPPLIER_DUE_DAY_OPTIONS,SUPPLIER_PAYMENT_METHODS,
  supplierSelectedDueDays,formatSupplierDueDays,
- supplierPaymentMethod,toggleSupplierDueDay,normalizeDueDays
+ supplierPaymentMethod,toggleSupplierDueDay,normalizeDueDays,parseCustomSupplierDueDays
 } from './supplier-terms-selection.mjs';
 export default function SupplierPaymentPreferences({supplier,onChange}){
  const [custom,setCustom]=useState('');
+ const [customError,setCustomError]=useState('');
  const days=supplierSelectedDueDays(supplier);
  const method=supplierPaymentMethod(supplier.formaPagamentoPadrao);
  const formatted=formatSupplierDueDays(days);
@@ -15,9 +16,11 @@ export default function SupplierPaymentPreferences({supplier,onChange}){
    prazosNegociadosDias:cleaned,condicaoPagamento:term,prazosPagamento:term?[term]:[]}));
  };
  function addCustom(){
-  const value=Number(custom);
-  if(!Number.isInteger(value)||value<1||value>365)return;
-  setDays([...days.filter(x=>x!==0),value]);setCustom('');
+  const parsed=parseCustomSupplierDueDays(custom);
+  if(parsed.error){setCustomError(parsed.error);return;}
+  setDays([...days.filter(x=>x!==0),...parsed.days]);
+  setCustom('');
+  setCustomError('');
  }
  return <section className="ft-supplier-terms" aria-label="Pagamento e prazos do fornecedor">
   <label>Forma de pagamento
@@ -42,12 +45,16 @@ export default function SupplierPaymentPreferences({supplier,onChange}){
     </label>)}
    </div>
    <div className="ft-supplier-add-day">
-    <label>Outro prazo (dias)
-     <input aria-label="Outro prazo em dias" type="number" min="1" max="365" step="1"
-      value={custom} onChange={e=>setCustom(e.target.value)} placeholder="Ex.: 56"/>
+    <label>Outros prazos (dias) — pode digitar vários
+     <input aria-label="Outros prazos em dias" type="text" inputMode="text" autoComplete="off" spellCheck={false}
+      value={custom} onChange={e=>{setCustom(e.target.value);setCustomError('');}}
+      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCustom();}}}
+      placeholder="Ex.: 7,14,21,28"/>
     </label>
-    <button type="button" className="secondary" disabled={!custom||!Number.isInteger(Number(custom))||Number(custom)<1||Number(custom)>365} onClick={addCustom}>+ Adicionar prazo</button>
+    <button type="button" className="secondary" disabled={!custom.trim()} onClick={addCustom}>+ Adicionar prazos</button>
    </div>
+   <p className="ft-supplier-due-hint">Digite <strong>7,14,21</strong>, <strong>7/14/21</strong> ou <strong>7;14;21</strong> e toque em Adicionar prazos. Os já marcados não serão duplicados.</p>
+   {customError&&<p className="ft-supplier-due-error" role="alert">{customError}</p>}
    <p className="ft-supplier-due-summary" role="status"><strong>Prazo negociado:</strong> {formatted||'Selecione pelo menos uma opção'}</p>
    <p className="ft-supplier-due-hint">Essa condição será apresentada automaticamente ao selecionar o fornecedor no pedido. O prazo não será confundido com a forma de pagamento.</p>
   </fieldset>
