@@ -48,3 +48,18 @@ test('conferência completa habilita pessoa, sem criar vínculo fictício de ve�
  const linked={motoristaId:'drv-1',placa:'ABC1D23',capacidade_kg:25000,id:'vehicle-1',vinculoId:'link-1'};
  assert.equal(validDriver(out.state,'drv-1',1000,false,linked).placa1,'ABC1D23');
 });
+
+test('sincronizar Forte Frete não remove aprovação manual do gestor',()=>{
+ const existing=state();
+ existing.motoristas[0].origemCadastro='FORTE FRETE';
+ const approvedState=applyWorkflow(existing,approved,admin,{id:'approve-event',at}).state;
+ const sync=applyWorkflow(approvedState,{
+  action:'DRIVERS_IMPORTED',requestId:'sync-1',
+  internalDrivers:[{id:'drv-1',nome:'Motorista Teste',origemCadastro:'FORTE FRETE',statusCadastro:'LEGADO',ativo:false}]
+ },admin,{id:'sync-event',at:'2026-11-23T19:00:00.000Z'});
+ const m=sync.state.motoristas.find(m=>m.id==='drv-1');
+ assert.equal(sync.state.motoristas.length,1);
+ assert.equal(m.ativo,true);
+ assert.equal(m.documentosConferidos,true);
+ assert.equal(m.statusCadastro,'APROVADO');
+});
