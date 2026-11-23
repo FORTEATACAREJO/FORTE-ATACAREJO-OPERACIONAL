@@ -159,7 +159,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
- <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['cadastros','Veículos e transportadoras'],['vinculos','Vincular / desvincular']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
+ <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['veiculos','Veículos']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
  {view==='motoristas'&&<>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Cadastros históricos:</b> {isAdmin?legacy.length:'restritos à administração'} · <b>Pré-aprovados pelo gestor:</b> {(data?.motoristas||[]).filter(m=>m.preAprovadoCadastro).length} operacionais e {preApprovedLegacyIds.size} históricos.</p>
  {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
@@ -197,6 +197,6 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
   {isAdmin&&<ForteOpMigrationAudit/>}
  </>}
- {view!=='motoristas'&&<FleetLinkManager mode={view} drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
+ {view==='veiculos'&&<FleetLinkManager drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
  </section></div>;
 }
