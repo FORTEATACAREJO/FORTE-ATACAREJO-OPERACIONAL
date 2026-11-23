@@ -30,6 +30,7 @@ test('múltiplos vencimentos viram uma condição negociada para o pedido',()=>{
  const state={fornecedores:[edited],custosFornecedor:[]};
  assert.equal(supplierTerms(state,'f')[0],'7/14/21/28 dias');
  assert(supplierTerms(state,'f').includes('7/14/21/28 dias'));
+ assert.deepEqual(supplierTerms({fornecedores:[{...edited,formaPagamentoPadrao:'BOLETO'}]},'f'),['7/14/21/28 dias']);
 });
 
 test('prazo legado 14 em forma de pagamento vira prazo, não método',()=>{
