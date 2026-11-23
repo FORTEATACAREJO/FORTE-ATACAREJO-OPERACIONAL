@@ -6,6 +6,7 @@ import {driverDispatchCheck,recordDriverDispatch} from '../orders-workflow/drive
 import {supplierDispatchCapacity} from '../orders-workflow/capacity.mjs';
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {jsPDF} from 'npm:jspdf@3.0.2';
+import {hostingerMailbox,sendSupplierEmailHostinger} from './hostinger-mail.mjs';
 import {templatePayload,validSignature,applyStatuses} from './provider.mjs';
 import {linkedReturn,deliveryReply,phone} from '../orders-workflow/communications.mjs';
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Content-Type':'application/json'};
@@ -14,11 +15,9 @@ const admin=()=>createClient(env('SUPABASE_URL'),env('SUPABASE_SERVICE_ROLE_KEY'
 async function rowFor(db:any,empresa:string){const {data,error}=await db.from('fc_app_state').select('estado,versao').eq('empresa_id',empresa).single();if(error||!data)throw new Error('Base indisponível.');return data;}
 async function persist(db:any,empresa:string,row:any){const {data,error}=await db.from('fc_app_state').update({estado:row.estado,versao:row.versao+1}).eq('empresa_id',empresa).eq('versao',row.versao).select('versao');if(error||data?.length!==1)throw new Error('Conflito de versão; atualize os dados.');row.versao++;}
 function supplierPDF(j:any){return new Uint8Array(purchaseDocument(jsPDF,j.order,j.audience==='MOTORISTA').output('arraybuffer'));}
-async function gmailConfigured(){const r=await admin().from('gmail_hub_config').select('refresh_secret_id').eq('id',true).maybeSingle();return !r.error&&r.data?.refresh_secret_id;}
 async function sendJob(j:any,business?:any,template?:string){
  if(j.canal==='EMAIL'&&j.audience==='FORNECEDOR'){
-  const db=admin(),read=await db.rpc('gmail_hub_secrets_read');if(read.error||!read.data?.worker_token)throw new Error('GMAIL CENTRAL NÃO CONFIGURADO');
-  const r=await fetch(env('SUPABASE_URL')+'/functions/v1/gmail-central',{method:'POST',headers:{'Content-Type':'application/json','X-Forte-Worker':read.data.worker_token},body:JSON.stringify({action:'SEND_ORDER',id:j.id}),signal:AbortSignal.timeout(55000)});const result=await r.json();if(!r.ok||!result.id)throw new Error(result.error||'RESULTADO DO GMAIL NÃO CONFIRMADO');return result.id;
+  return await sendSupplierEmailHostinger(env('FORTE_ATENDE_HOSTINGER_MAIL_TOKEN'),j,supplierPDF(j));
  }
  if(j.canal==='EMAIL'){
   const key=env('RESEND_API_KEY'),from=env('ORDERS_EMAIL_FROM');if(!key||!from)throw new Error('E-MAIL DE ENVIO NÃO CONFIGURADO');
@@ -46,13 +45,31 @@ Deno.serve(async req=>{
   const grant=await client.rpc('access_current_module',{p_app:'vendas'});if(grant.error||!grant.data?.allowed)return Response.json({error:'Módulo sem aprovação.'},{status:403,headers:cors});
   const {data:p}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();if(p)p.perfil=grant.data.role;if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil)||!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&p.permissoes?.vendas!==true&&p.permissoes?.['carga-direta']!==true&&p.permissoes?.['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão.'},{status:403,headers:cors});
   const body=await req.json();const gmailTenant=await admin().from('gmail_hub_config').select('empresa_id').eq('id',true).maybeSingle();if(p.empresa_id!==env('WHATSAPP_TENANT_ID')&&p.empresa_id!==gmailTenant.data?.empresa_id)return Response.json({error:'Integração de mensagens ainda não configurada para esta empresa.'},{status:409,headers:cors});
+  if(body.action==='CHANNEL_STATUS'){
+   // Leitura de saúde; não envia e-mail, WhatsApp ou pedido a terceiros.
+   const email:any={ready:false,address:'contato@forteatacarejo.com.br',detail:'Hostinger não configurada'};
+   try{
+    await hostingerMailbox(env('FORTE_ATENDE_HOSTINGER_MAIL_TOKEN'));
+    email.ready=true;email.detail='Caixa corporativa autorizada na Hostinger';
+   }catch(e){email.detail=e instanceof Error?e.message:'Não foi possível conferir a Hostinger';}
+   const whatsapp:any={connected:false,fornecedor:{ready:false,detail:'A conferir'},motorista:{ready:false,detail:'A conferir'}};
+   try{
+    const business=await readBusiness(admin(),env);
+    whatsapp.connected=Boolean(business.token&&business.phone&&business.waba);
+    for(const [key,kind] of [['fornecedor','FORNECEDOR'],['motorista','ORDEM_MOTORISTA']]){
+     try{await requireDocumentTemplate(business,kind,env);whatsapp[key]={ready:true,detail:'Modelo de PDF aprovado e compatível na Meta'};}
+     catch(e){whatsapp[key]={ready:false,detail:e instanceof Error?e.message:'Modelo não confirmado'};}
+    }
+   }catch(e){const detail=e instanceof Error?e.message:'Não foi possível consultar a Meta';whatsapp.fornecedor={ready:false,detail};whatsapp.motorista={ready:false,detail};}
+   return Response.json({email,whatsapp,checkedAt:new Date().toISOString(),sent:false},{headers:cors});
+  }
   if(String(body.action||'').startsWith('INBOX_'))return Response.json(await inboxAction({body,db:admin(),profile:p,user,env,rowFor:inboxRowFor,persist:persistInbox,readBusiness}),{headers:cors});if(body.action!=='DISPATCH')throw new Error('Ação inválida.');
   const db=admin();let sent=0,blocked=0;const outcomes=[];let business;const getBusiness=async()=>business??=(await readBusiness(db,env));const initial=await rowFor(db,p.empresa_id);const ids=(initial.estado.comunicacoes||[]).filter((j:any)=>(!body.jobId||j.id===body.jobId)&&(j.state==='QUEUED'||j.state==='BLOCKED'||!!body.jobId&&j.state==='FAILED')).slice(0,10).map((j:any)=>j.id);
   if(body.jobId&&!ids.length){const known=(initial.estado.comunicacoes||[]).find(j=>j.id===body.jobId);if(!known)throw Error('Envio não localizado nesta empresa.');outcomes.push({id:known.id,state:known.state,reason:known.reason||(['SENDING','UNCERTAIN'].includes(known.state)?'Resultado em processamento ou incerto. Confira antes de reenviar.':''),providerId:known.providerId});}
   for(const id of ids){const row=await rowFor(db,p.empresa_id),j=row.estado.comunicacoes.find((j:any)=>j.id===id);if(!j||!['QUEUED','BLOCKED',...(body.jobId?['FAILED']:[])].includes(j.state))continue;const customer=row.estado.clientes?.find((c:any)=>c.id===j.clienteId);if(j.audience==='CLIENTE'&&customer?.whatsappAutorizado!==true){j.state='BLOCKED';j.reason='AUTORIZAÇÃO DO CLIENTE PENDENTE';await persist(db,p.empresa_id,row);blocked++;continue;}
    if(j.audience==='FORNECEDOR'){try{supplierDispatchCapacity(row.estado,j);}catch(e){j.state='BLOCKED';j.reason='CAPACIDADE: '+e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
    if(j.audience==='MOTORISTA'){try{driverDispatchCheck(row.estado,j);}catch(e){j.state='BLOCKED';j.reason=e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
-   const permittedTenant=j.canal==='EMAIL'&&j.audience==='FORNECEDOR'?p.empresa_id===gmailTenant.data?.empresa_id:(p.empresa_id===env('WHATSAPP_TENANT_ID')||p.empresa_id===gmailTenant.data?.empresa_id);const configured=permittedTenant&&(j.canal==='EMAIL'?j.audience==='FORNECEDOR'?await gmailConfigured():env('RESEND_API_KEY')&&env('ORDERS_EMAIL_FROM'):(await getBusiness()).token&&(await getBusiness()).phone);if(!configured){j.state='BLOCKED';j.reason='INTEGRAÇÃO NÃO CONFIGURADA';await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}
+   const permittedTenant=j.canal==='EMAIL'&&j.audience==='FORNECEDOR'?p.empresa_id===gmailTenant.data?.empresa_id:(p.empresa_id===env('WHATSAPP_TENANT_ID')||p.empresa_id===gmailTenant.data?.empresa_id);const configured=permittedTenant&&(j.canal==='EMAIL'?j.audience==='FORNECEDOR'?Boolean(env('FORTE_ATENDE_HOSTINGER_MAIL_TOKEN')):env('RESEND_API_KEY')&&env('ORDERS_EMAIL_FROM'):(await getBusiness()).token&&(await getBusiness()).phone);if(!configured){j.state='BLOCKED';j.reason='INTEGRAÇÃO NÃO CONFIGURADA';await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}
    let template;if(j.canal==='WHATSAPP'&&['FORNECEDOR','MOTORISTA'].includes(j.audience)){try{template=await requireDocumentTemplate(await getBusiness(),j.kind,env);}catch(e){j.state='BLOCKED';j.reason=e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
    j.state='SENDING';j.attemptAt=new Date().toISOString();await persist(db,p.empresa_id,row);let providerId='',failure='',uncertain=false;try{providerId=await sendJob(j,business,template);}catch(e){failure=e.message;uncertain=e.uncertain===true||j.canal==='EMAIL';}
    // Claim before contacting the provider; a timeout or interrupted invocation is never retried automatically.
