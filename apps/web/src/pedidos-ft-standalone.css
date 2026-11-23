@@ -1,3 +1,199 @@
-.pedidos-ft-standalone { max-width: 1024px; margin: 0 auto; padding: 12px; }
-.pedidos-ft-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 12px; }
-.pedidos-ft-toolbar button { min-height: 40px; }
+.pedidos-ft-page {
+ --ft-ink: #211c20;
+ --ft-muted: #665c61;
+ --ft-paper: #fff;
+ --ft-background: #f6f3f4;
+ --ft-border: #e6dfe1;
+ --ft-accent: #ab1330;
+ --ft-accent-hover: #8c0f26;
+ background: var(--ft-background);
+ color: var(--ft-ink);
+}
+
+.pedidos-ft-standalone {
+ width: min(1160px, 100%);
+ min-height: 100dvh;
+ margin-inline: auto;
+ padding: clamp(10px, 3vw, 30px);
+}
+
+.pedidos-ft-toolbar {
+ display: flex;
+ align-items: center;
+ justify-content: flex-end;
+ gap: 8px;
+ margin-block-end: 12px;
+}
+
+.pedidos-ft-toolbar button {
+ min-height: 44px;
+ border-radius: 9px;
+ background: var(--ft-paper);
+ color: var(--ft-ink);
+ border: 1px solid var(--ft-border);
+}
+
+.pedidos-ft-standalone > .ow {
+ padding: 0;
+ border: 0;
+ background: transparent;
+ box-shadow: none;
+}
+
+.pedidos-ft-standalone .ft-app {
+ color: var(--ft-ink);
+ background: transparent;
+ padding: 0;
+ gap: 14px;
+ font-size: 15px;
+}
+
+.pedidos-ft-standalone .ft-top {
+ padding: clamp(16px, 3vw, 28px);
+ border-radius: 18px;
+ border: 1px solid #4e2934;
+ background: linear-gradient(115deg, #211b21 42%, #431623);
+}
+
+.pedidos-ft-standalone .ft-title {
+ gap: clamp(12px, 2vw, 20px);
+}
+
+.pedidos-ft-standalone .ft-title img {
+ width: clamp(56px, 9vw, 76px);
+ height: auto;
+ border-radius: 14px;
+}
+
+.pedidos-ft-standalone .ft-title h2 {
+ font-size: clamp(24px, 5vw, 34px) !important;
+ line-height: 1.1;
+ letter-spacing: .015em;
+}
+
+.pedidos-ft-standalone .ft-title p {
+ margin-block-start: 6px;
+ color: #f0dfe5;
+ line-height: 1.4;
+}
+
+.pedidos-ft-standalone .ft-top-actions {
+ gap: 10px;
+}
+
+.pedidos-ft-standalone .ft-primary {
+ background: var(--ft-accent);
+ border-color: var(--ft-accent);
+ color: #fff;
+}
+
+.pedidos-ft-standalone .ft-primary:hover:not(:disabled) {
+ background: var(--ft-accent-hover);
+ border-color: var(--ft-accent-hover);
+}
+
+.pedidos-ft-standalone .ft-outline,
+.pedidos-ft-standalone .ft-text-button,
+.pedidos-ft-standalone .ft-options-list button {
+ color: var(--ft-accent-hover);
+ border-color: var(--ft-border);
+}
+
+.pedidos-ft-standalone .ft-options-list button:hover,
+.pedidos-ft-standalone .ft-options-list button:focus-visible {
+ background: #fff0f3;
+}
+
+.pedidos-ft-page :is(button, summary, input, select, a):focus-visible {
+ outline: 2px solid var(--ft-accent);
+ outline-offset: 3px;
+}
+
+.pedidos-ft-standalone .ft-top :is(button, summary):focus-visible {
+ outline-color: #fff;
+}
+
+.pedidos-ft-standalone :is(.ft-picker,.ft-card,.ft-summary > div) {
+ background: var(--ft-paper);
+ border-color: var(--ft-border);
+ border-radius: 14px;
+ box-shadow: 0 2px 8px #38212a09;
+}
+
+.pedidos-ft-standalone .ft-picker {
+ padding: 16px;
+}
+
+.pedidos-ft-standalone .ft-summary {
+ gap: 10px;
+}
+
+.pedidos-ft-standalone .ft-summary > div {
+ text-align: left;
+ padding: 12px;
+}
+
+.pedidos-ft-standalone .ft-summary small,
+.pedidos-ft-standalone .ft-field > span,
+.pedidos-ft-standalone .ft-hint {
+ color: var(--ft-muted);
+}
+
+.pedidos-ft-standalone .ft-summary strong {
+ font-size: 15px;
+}
+
+.pedidos-ft-standalone .ft-protocol {
+ background: #ffedf1;
+ border-color: #efd0da;
+}
+
+.pedidos-ft-standalone .ft-protocol :is(strong,span,small) {
+ color: #78223a;
+}
+
+.pedidos-ft-standalone .ft-card {
+ padding: clamp(14px, 2vw, 20px);
+}
+
+.pedidos-ft-standalone .ft-card :is(h3,h4) {
+ color: var(--ft-ink);
+}
+
+.pedidos-ft-page .forte-access-icon {
+ display: block;
+ margin: 0 auto 12px;
+ border-radius: 14px;
+}
+
+@media (min-width: 840px) {
+ .pedidos-ft-standalone .ft-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+ }
+ .pedidos-ft-standalone .ft-overview > :not(.ft-card) {
+  grid-column: 1 / -1;
+ }
+}
+
+@media (max-width: 600px) {
+ .pedidos-ft-standalone .ft-top {
+  align-items: stretch;
+ }
+ .pedidos-ft-standalone .ft-top-actions {
+  width: 100%;
+ }
+ .pedidos-ft-standalone .ft-top-actions > button {
+  flex: 1;
+ }
+}
+
+@media (max-width: 400px) {
+ .pedidos-ft-standalone .ft-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+ }
+ .pedidos-ft-standalone .ft-summary > :last-child {
+  grid-column: 1 / -1;
+ }
+}

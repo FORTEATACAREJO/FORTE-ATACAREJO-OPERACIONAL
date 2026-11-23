@@ -12,7 +12,7 @@ import './pedidos-ft-standalone.css';
 initMonitoring();
 const content=document.getElementById('root');
 if(supabase){
- startAccess({client:supabase,app:'vendas',title:'Pedidos FT',content}).ready.then(()=>{
+ startAccess({client:supabase,app:'vendas',title:'Pedidos FT',icon:'/icons/pedidos-ft-192.png',content}).ready.then(()=>{
   createRoot(content,reactErrorOptions).render(
    <AuthGate title="Pedidos FT" renderWorkspace={scope=><PedidosFTApp {...scope}/>}/>
   );
