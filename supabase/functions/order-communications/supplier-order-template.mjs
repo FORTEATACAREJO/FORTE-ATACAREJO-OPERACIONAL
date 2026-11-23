@@ -143,6 +143,11 @@ export function supplierOrderDocument(jsPDF,order){
   doc.setDrawColor(...copy.line);doc.roundedRect(88,y-1,106,9,1.5,1.5,'S');
  }
  y+=14;
+ const extras=[
+  ...(safe(order.modalidadeCompra)&&order.modalidadeCompra!=='PADRAO'?['Tipo de compra: '+order.modalidadeCompra]:[]),
+  ...(safe(order.motoristaSnapshot?.rntrc)?['RNTRC: '+order.motoristaSnapshot.rntrc]:[])
+ ];
+ if(extras.length&&y+7<281){txt(extras.join('  •  '),margin+3,y+2,{size:7.2,max:178,color:copy.slate});y+=6;}
  // A data prevista de carregamento não é solicitada neste modelo aprovado.
  if(items.some(i=>!hasPrice(i))){
   rect(margin,y,186,11,copy.amber,1.5);
