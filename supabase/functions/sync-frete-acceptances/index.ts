@@ -1,8 +1,10 @@
 import {mergeOperation,paymentCandidates} from './operation.mjs';
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-const headers={'Access-Control-Allow-Origin':'https://forte-vendas.onrender.com','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json'};
+const baseHeaders={'Access-Control-Allow-Origin':'https://forte-vendas.onrender.com','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json'};
 const bridge='https://nkynfboqwfxhhxcsrawl.supabase.co/functions/v1/vendas-frete-bridge';
 Deno.serve(async req=>{
+ const origin=req.headers.get('origin')||'';
+ const headers={...baseHeaders,'Access-Control-Allow-Origin':origin==='https://pedidos-ft.onrender.com'?origin:'https://forte-vendas.onrender.com',Vary:'Origin'};
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(req.method!=='POST')return Response.json({error:'Método inválido.'},{status:405,headers});
  try{
