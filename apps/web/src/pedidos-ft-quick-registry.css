@@ -27,3 +27,10 @@
 .ft-quick-list .ft-quick-record{text-align:left;background:#f2f5fa;color:#142642;border:1px solid #dce3ee}
 .ft-quick-error{padding:10px;border-radius:10px;background:#fff0f0;color:#991c1c}
 @media(max-width:600px){.ft-quick-grid{grid-template-columns:1fr}.ft-quick-modal{padding:14px}.pedidos-ft-page .ft-admin-tools>div{right:-70px;width:calc(100vw - 24px)}}
+
+.pedidos-ft-standalone .ft-channel-check{margin:0 12px 14px;padding:12px 14px;background:#fff;border:1px solid #e1e6ee;border-left:4px solid #1559aa;border-radius:12px;box-shadow:0 2px 12px #0012}
+.pedidos-ft-standalone .ft-channel-check header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.pedidos-ft-standalone .ft-channel-check h3{font-size:16px;margin:0;color:#132b4d}
+.pedidos-ft-standalone .ft-channel-check p{margin:7px 0;font-size:13px;line-height:1.4;color:#22354a;overflow-wrap:anywhere}
+.pedidos-ft-standalone .ft-channel-check small{display:block;margin-top:10px;color:#526074}
+.pedidos-ft-standalone .ft-channel-check header button{min-height:34px;padding:6px 10px;background:#eef2f7;color:#203957}
