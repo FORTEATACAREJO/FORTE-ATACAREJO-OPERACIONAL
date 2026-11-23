@@ -34,3 +34,36 @@
 .pedidos-ft-standalone .ft-channel-check p{margin:7px 0;font-size:13px;line-height:1.4;color:#22354a;overflow-wrap:anywhere}
 .pedidos-ft-standalone .ft-channel-check small{display:block;margin-top:10px;color:#526074}
 .pedidos-ft-standalone .ft-channel-check header button{min-height:34px;padding:6px 10px;background:#eef2f7;color:#203957}
+
+/* Seleção múltipla de prazo e catálogo do fornecedor no celular. */
+.ft-quick-modal .ft-supplier-terms{display:grid;gap:12px;margin:12px 0 18px}
+.ft-quick-modal .ft-supplier-due-options{border:1px solid #d8dde6;border-radius:13px;margin:0;padding:14px;min-width:0}
+.ft-quick-modal .ft-supplier-due-options legend{font-size:15px;font-weight:800;padding:0 6px;color:#202535}
+.ft-quick-modal .ft-supplier-due-options p{font-size:13px;color:#46536a}
+.ft-quick-modal .ft-supplier-due-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:12px 0}
+.ft-quick-modal .ft-supplier-due-choice{display:flex;flex-direction:row;align-items:center;gap:9px;border:1px solid #cdd5e2;border-radius:9px;padding:9px;background:#f8f9fc;font-size:14px;min-height:40px}
+.ft-quick-modal :is(.ft-supplier-due-choice,.ft-supplier-product-option) input[type=checkbox]{width:20px;height:20px;min-height:20px;flex-shrink:0;accent-color:#ae1738;margin:0;padding:0}
+.ft-quick-modal .ft-supplier-add-day{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:10px 0}
+.ft-quick-modal .ft-supplier-add-day label{max-width:210px;flex:1}
+.ft-quick-modal .ft-supplier-due-summary{background:#eef6ef;border-radius:10px;padding:10px;color:#164b27!important}
+.ft-quick-modal .ft-supplier-catalog{border:1px solid #d8dde6;border-radius:13px;padding:14px;min-width:0}
+.ft-quick-modal .ft-supplier-catalog legend{font-weight:800;font-size:15px;padding:0 6px}
+.ft-quick-modal .ft-supplier-catalog-help{font-size:13px;color:#49566b}
+.ft-quick-modal .ft-supplier-bulk{display:grid;gap:10px;margin-bottom:15px;padding:12px;border-radius:12px;background:#f5f7fa}
+.ft-quick-modal .ft-supplier-bulk-actions{display:flex;flex-wrap:wrap;gap:7px}
+.ft-quick-modal .ft-supplier-product-checks{display:grid;gap:6px;max-height:260px;overflow-y:auto;overscroll-behavior:contain;padding:5px 2px}
+.ft-quick-modal .ft-supplier-product-option{display:flex;flex-direction:row;align-items:center;gap:10px;padding:9px;background:#fff;border:1px solid #d8dde6;border-radius:9px;line-height:1.3;min-height:40px;font-weight:600}
+.ft-quick-modal .ft-supplier-product-option small{font-weight:400;color:#637087}
+.ft-quick-modal .ft-supplier-linked-heading{font-size:15px;margin:12px 0}
+.ft-quick-modal .ft-supplier-linked-product{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,170px) auto;gap:10px;align-items:end;padding:12px 0;border-bottom:1px solid #e3e7ee}
+.ft-quick-modal .ft-supplier-linked-product:last-of-type{border-bottom:0}
+.ft-quick-modal .ft-supplier-catalog-hint{background:#fff0dc;border-radius:8px;padding:8px;font-size:13px}
+.ft-quick-modal button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){
+ .ft-quick-modal .ft-supplier-due-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ft-quick-modal .ft-supplier-linked-product{grid-template-columns:1fr}
+ .ft-quick-modal .ft-supplier-linked-product button{width:100%}
+ .ft-quick-modal .ft-supplier-due-options,.ft-quick-modal .ft-supplier-catalog{padding:10px}
+ .ft-quick-modal .ft-quick-grid{row-gap:10px}
+ .ft-quick-modal .ft-quick-grid label{gap:5px;margin:0}
+}
