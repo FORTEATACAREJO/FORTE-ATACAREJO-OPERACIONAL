@@ -35,7 +35,7 @@ export default function OrdersWorkspace({data,onCommit,currentUser,initialTab='f
  const [fleetLinks,setFleetLinks]=useState([]),[fleetVehicles,setFleetVehicles]=useState([]);
  const [fleetLoaded,setFleetLoaded]=useState(false),[fleetError,setFleetError]=useState('');
  useEffect(()=>{
-  if(!supabase||quickRegistry){return;}
+  if(!supabase){setFleetLoaded(true);return;}if(quickRegistry){return;}
   let alive=true;setFleetLoaded(false);
   Promise.all([
    supabase.from('fc_frota_vinculos').select('id,motorista_operacional_id,veiculo_id,fim_em').is('fim_em',null).limit(500),
@@ -68,7 +68,7 @@ export default function OrdersWorkspace({data,onCommit,currentUser,initialTab='f
   return <p className="ow-fleet-linked" role="status">Veículo vinculado automaticamente: <strong>{binding.vehicle.placa}</strong> · {binding.vehicle.tipo||'Veículo'}{binding.vehicle.transportadora_nome?' · '+binding.vehicle.transportadora_nome:''}. O vínculo permanece até a desvinculação manual.</p>;
  };
  const allDrivers=data.motoristas||[];
- const driverOptions=driverOptionsFrom(allDrivers);
+ const driverOptions=driverOptionsFrom(allDrivers.map(driver=>{const linked=activeVehicleFor(driver.id)?.vehicle;return linked?{...driver,placa1:linked.placa,capacidadeMaximaKg:Number(linked.capacidade_kg)||0}:driver;}));
  const driverWarning=(motoristaId='')=>driverOptions.length===0?<div className="ow-driver-alert" role="status"><strong>Nenhum motorista habilitado para pedidos</strong><p>Existem {allDrivers.length} cadastro(s), mas nenhum está ativo e aprovado para seleção. Consulte os motoristas, confira as pendências documentais e sincronize os aprovados do Forte Frete. Cadastros inativos não podem ser usados para expedir cargas.</p><div className="ow-driver-actions"><button type="button" className="secondary" onClick={()=>setQuickRegistry({kind:'motoristas',id:'',mode:'view',forForm:tab==='ordem'?'ordem':'fornecedor'})}>Conferir motoristas</button><button type="button" className="secondary" disabled={busy} onClick={()=>action({action:'IMPORT_DRIVERS'})}>Sincronizar aprovados</button></div></div>:motoristaId&&!driverOptions.some(m=>m.value===motoristaId)?<p className="ow-driver-alert" role="status">O motorista vinculado ao pedido está inativo ou pendente de aprovação. A vinculação histórica será preservada, mas é necessário selecionar um motorista habilitado antes de emitir nova ordem.</p>:null;
  const supplierOptions=(data.fornecedores||[]).filter(f=>f.ativo!==false).map(f=>({value:f.id,label:f.nome}));const unitOptions=(data.unidades||[]).map(u=>({value:u.id,label:u.nome+' • '+(u.cnpj||'')}));
  const brands=[...new Set((data.produtos||[]).filter(isResaleProduct).map(p=>p.marca).filter(Boolean))];
