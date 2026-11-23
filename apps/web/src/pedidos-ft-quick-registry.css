@@ -67,3 +67,9 @@
  .ft-quick-modal .ft-quick-grid{row-gap:10px}
  .ft-quick-modal .ft-quick-grid label{gap:5px;margin:0}
 }
+
+.ft-quick-modal .ft-supplier-due-error{padding:10px 12px;border-radius:9px;background:#fff0ee;color:#99252b;font-weight:650;font-size:13px}
+.ft-quick-modal .ft-supplier-add-day{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end}
+.ft-quick-modal .ft-supplier-add-day label{max-width:none;min-width:0}
+.ft-quick-modal .ft-supplier-add-day button{white-space:normal;max-width:210px}
+@media(max-width:600px){.ft-quick-modal .ft-supplier-add-day{grid-template-columns:1fr}.ft-quick-modal .ft-supplier-add-day button{max-width:none;width:100%}}
