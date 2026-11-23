@@ -66,7 +66,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} isAdmin/></Suspense>;
  if(kind==='usuarios')return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label="Atalhos de usuários">
-   <header><h2>Usuários e permissões</h2><button type="button" onClick={onClose}>Fechar</button></header>
+   <header><h2>Usuários e permissões</h2><button type="button" onClick={onClose}>← Voltar ao pedido</button></header>
    <p>As aprovações, convites e alterações de acesso são realizadas pelo cadastro administrativo, sem alterar a autenticação a partir do pedido.</p>
    <ul>{collection.filter(x=>x.ativo!==false).slice(0,25).map(x=><li key={x.id}>{x.nome} — {x.perfil||'Perfil a conferir'}</li>)}</ul>
    <button type="button" onClick={()=>{onClose();onManageUsers();}}>Abrir gestão de usuários</button>
@@ -74,7 +74,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  </div>;
  return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label={'Cadastro rápido de '+labels[kind]}>
-   <header><div><h2>{editing?(recordId?'Corrigir cadastro':'Novo cadastro'):'Consultar cadastro'} — {labels[kind]}</h2><p>Os campos já preenchidos no pedido serão mantidos.</p></div><button type="button" onClick={onClose} disabled={busy}>Fechar</button></header>
+   <header><div><h2>{editing?(recordId?'Corrigir cadastro':'Novo cadastro'):'Consultar cadastro'} — {labels[kind]}</h2><p>Os campos já preenchidos no pedido serão mantidos.</p></div><button type="button" onClick={onClose} disabled={busy}>← Voltar ao pedido</button></header>
    {!recordId&&mode!=='new'&&!editing&&<label>Buscar {labels[kind].toLowerCase()}<input autoFocus placeholder="Digite o nome ou documento" onChange={e=>{const t=e.target.value.toLowerCase();document.querySelectorAll('.ft-quick-record').forEach(el=>{el.hidden=!el.textContent.toLowerCase().includes(t);});}} /></label>}
    {!recordId&&!editing&&<div className="ft-quick-list">{collection.filter(x=>x.ativo!==false).map(x=><button className="ft-quick-record" key={x.id} type="button" onClick={()=>pick(x)}>{x.nome||x.nomeFantasia||x.razaoSocial||'Sem nome'}</button>)}</div>}
    {recordId&&!editing&&<div className="ft-quick-summary"><strong>{selected?.nome||'Cadastro selecionado'}</strong><p>{selected?.cnpj||selected?.documento||''} · {selected?.telefone||selected?.whatsapp||''}</p><div className="ft-quick-actions"><button type="button" onClick={edit}>Editar cadastro</button><button type="button" onClick={create}>+ Novo</button><button type="button" className="secondary" onClick={()=>setRecordId('')}>Buscar outro</button></div></div>}
