@@ -31,7 +31,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const editorRef=useRef(null);
  useEffect(()=>{if(editor&&editorRef.current)editorRef.current.scrollIntoView({block:'start',behavior:'instant'});},[editor,selected]);
  const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
-  .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
+  .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.cnh,m.cnhNumero].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
  const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
  const preApprovedLegacyIds=useMemo(()=>new Set((data?.preaprovacoesMotoristasLegados||[]).filter(x=>x.tipo==='PRE_APROVACAO_CADASTRAL').map(x=>x.sourceId)),[data?.preaprovacoesMotoristasLegados]);
  async function load(){
@@ -159,17 +159,17 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
- <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['cadastros','Veículos e transportadoras'],['vinculos','Vincular / desvincular']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
+ <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['veiculos','Veículos']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
  {view==='motoristas'&&<>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Cadastros históricos:</b> {isAdmin?legacy.length:'restritos à administração'} · <b>Pré-aprovados pelo gestor:</b> {(data?.motoristas||[]).filter(m=>m.preAprovadoCadastro).length} operacionais e {preApprovedLegacyIds.size} históricos.</p>
  {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
  {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Conferindo motoristas do Forte Frete…');try{const result=await onSync();await load();setMessage('Sincronização concluída. '+(result?.count??'Os')+' registro(s) consultados; a seleção exige ativação e aprovação operacional.');}catch(e){setMessage(e.message||'Falha na sincronização. Nenhum motorista foi liberado.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
- <label className="ft-driver-search">BUSCAR MOTORISTA<input aria-label="Buscar motorista pelo nome, CPF ou placa" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Digite o nome, CPF ou placa"/></label>
+ <label className="ft-driver-search">BUSCAR MOTORISTA<input aria-label="Buscar motorista pelo nome ou CPF" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Digite nome ou CPF"/></label>
  <h3 className="ft-driver-section-title">Motoristas do cadastro operacional ({rows.length})</h3>
  <div className="ft-driver-cards">{rows.map(m=><article className="ft-driver-card" key={m.id}>
   <strong className="ft-driver-name">{m.nome||'NOME NÃO INFORMADO'}</strong>
-  <span>CPF: {maskCpf(m.cpf)} · Placa: {m.placa1||'Não cadastrada'}</span>
-  <span>Capacidade: {Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</span>
+  <span>CPF: {maskCpf(m.cpf)} · CNH: {m.cnh||m.cnhNumero?'Informada':'A conferir'}</span>
+  
   <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
   {onPick&&(isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))
     ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
@@ -190,13 +190,13 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {isAdmin&&<section className="ft-driver-legacy-list"><div className="ft-driver-cards">{legacyRows.map(l=><article className="ft-driver-card" key={l.id_origem}>
   <strong className="ft-driver-name">{l.dados?.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(l.dados?.cpf)} · CNH: {digits(l.dados?.cnh).length===11?'Informada':'Pendente'}</span>
-  <span>Veículo: {vehicles.find(v=>v.id===l.dados?.veiculo_origem_id)?.placa||'Não identificado'}</span>
+  
   <span className="ft-driver-status">{preApprovedLegacyIds.has(String(l.id_origem))?'PRÉ-APROVADO CADASTRAL · CONFERIR DOCUMENTOS':'DOCUMENTAÇÃO A CONFERIR'} ({l.requisitos_pendentes?.length||0} itens)</span>
   {existing.some(e=>e.id===l.id_origem)?<small>Cadastro inativo já criado</small>:<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR CADASTRO</button>}
  </article>)}</div>
  {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
   {isAdmin&&<ForteOpMigrationAudit/>}
  </>}
- {view!=='motoristas'&&<FleetLinkManager mode={view} drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
+ {view==='veiculos'&&<FleetLinkManager drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
  </section></div>;
 }

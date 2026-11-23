@@ -11,3 +11,9 @@
 .ft-fleet-nav button{min-height:45px;padding:10px 12px;border:1px solid #ad1934;border-radius:9px;background:white;color:#9f1430;font-weight:700;white-space:normal}
 .ft-fleet-nav button[aria-pressed=true]{background:#ab1330;color:#fff}
 @media(max-width:550px){.ft-fleet-form,.ft-fleet-items{grid-template-columns:1fr}.ft-fleet-nav button{flex:1 1 130px}}
+
+/* A transportadora pertence à ficha do veículo, não é uma terceira aba. */
+.ft-fleet-form-heading{grid-column:1/-1;margin-top:5px;padding:10px 12px;font-weight:800;border-radius:9px;background:#f4e7ec;color:#681a32}
+.ft-fleet-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:9px}
+.ft-fleet-actions button{flex:1 1 170px}
+.ft-fleet-form input[readonly]{background:#f4f5f7;color:#4e5765}
