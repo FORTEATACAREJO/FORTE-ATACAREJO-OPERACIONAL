@@ -17,6 +17,9 @@ Deno.serve(async(req)=>{
   const permissions=p.permissoes||{};
   if(!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&permissions.vendas!==true&&permissions['carga-direta']!==true&&permissions['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão para editar vendas e compras.'},{status:403,headers:cors});
   const b=await req.json();
+  // Apenas o backend autenticado define a fonte do veículo. Nunca confiar em
+  // um suposto snapshot interno enviado pelo navegador.
+  delete b.internalFleetVehicle;
   if(b.action==='IMPORT_DRIVERS'){
    const response=await fetch(Deno.env.get('SUPABASE_URL')+'/functions/v1/sync-frete-drivers',{method:'POST',headers:{Authorization:auth,apikey:Deno.env.get('SUPABASE_ANON_KEY')!,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(25000)});
    const result=await response.json();return Response.json(result,{status:response.status,headers:cors});
@@ -72,6 +75,31 @@ Deno.serve(async(req)=>{
    throw Error('Distribuição executada; o registro aguarda nova tentativa após atualização.');
   }
   if(b.action==='PAYMENT_SYNC')return Response.json({ok:true,...await distributeReceipt(b.cargaId,b.documentoId)},{headers:cors});
+  // Escolher o motorista recupera o veículo vinculado, que permanece até
+  // desvinculação manual; consultar novamente ao gravar evita placa obsoleta.
+  const driverId=String(b.motoristaId||'').trim();
+  const activeActions=new Set(['SUPPLIER_CREATE','SUPPLIER_EDIT','SUPPLIER_SAVE','LOAD_ASSIGN','LOADING_SAVE','LOAD_SHIPMENT']);
+  if(driverId&&activeActions.has(b.action)&&!(row.estado.workflowEvents||[]).some((e:any)=>e.requestId===b.requestId)){
+   const {data:association,error:linkError}=await stateClient.from('fc_frota_vinculos')
+    .select('id,veiculo_id').eq('empresa_id',p.empresa_id)
+    .eq('motorista_operacional_id',driverId).is('fim_em',null).maybeSingle();
+   if(linkError)throw new Error('Não foi possível conferir o veículo vinculado: '+linkError.message);
+   if(association){
+    const {data:vehicle,error:vehicleError}=await stateClient.from('fc_veiculos')
+     .select('id,placa,capacidade_kg,ativo,transportadora_nome,transportadora_cnpj')
+     .eq('empresa_id',p.empresa_id).eq('id',association.veiculo_id).single();
+    if(vehicleError||!vehicle||vehicle.ativo===false)throw new Error('O veículo vinculado não está disponível. Revise o cadastro.');
+    if(b.veiculoId&&String(b.veiculoId)!==String(vehicle.id))
+     throw new Error('O vínculo deste motorista mudou. Atualize a tela antes de gravar.');
+    b.internalFleetVehicle={
+     motoristaId:driverId,id:vehicle.id,vinculoId:association.id,placa:vehicle.placa,
+     capacidade_kg:vehicle.capacidade_kg,transportadora_nome:vehicle.transportadora_nome,
+     transportadora_cnpj:vehicle.transportadora_cnpj
+    };
+   }else if(b.veiculoId){
+    throw new Error('O vínculo do motorista com o veículo foi encerrado. Atualize a tela e selecione novamente.');
+   }
+  }
   const out=applyWorkflow(row.estado,b,p,{id:crypto.randomUUID(),at:new Date().toISOString()});
   if(!out.replayed){const {data:saved,error}=await stateClient.rpc('fc_gravar_workflow',{p_empresa:p.empresa_id,p_actor:user.id,p_versao:row.versao,p_estado:out.state});if(error||saved!==row.versao+1){if(!error||error.code==='40001')return Response.json({error:'Outra pessoa atualizou os dados. Atualize e tente novamente.'},{status:409,headers:cors});throw new Error(error.message);}}
   let warning=out.result.warning;
