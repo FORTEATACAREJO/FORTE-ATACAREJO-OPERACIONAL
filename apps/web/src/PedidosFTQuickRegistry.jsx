@@ -1,7 +1,7 @@
-import {useEffect,useState} from 'react';
+import {lazy,Suspense,useEffect,useState} from 'react';
 import SupplierProductCatalog,{validSupplierCatalog} from './SupplierProductCatalog.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
-import DriverDirectory from './DriverDirectory.jsx';
+const DriverDirectory=lazy(()=>import('./DriverDirectory.jsx'));
 import {SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
 import {customerAddressError,normalizeCustomerAddress,CUSTOMER_UFS} from './customer-address.js';
 import './pedidos-ft-quick-registry.css';
@@ -63,7 +63,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    onClose();
   }catch(err){setError(err.message||'Não foi possível salvar o cadastro.');}finally{setBusy(false);}
  }
- if(kind==='motoristas')return <DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} isAdmin/>;
+ if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} isAdmin/></Suspense>;
  if(kind==='usuarios')return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label="Atalhos de usuários">
    <header><h2>Usuários e permissões</h2><button type="button" onClick={onClose}>Fechar</button></header>
