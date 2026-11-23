@@ -23,3 +23,9 @@ test('modal não deve aceitar motorista do cadastro inativo nem ignorar aprovaç
  assert.equal(isDriverSelectable({id:'teste',ativo:true,statusCadastro:'LEGADO'}),false);
  assert.equal(isDriverSelectable(null),false);
 });
+
+test('pré-aprovação cadastral pelo gestor não substitui a habilitação operacional',()=>{
+ const preApproved={id:'pre',nome:'Motorista pré-aprovado',ativo:false,statusCadastro:'LEGADO',preAprovadoCadastro:true,documentosConferidos:false};
+ assert.equal(isDriverSelectable(preApproved),false);
+ assert.equal(driverOptionsFrom([preApproved]).length,0,'o motorista deve continuar bloqueado para expedição');
+});
