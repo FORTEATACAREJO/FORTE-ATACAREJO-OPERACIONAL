@@ -41,6 +41,13 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await driverModal.waitFor();
  assert.equal(await driverModal.locator('.ft-driver-card .ft-driver-name').first().innerText(),'Motorista');
  assert.equal(await driverModal.getByRole('button',{name:'SELECIONAR PARA O PEDIDO',exact:true}).count(),0);
+ assert.equal(await driverModal.getByRole('button',{name:'CONFERIR / LIBERAR MOTORISTA',exact:true}).count(),1);
+ await driverModal.getByRole('button',{name:'CONFERIR / LIBERAR MOTORISTA',exact:true}).click();
+ const review=driverModal.getByRole('region',{name:'Conferir e habilitar Motorista'});
+ await review.waitFor();
+ assert.equal(await review.getByRole('button',{name:'CONFIRMAR E HABILITAR MOTORISTA',exact:true}).isDisabled(),true);
+ assert.equal(await review.getByLabel('Registro da CNH').count(),1);
+ await review.getByRole('button',{name:'VOLTAR AOS MOTORISTAS',exact:true}).click();
  assert.equal(await driverModal.locator('.ft-driver-card').count(),1);
  assert(await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).isVisible());
  assert.equal(await driverModal.getByRole('button',{name:'Motoristas',exact:true}).count(),1);

@@ -21,6 +21,17 @@ const text = (v,label) => String(v || '').trim() || fail(`Informe ${label}.`);
 const num = (v,label,zero=false) => { const n=Number(v); if(!Number.isFinite(n)||(zero?n<0:n<=0))fail(`Confira ${label}.`); return n; };
 const integer = (v,label,zero=false) => {const n=num(v,label,zero);if(!Number.isSafeInteger(n))fail(`${label} deve ser inteiro.`);return n;};
 const byId = (s,k,id,label) => arr(s,k).find(x=>x.id===id&&active(x)) || fail(`${label} não localizado ou inativo.`);
+const cpfValidoOperacional = value => {
+ const d=String(value||'').replace(/\D/g,'');
+ if(d.length!==11||/^(\d)\1{10}$/.test(d))return false;
+ const digit=n=>{let value=0;for(let i=0;i<n;i++)value+=Number(d[i])*(n+1-i);const r=value*10%11;return r===10?0:r;};
+ return digit(9)===Number(d[9])&&digit(10)===Number(d[10]);
+};
+const dataCnh = value=>{
+ const v=String(value||'').slice(0,10);
+ return /^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v))?v:'';
+};
+
 const privileged = p => ['MASTER','ADMINISTRADOR'].includes(p.perfil);
 export function supplierTerms(s,id){const f=arr(s,'fornecedores').find(x=>x.id===id)||{};return [...new Set([f.condicaoPagamento,f.formaPagamentoPadrao,...(f.prazosPagamento||[]),...arr(s,'custosFornecedor').filter(c=>active(c)&&c.fornecedorId===id).map(c=>c.condicaoPagamento)].filter(Boolean))];}
 export function supplierCost(s,id,product,mode='PADRAO') {
@@ -44,6 +55,7 @@ export function validDriver(s,id,weight,pedido=false,linkedVehicle=null){
   transportadoraCnpj:linkedVehicle.transportadora_cnpj||''
  }:original;
  if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO/.test(norm(m.statusCadastro)))fail('Motorista aguarda aprovação.');
+ if(m.documentosConferidos===true&&!linkedVehicle)fail('Motorista aprovado sem veículo vinculado. Vincule o veículo na aba Veículos antes de emitir ordem.');
  const capacity=num(m.capacidadeMaximaKg||m.capacidadeAlvoKg,'capacidade do conjunto');
  if(weight>capacity&&!pedido)fail('Peso acima da capacidade do conjunto.');
  if(!m.placa1)fail('Cadastre a placa do conjunto.');
@@ -77,8 +89,49 @@ export function applyWorkflow(original,b,p,{id,at}){
  }
  const sheet=sheetAction(s,b,p,{id,at});
  if(sheet){result=sheet;if(requestedAction==='SALE_EDIT'){const rows=arr(s,'vendas').filter(v=>v.id===b.vendaId||v.grupoPedidoId===b.vendaId);for(const j of arr(s,'comunicacoes').filter(j=>j.vendaIds?.some(id=>rows.some(v=>v.id===id))&&['QUEUED','BLOCKED','FAILED'].includes(j.state)))Object.assign(j,{state:'CANCELLED',reason:'PEDIDO EDITADO'});queueCustomer(s,rows,'AJUSTE',id,at);}
+ }else if(b.action==='DRIVER_REVIEW'){
+  if(!privileged(p))fail('Somente Master ou Administrador pode conferir e habilitar motoristas.');
+  const m=arr(s,'motoristas').find(x=>String(x.id)===String(b.motoristaId))||fail('Motorista não localizado no cadastro operacional.');
+  if(!m.id||!String(m.nome||'').trim())fail('Cadastro de motorista inválido.');
+  const approved=b.aprovar===true,cpf=String(b.cpf||'').replace(/\D/g,''),
+   cnh=String(b.cnhNumero||'').replace(/\D/g,''),
+   categoria=norm(b.cnhCategoria).replace(/\s/g,''),
+   validity=dataCnh(b.cnhValidade),
+   telefone=String(b.telefone||'').replace(/\D/g,'');
+  if(cpf&&!cpfValidoOperacional(cpf))fail('CPF inválido; confira os dígitos.');
+  if(cnh&&cnh.length!==11)fail('CNH deve conter 11 dígitos.');
+  if(categoria&&!/^(A?[CDE])$/.test(categoria))fail('Categoria CNH inválida para veículo de carga; utilize C, D, E, AC, AD ou AE.');
+  if(b.cnhValidade&&!validity)fail('Data de validade da CNH inválida.');
+  if(telefone&&telefone.length<10)fail('Telefone incompleto. Informe DDD.');
+  if(approved){
+   if(!cpfValidoOperacional(cpf)||cnh.length!==11||!/^(A?[CDE])$/.test(categoria)||!validity)
+    fail('Para habilitar, confira CPF válido, registro da CNH, categoria de carga e validade.');
+   if(validity<=at.slice(0,10))fail('CNH vencida. Não é possível habilitar esse motorista.');
+   if(b.documentosConferidos!==true||b.confirmacaoResponsavel!==true)
+    fail('Confirme expressamente a conferência dos documentos originais e sua responsabilidade.');
+   if(String(b.referenciaConferencia||'').trim().length<5)
+    fail('Registre a referência da conferência documental.');
+  }
+  Object.assign(m,{
+   cpf:cpf||'',cnhNumero:cnh||'',cnhCategoria:categoria||'',cnhValidade:validity||'',
+   telefone:telefone||'',statusCadastro:approved?'APROVADO':'PENDENTE_DOCUMENTOS',
+   ativo:approved,documentosConferidos:approved,elegivelParaCarga:approved,
+   ultimaRevisaoCadastro:{responsavel:p.user_id,em:at,tipo:approved?'APROVACAO_DOCUMENTAL':'RASCUNHO'}
+  });
+  if(approved){
+   m.aprovacaoOperacional={responsavel:p.user_id,em:at,referenciaConferencia:String(b.referenciaConferencia).trim(),documentosConferidos:true};
+  }else m.aprovacaoOperacional=null;
+  result={motoristaId:m.id,aprovado:approved,warning:approved?
+   'Motorista habilitado documentalmente. Para gerar ordem, vincule um veículo ativo na aba Veículos.':
+   'Cadastro salvo como pendente, sem liberar motorista para ordens.'};
  }else if(b.action==='DRIVERS_IMPORTED'){
-  const imported=b.internalDrivers||[];s.motoristas=[...arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'),...imported];result={count:imported.length};
+  const imported=b.internalDrivers||[];
+  // A sincronização de frete não pode apagar a aprovação documental feita
+  // por um administrador no FORTE OP nem reativar cadastros não conferidos.
+  const preserved=arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'||m.documentosConferidos===true&&m.aprovacaoOperacional?.responsavel);
+  const preservedIds=new Set(preserved.map(m=>m.id));
+  s.motoristas=[...preserved,...imported.filter(m=>!preservedIds.has(m.id))];
+  result={count:imported.length};
  }else if(b.action==='FRETE_PUBLISHED'){
   const c=load();if(palletReleaseNeeded(c))fail('Liberação de pallets pendente.');Object.assign(c,{fretePublicadaId:b.internalReceipt.id,fretePublicadaEm:at,ordemMotoristaEnviada:true,ordemEnviadaEm:b.internalReceipt.enviadaEm,ordemCanal:'FORTE FRETE',ordemDestinatario:b.internalReceipt.motoristaId,fase:'ORDEM DISPONÍVEL NO FORTE FRETE'});result={cargaId:c.id,freteId:b.internalReceipt.id};
  }else if(['SUPPLIER_CREATE','SUPPLIER_EDIT'].includes(b.action)){

@@ -28,3 +28,20 @@
  .ft-driver-dialog .rowActions button{flex:1 1 160px}
  .ft-driver-form{scroll-margin-top:130px}
 }
+
+/* Cada motorista operacional precisa ter um comando visível de conferência. */
+.ft-driver-card .ft-driver-approve-button{width:100%;margin-top:10px;min-height:52px;background:#ac1534;color:#fff;font-weight:800;font-size:14px;letter-spacing:.01em}
+.ft-driver-review{margin-top:10px;padding:16px;background:#fff;border:2px solid #ac1534;border-radius:12px;display:grid;gap:12px;scroll-margin-top:120px}
+.ft-driver-review h3{font-size:19px;color:#84102a;margin:0}
+.ft-driver-review-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.ft-driver-review label{display:grid;gap:6px;font-size:14px;font-weight:650}
+.ft-driver-review :is(input:not([type=checkbox]),textarea){border:1px solid #a8b0bd;border-radius:9px;padding:10px;min-height:44px;font-size:16px;max-width:100%;width:100%;box-sizing:border-box;background:#fff;color:#222}
+.ft-driver-review .ft-driver-review-check{display:flex;flex-direction:row;align-items:flex-start;gap:10px;font-size:14px;line-height:1.5}
+.ft-driver-review .ft-driver-review-check input{width:22px;height:22px;flex:none;margin:0}
+.ft-driver-review-actions{display:grid;grid-template-columns:1fr;gap:8px}
+.ft-driver-review .ft-driver-review-actions button{min-height:48px;background:#163c67;color:white;border:0;border-radius:10px;font-weight:750}
+.ft-driver-review .ft-driver-review-actions button:nth-child(2){background:#118254}
+.ft-driver-review .ft-driver-review-actions button:last-child{background:#555b65}
+.ft-driver-review .ft-driver-review-actions button:disabled{opacity:.48;cursor:not-allowed}
+.ft-driver-review-feedback{border-radius:8px;padding:10px;background:#f6ebd7;font-weight:650}
+@media(max-width:600px){.ft-driver-review{padding:12px;scroll-margin-top:150px}.ft-driver-review-grid{grid-template-columns:1fr}}

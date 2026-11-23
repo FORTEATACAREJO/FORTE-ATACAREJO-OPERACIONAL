@@ -27,7 +27,7 @@ const labels={fornecedores:'Fornecedor',clientes:'Cliente',motoristas:'Motorista
 const digits=v=>String(v||'').replace(/\D/g,'');
 const fieldValue=(row,key)=>row[key]??'';
 
-export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSyncDrivers,onManageUsers,onPickDriver}){
+export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSyncDrivers,onManageUsers,onPickDriver,onDataRefresh}){
  const {kind,mode='view',id=''}=request;
  const collection=data[kind]||[];
  const [recordId,setRecordId]=useState(id);
@@ -65,7 +65,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    onClose();
   }catch(err){setError(err.message||'Não foi possível salvar o cadastro.');}finally{setBusy(false);}
  }
- if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} onPick={id=>onPickDriver?.(id,request.forForm)} isAdmin/></Suspense>;
+ if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory data={data} onClose={onClose} onSync={onSyncDrivers} onPick={id=>onPickDriver?.(id,request.forForm)} onDataRefresh={onDataRefresh} isAdmin/></Suspense>;
  if(kind==='usuarios')return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label="Atalhos de usuários">
    <header><h2>Usuários e permissões</h2><button type="button" onClick={onClose}>← Voltar ao pedido</button></header>
