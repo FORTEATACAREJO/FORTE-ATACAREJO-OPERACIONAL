@@ -1,5 +1,6 @@
+import {supplierPalletRule} from './supplier-pallet-preferences.mjs';
 import {supplierBuyerCode,requireSupplierBuyerCode,buyerCnpj} from './supplier-buyer-codes.mjs';
-import {isResaleProduct,supplierProducts} from './supplier-catalog.mjs';
+import {isResaleProduct,supplierProducts,supplierProductTerms} from './supplier-catalog.mjs';
 export {isResaleProduct,supplierProducts} from './supplier-catalog.mjs';
 import {queueDriverOrder} from './driver-dispatch.mjs';
 import {linkFreightReceipt,receiptSyncResult} from './freight-receipts.mjs';
@@ -22,7 +23,12 @@ const integer = (v,label,zero=false) => {const n=num(v,label,zero);if(!Number.is
 const byId = (s,k,id,label) => arr(s,k).find(x=>x.id===id&&active(x)) || fail(`${label} não localizado ou inativo.`);
 const privileged = p => ['MASTER','ADMINISTRADOR'].includes(p.perfil);
 export function supplierTerms(s,id){const f=arr(s,'fornecedores').find(x=>x.id===id)||{};return [...new Set([f.condicaoPagamento,f.formaPagamentoPadrao,...(f.prazosPagamento||[]),...arr(s,'custosFornecedor').filter(c=>active(c)&&c.fornecedorId===id).map(c=>c.condicaoPagamento)].filter(Boolean))];}
-export function supplierCost(s,id,product,mode='PADRAO') {const p=arr(s,'produtos').find(p=>p.id===product);return mode==='CSN_DIRETO'?p?.precoNegociadoCsnDireto:mode==='CSN_FIBRA'?p?.precoNegociadoCsnFibra:p?.precoNegociado;}
+export function supplierCost(s,id,product,mode='PADRAO') {
+ const negotiated=supplierProductTerms(s,id,product);
+ if(negotiated)return negotiated.custoUnitario;
+ const p=arr(s,'produtos').find(p=>p.id===product);
+ return mode==='CSN_DIRETO'?p?.precoNegociadoCsnDireto:mode==='CSN_FIBRA'?p?.precoNegociadoCsnFibra:p?.precoNegociado;
+}
 export function palletQuantity(s,items,rule) {if(rule===PALLETS[1])return 0;return (items||[]).reduce((total,i)=>{const p=arr(s,'produtos').find(p=>p.id===i.produtoId),q=Number(i.qtd||0);if(!q)return total;const per=Number(p?.palletQtd||p?.qtdPorPallet||p?.sacosPorPallet||p?.unidadesPorPallet);if(!Number.isSafeInteger(per)||per<=0)fail('Cadastre a quantidade por pallet do produto '+(p?.nome||'selecionado')+'.');return total+Math.ceil(q/per);},0);}
 export function salePrice(s,client,product){const p=arr(s,'produtos').find(x=>x.id===product);const c=arr(s,'precosClientes').find(x=>active(x)&&x.clienteId===client&&x.produtoId===product);return c?.precoFinal??cents(Number(p?.precoTabela||0)*(1-Number(c?.descontoPct||0)/100));}
 export function validDriver(s,id,weight,pedido=false){const m=byId(s,'motoristas',id,'Motorista');if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO/.test(norm(m.statusCadastro)))fail('Motorista aguarda aprovação.');const capacity=num(m.capacidadeMaximaKg||m.capacidadeAlvoKg,'capacidade do conjunto');if(weight>capacity&&!pedido)fail('Peso acima da capacidade do conjunto.');if(!m.placa1)fail('Cadastre a placa do conjunto.');return m;}
@@ -62,7 +68,12 @@ export function applyWorkflow(original,b,p,{id,at}){
   if(!supplierTerms(s,f.id).some(t=>norm(t)===norm(b.pagamento)))fail('Cadastre o prazo no fornecedor antes de gravar.');
   const itens=purchaseItems(s,b,p,at),pesoKg=itens.reduce((a,i)=>a+i.pesoKg,0),m=b.motoristaId?validDriver(s,b.motoristaId,pesoKg,true):null;
   if(m)confirmCapacity(m,pesoKg);
-  const supplierFreight=requireSupplierFreightMode(f);assertFreightSnapshot(b.modalidadeFrete,supplierFreight);
+  const sameSupplier=old?.fornecedorId===f.id;
+  const supplierFreight=(sameSupplier&&old.modalidadeFrete)||requireSupplierFreightMode(f);
+  assertFreightSnapshot(b.modalidadeFrete,supplierFreight);
+  const palletRule=(sameSupplier&&old.regraPallets)||supplierPalletRule(f);
+  if(palletRule&&b.regraPallets&&b.regraPallets!==palletRule)fail('Use a condição de paletes do fornecedor ou a já gravada no pedido.');
+  if(palletRule)b={...b,regraPallets:palletRule};
   if(!['GALPÃO','VENDA DIRETA','A DEFINIR'].includes(b.destinoTipo))fail('Selecione o tipo de destino.');
   const order={id:old?.id||id,numero:old?.numero||next(s,'nextCompraSeq',`COMP-${at.slice(0,4)}-`,'comprasFornecedor','numero'),fornecedorId:f.id,fornecedor:f.nome,unidadeId:u.id,unidade:u.nome,modalidadeCompra:b.modalidadeCompra||'PADRAO',fornecedorSnapshot:supplierSnapshot(f,u),cnpjComprador:buyerCnpj(u),motoristaSnapshot:driverSnapshot(m),confirmacaoCapacidade:capacityDecision,codigoFornecedor:supplierBuyerCode(f,u),itens,pesoKg,custoTotal:cents(itens.reduce((a,i)=>a+i.total,0)),qtd:itens.reduce((a,i)=>a+i.qtd,0),produto:itens.map(i=>i.produto).join(' / '),motoristaId:m?.id||'',motorista:m?.nome||'',placas:m?[m.placa1,m.placa2,m.placa3,m.placa4].filter(Boolean):[],origem:text(b.origem,'expedição'),destino:text(b.destino,'destino'),destinoTipo:b.destinoTipo,modalidadeFrete:supplierFreight,pagamento:b.pagamento,...pallets(s,b,p,at),nfPalletsAplica:b.regraPallets!==PALLETS[1],origemPreenchimento:b.origemPreenchimento||'MANUAL',protocolo:old?.protocolo||'',protocoloMotoristaId:old?.protocoloMotoristaId||'',protocoloDataReferencia:old?.protocoloDataReferencia||'',protocoloGeradoEm:old?.protocoloGeradoEm||'',protocoloHistorico:structuredClone(old?.protocoloHistorico||[]),status:'RASCUNHO — NÃO ENVIADO',criadaEm:old?.criadaEm||at,criadaPor:old?.criadaPor||p.nome,revisao:old?(old.revisao||0)+1:0,historico:[...(old?.historico||[]),{id,acao:old?'EDIÇÃO':'CRIAÇÃO',at,actor:p.user_id,motivo:editReason,...(old?{antes:purchaseSnapshot(old)}:{})}]};
   if(old){const c=arr(s,'cargas').find(c=>c.id===old.cargaId);if(c?.vendaIds?.length&&(c.fornecedorId!==order.fornecedorId||c.unidadeId!==order.unidadeId))fail('Carga com vendas vinculadas: mantenha fornecedor e unidade.');for(const v of arr(s,'vendas').filter(v=>c?.vendaIds?.includes(v.id))){const i=order.itens.find(i=>i.produtoId===v.produtoId);const qty=arr(s,'vendas').filter(x=>c.vendaIds.includes(x.id)&&x.produtoId===v.produtoId).reduce((a,x)=>a+Number(x.qtd),0);if(!i||qty>i.qtd)fail('Ajuste primeiro as vendas vinculadas.');}order.cargaId=old.cargaId;order.codigoCarga=old.codigoCarga;if(c)Object.assign(c,{...order,itensPedido:structuredClone(order.itens),pesoPedidoKg:order.pesoKg,qtdPedida:order.qtd,condicaoFornecedor:order.pagamento,localCarregamento:order.origem,qtdSemDestino:order.qtd-arr(s,'vendas').filter(v=>c.vendaIds?.includes(v.id)).reduce((a,v)=>a+Number(v.qtd),0),id:c.id,codigo:c.codigo,compraFornecedorId:old.id,status:'VERMELHO',vendaIds:c.vendaIds||[],fase:'PEDIDO EDITADO — CONFERIR ESPELHO'});for(const j of arr(s,'comunicacoes').filter(j=>j.compraFornecedorId===old.id&&['QUEUED','BLOCKED','FAILED'].includes(j.state))){j.state='CANCELLED';j.reason='PEDIDO EDITADO';}s.comprasFornecedor=arr(s,'comprasFornecedor').map(x=>x.id===old.id?order:x);}else s.comprasFornecedor=[...arr(s,'comprasFornecedor'),order];const c=ensureLoad(s,order,id+'-carga',at);if(m)assignOrderProtocol(s,order,c,m,at);if(b.vendaIds?.length){c.destinoTipo='VENDA DIRETA';linkSales(s,c,b.vendaIds);}c.fase='PEDIDO EM CONFERÊNCIA — ENVIO PENDENTE';result={id:order.id,numero:order.numero,cargaId:c.id};

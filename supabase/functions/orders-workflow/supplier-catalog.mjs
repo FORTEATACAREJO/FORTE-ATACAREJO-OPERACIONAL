@@ -6,6 +6,12 @@ export function isResaleProduct(p) {
 }
 export function supplierProducts(s,id) {
  const f=arr(s,'fornecedores').find(x=>x.id===id);if(!f)return [];
+ if(Array.isArray(f.produtosNegociados))return arr(s,'produtos').filter(p=>isResaleProduct(p)&&f.produtosNegociados.some(row=>row.produtoId===p.id));
  const brands=(f.marcas||norm(f.nome).split(/\s*\/\s*/)).map(norm);
  return arr(s,'produtos').filter(p=>isResaleProduct(p)&&(p.fornecedorId===id||(p.fornecedorIds||[]).includes(id)||arr(s,'custosFornecedor').some(c=>active(c)&&c.fornecedorId===id&&c.produtoId===p.id)||brands.includes(norm(p.marca))));
+}
+
+export function supplierProductTerms(s,supplierId,productId) {
+ const supplier=arr(s,'fornecedores').find(f=>f.id===supplierId);
+ return supplier?.produtosNegociados?.find(row=>row.produtoId===productId);
 }
