@@ -1,3 +1,4 @@
+import {supplierOrderDocument} from './supplier-order-template.mjs';
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'—';
 function renderPDF(jsPDF,title,sections,{generatedAt=new Date().toISOString(),primaryReference='',primaryLabel='PEDIDO OFICIAL DO FORNECEDOR'}={}){
@@ -10,6 +11,7 @@ function renderPDF(jsPDF,title,sections,{generatedAt=new Date().toISOString(),pr
  return d;
 }
 export function purchaseDocument(jsPDF,order,driver=false){
+ if(!driver)return supplierOrderDocument(jsPDF,order);
  const official=String(order.numeroPedidoFornecedor||'').trim();
  if(driver&&!official)throw new Error('Confirme o número oficial do pedido do fornecedor antes de gerar a ordem.');
  const identity=['Nossa OS: '+(order.numero||order.codigo||order.id),'Protocolo PEDIDOS FT: '+(order.protocolo||'Aguardando motorista'),'Fornecedor: '+order.fornecedor,'Unidade compradora: '+order.unidade,'RETIRAR EM: '+(order.localCarregamento||order.origem),'Destino: '+order.destino,'Data de carregamento: '+(order.dataCarregamento||'A definir')];
