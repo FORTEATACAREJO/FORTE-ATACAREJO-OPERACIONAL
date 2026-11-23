@@ -24,7 +24,6 @@ export default function WhatsappInbox({client,onUnread}){
       for(const message of data.messages)map.set(message.id,message);
       return [...map.values()].sort((a,b)=>String(a.at).localeCompare(String(b.at))||String(a.id).localeCompare(String(b.id)));
     });
-    setHasMore(current=>current||Boolean(data.hasMore));
   }
   setCanReply(data.canReply);setSelected(data.thread);
   if(mark){await inboxCall(client,'INBOX_UPDATE',{threadId:id,markRead:true});await refresh();}
