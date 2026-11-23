@@ -31,6 +31,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
   .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
  const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
+ const preApprovedLegacyIds=useMemo(()=>new Set((data?.preaprovacoesMotoristasLegados||[]).filter(x=>x.tipo==='PRE_APROVACAO_CADASTRAL').map(x=>x.sourceId)),[data?.preaprovacoesMotoristasLegados]);
  async function load(){
   if(!supabase)return;
   const [drivers,veiculos]=await Promise.all([
@@ -154,7 +155,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
- <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Registros antigos para conferência:</b> {isAdmin?legacy.length:'restritos à administração'}</p>
+ <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Cadastros históricos:</b> {isAdmin?legacy.length:'restritos à administração'} · <b>Pré-aprovados pelo gestor:</b> {(data?.motoristas||[]).filter(m=>m.preAprovadoCadastro).length} operacionais e {preApprovedLegacyIds.size} históricos.</p>
  {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
  {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Conferindo motoristas do Forte Frete…');try{const result=await onSync();await load();setMessage('Sincronização concluída. '+(result?.count??'Os')+' registro(s) consultados; a seleção exige ativação e aprovação operacional.');}catch(e){setMessage(e.message||'Falha na sincronização. Nenhum motorista foi liberado.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
  <label className="ft-driver-search">BUSCAR MOTORISTA<input aria-label="Buscar motorista pelo nome, CPF ou placa" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Digite o nome, CPF ou placa"/></label>
@@ -163,14 +164,14 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <strong className="ft-driver-name">{m.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(m.cpf)} · Placa: {m.placa1||'Não cadastrada'}</span>
   <span>Capacidade: {Number(m.capacidade_operacional_kg||m.capacidadeMaximaKg||0).toLocaleString('pt-BR')} kg</span>
-  <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':'INATIVO — NECESSITA APROVAÇÃO'}</span>
+  <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
   {onPick&&(isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))
     ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
     :<small>Cadastro disponível para conferência. Não habilitado para emissão de ordem.</small>)}
  </article>)}</div>
  {rows.length===0&&<p role="status">Nenhum motorista do cadastro operacional corresponde à busca.</p>}
  {isAdmin&&<section className="ft-driver-legacy"><h3 className="ft-driver-section-title">Cadastros antigos para regularizar ({legacyRows.length})</h3>
- <p>Os nomes estão disponíveis para consulta. Cada cadastro permanece <b>inativo</b> até a validação de CNH, documentos e aprovação. Nenhum motorista é liberado apenas por abrir o cadastro.</p>
+ <p>A autorização do gestor para pré-aprovação cadastral está registrada. A documentação ainda precisa ser conferida individualmente; todos continuam <b>inativos para transporte</b> até a validação. Pré-aprovação não equivale a CNH ou veículo aprovados.</p>
  {editor&&<p role="status">Formulário de conferência aberto logo abaixo, antes da lista de nomes.</p>}
  </section>}
  {isAdmin&&editor&&<form ref={editorRef} className="ft-driver-form" onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
@@ -184,7 +185,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <strong className="ft-driver-name">{l.dados?.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(l.dados?.cpf)} · CNH: {digits(l.dados?.cnh).length===11?'Informada':'Pendente'}</span>
   <span>Veículo: {vehicles.find(v=>v.id===l.dados?.veiculo_origem_id)?.placa||'Não identificado'}</span>
-  <span className="ft-driver-status">DOCUMENTAÇÃO PENDENTE ({l.requisitos_pendentes?.length||0} itens)</span>
+  <span className="ft-driver-status">{preApprovedLegacyIds.has(String(l.id_origem))?'PRÉ-APROVADO CADASTRAL · CONFERIR DOCUMENTOS':'DOCUMENTAÇÃO A CONFERIR'} ({l.requisitos_pendentes?.length||0} itens)</span>
   {existing.some(e=>e.id===l.id_origem)?<small>Cadastro inativo já criado</small>:<button type="button" disabled={busy} onClick={()=>begin(l)}>CONFERIR CADASTRO</button>}
  </article>)}</div>
  {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
