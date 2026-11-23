@@ -142,7 +142,7 @@ export default function DriverDirectory({data,onClose,onSync,isAdmin=false}){
   ['rntrc','RNTRC',false],['email','E-mail',false,'email']
  ];
  return <div className="modalBackdrop"><section className="modal wide" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
- <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>FECHAR</button></div>
+ <div className="modalHead"><h2>MOTORISTAS E VEÍCULOS — FORTE-OP</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
  <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
  <div className="rowActions">
  <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
