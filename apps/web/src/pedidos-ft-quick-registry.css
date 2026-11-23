@@ -1,0 +1,29 @@
+.pedidos-ft-page .ft-admin-tools{position:relative;display:block;max-width:100%;margin:0}
+.pedidos-ft-page .ft-admin-tools>summary{list-style:none;display:flex;align-items:center;gap:7px;cursor:pointer;border:1px solid #d9dfe9;border-radius:10px;padding:9px 12px;background:#fff;color:#202535;font:600 13px Arial,sans-serif;min-height:42px}
+.pedidos-ft-page .ft-admin-tools>summary::-webkit-details-marker{display:none}
+.pedidos-ft-page .ft-admin-tools[open]{z-index:30}
+.pedidos-ft-page .ft-admin-tools>div{position:absolute;right:0;top:calc(100% + 6px);width:min(90vw,420px);max-height:75dvh;overflow:auto;padding:10px;background:#f8fafc;border:1px solid #d9dfe9;border-radius:14px;box-shadow:0 14px 28px #0003}
+.pedidos-ft-page .ft-admin-tools .forte-access-admin{display:flex!important;position:relative!important;inset:auto!important;width:100%!important;padding:8px!important;margin:0!important;border-radius:8px!important;box-shadow:none!important;flex-wrap:wrap!important;gap:8px!important;background:transparent!important}
+.pedidos-ft-page .ft-admin-tools .forte-access-admin .fa-admin-panel:not([hidden]){width:100%;max-height:55dvh;overflow:auto}
+.pedidos-ft-page .ft-admin-tools [data-forte-top-actions]{display:flex;gap:8px;flex-wrap:wrap;max-width:100%}
+.pedidos-ft-page .ft-admin-tools [data-forte-top-actions] button{font-size:12px!important;min-height:38px!important;padding:8px 10px!important;border-radius:9px}
+.pedidos-ft-page .pedidos-ft-toolbar{gap:10px;margin-bottom:10px}
+.pedidos-ft-page .pedidos-ft-toolbar>.ft-toolbar-label{margin-right:auto;font-size:14px;font-weight:800;color:#24202a}
+.ow-quick-tools{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 14px}
+.ow-quick-tools button{min-height:34px!important;padding:6px 10px!important;font-size:12px!important;border:1px solid #d9cad0!important;background:#fff!important;color:#82203c!important;border-radius:8px!important}
+.ow-quick-tools button:disabled{opacity:.48}
+.ft-quick-backdrop{position:fixed;inset:0;z-index:6000;background:#1119;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box}
+.ft-quick-modal{background:#fff;color:#1b2130;border-radius:18px;width:min(720px,100%);max-height:94dvh;overflow:auto;padding:20px;box-shadow:0 20px 60px #0005}
+.ft-quick-modal>header{display:flex;gap:14px;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.ft-quick-modal h2{font-size:20px;color:#202131;margin:0}
+.ft-quick-modal p{margin:6px 0 12px;line-height:1.4}
+.ft-quick-modal label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:650}
+.ft-quick-modal input,.ft-quick-modal select{width:100%;min-height:43px;padding:9px;border:1px solid #cbd4e0;border-radius:9px;font:16px Arial;box-sizing:border-box}
+.ft-quick-modal button{min-height:40px;border:0;border-radius:9px;background:#aa1735;color:white;padding:9px 12px;cursor:pointer}
+.ft-quick-modal button.secondary{border:1px solid #dce1e7;background:#f0f3f8;color:#182239}
+.ft-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.ft-quick-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.ft-quick-list{display:flex;flex-direction:column;gap:6px;max-height:35dvh;overflow:auto}
+.ft-quick-list .ft-quick-record{text-align:left;background:#f2f5fa;color:#142642;border:1px solid #dce3ee}
+.ft-quick-error{padding:10px;border-radius:10px;background:#fff0f0;color:#991c1c}
+@media(max-width:600px){.ft-quick-grid{grid-template-columns:1fr}.ft-quick-modal{padding:14px}.pedidos-ft-page .ft-admin-tools>div{right:-70px;width:calc(100vw - 24px)}}
