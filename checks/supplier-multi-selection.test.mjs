@@ -1,0 +1,82 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {
+ supplierSelectedDueDays,parseDueDays,normalizeDueDays,formatSupplierDueDays,
+ supplierWithSelectedTerms,toggleSupplierDueDay,supplierPaymentMethod
+} from '../apps/web/src/supplier-terms-selection.mjs';
+import {linkSupplierProductsInBulk} from '../apps/web/src/supplier-products-bulk.mjs';
+import {supplierTerms} from '../supabase/functions/orders-workflow/domain.mjs';
+import {supplierProducts,supplierProductTerms} from '../supabase/functions/orders-workflow/supplier-catalog.mjs';
+
+const products=[
+ {id:'p1',nome:'CP II CIPLAN 50 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+ {id:'p2',nome:'EXTRA FORTE CIPLAN 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+ {id:'p3',nome:'ARI CIPLAN 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+ {id:'uso',nome:'USO INTERNO',finalidade:'USO CONSUMO'}
+];
+
+test('múltiplos vencimentos viram uma condição negociada para o pedido',()=>{
+ const legacy={id:'f',nome:'CIPLAN',prazosPagamento:['14 dias']};
+ assert.deepEqual(supplierSelectedDueDays(legacy),[14]);
+ let marked=toggleSupplierDueDay([14],7);
+ marked=toggleSupplierDueDay(marked,21);
+ marked=toggleSupplierDueDay(marked,28);
+ assert.deepEqual(marked,[7,14,21,28]);
+ const edited=supplierWithSelectedTerms({...legacy,prazosNegociadosDias:marked});
+ assert.equal(edited.condicaoPagamento,'7/14/21/28 dias');
+ assert.deepEqual(edited.prazosPagamento,['7/14/21/28 dias']);
+ assert.deepEqual(edited.prazosNegociadosDias,marked);
+ const state={fornecedores:[edited],custosFornecedor:[]};
+ assert.equal(supplierTerms(state,'f')[0],'7/14/21/28 dias');
+ assert(supplierTerms(state,'f').includes('7/14/21/28 dias'));
+});
+
+test('prazo legado 14 em forma de pagamento vira prazo, não método',()=>{
+ const csn={nome:'CSN',formaPagamentoPadrao:'14 DIAS'};
+ assert.deepEqual(supplierSelectedDueDays(csn),[14]);
+ const fixed=supplierWithSelectedTerms(csn);
+ assert.equal(fixed.condicaoPagamento,'14 dias');
+ assert.equal(fixed.formaPagamentoPadrao,'');
+ assert.equal(supplierPaymentMethod('BOLETO'),'BOLETO');
+ assert.equal(supplierPaymentMethod('14'),'');
+});
+
+test('não mistura à vista com parcelas e aceita outros dias sem repetição',()=>{
+ assert.deepEqual(toggleSupplierDueDay([7,14],0),[0]);
+ assert.deepEqual(toggleSupplierDueDay([0],14),[14]);
+ assert.equal(formatSupplierDueDays([14,7,28,14,21]),'7/14/21/28 dias');
+ assert.equal(formatSupplierDueDays([0]),'À VISTA');
+ assert.deepEqual(parseDueDays('7/14/21/28 DIAS'),[7,14,21,28]);
+ assert.deepEqual(normalizeDueDays([7,7,500,-3]),[7]);
+ assert.deepEqual(parseDueDays('BOLETO'),[]);
+ assert.deepEqual(supplierSelectedDueDays({prazosNegociadosDias:[],formaPagamentoPadrao:'14 dias'}),[]);
+});
+
+test('marcar vários produtos vincula tudo em lote, sem duplicar ou inventar preços',()=>{
+ const existing=[{produtoId:'p1',custoUnitario:33.2}];
+ const linked=linkSupplierProductsInBulk(existing,['p2','p3','p2','uso','p1'],products);
+ assert.equal(linked.length,3);
+ assert.deepEqual(linked.map(r=>r.produtoId),['p1','p2','p3']);
+ assert.equal(linked[0].custoUnitario,33.2);
+ assert.equal(linked[1].custoUnitario,'');
+ assert.equal(linked[2].custoUnitario,'');
+ const supplier={id:'f',nome:'CIPLAN',produtosNegociados:linked};
+ const state={fornecedores:[supplier],produtos:products};
+ assert.deepEqual(supplierProducts(state,'f').map(p=>p.id),['p1','p2','p3']);
+ assert.equal(supplierProductTerms(state,'f','p1').custoUnitario,33.2);
+ assert.equal(linkSupplierProductsInBulk(linked,['p1','p3'],products).length,3);
+});
+
+test('cadastro rápido tem seleção múltipla e mantém custo por produto',()=>{
+ const quick=readFileSync(new URL('../apps/web/src/PedidosFTQuickRegistry.jsx',import.meta.url),'utf8');
+ const catalog=readFileSync(new URL('../apps/web/src/SupplierProductCatalog.jsx',import.meta.url),'utf8');
+ const terms=readFileSync(new URL('../apps/web/src/SupplierPaymentPreferences.jsx',import.meta.url),'utf8');
+ assert.match(quick,/<SupplierPaymentPreferences/);
+ assert.match(quick,/<SupplierProductCatalog/);
+ assert.match(quick,/supplierWithSelectedTerms\(item\)/);
+ assert.match(catalog,/VINCULAR \{checked\.length/);
+ assert.match(catalog,/type="checkbox"/);
+ assert.match(catalog,/Custo unitário negociado/);
+ assert.match(terms,/Marque|marque um ou vários/);
+});
