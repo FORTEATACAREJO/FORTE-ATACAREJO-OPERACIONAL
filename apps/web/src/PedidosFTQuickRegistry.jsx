@@ -1,6 +1,8 @@
 import {lazy,Suspense,useEffect,useState} from 'react';
 import SupplierProductCatalog,{validSupplierCatalog} from './SupplierProductCatalog.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
+import SupplierPaymentPreferences from './SupplierPaymentPreferences.jsx';
+import {supplierWithSelectedTerms,supplierSelectedDueDays} from './supplier-terms-selection.mjs';
 const DriverDirectory=lazy(()=>import('./DriverDirectory.jsx'));
 import {SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
 import {customerAddressError,normalizeCustomerAddress,CUSTOMER_UFS} from './customer-address.js';
@@ -12,7 +14,6 @@ const fields={
   ['nome','Fornecedor / marca'],['razaoSocial','Razão social'],['cnpj','CNPJ'],['inscricaoEstadual','Inscrição estadual'],
   ['emailPedidos','E-mail para pedidos','email'],['whatsapp','WhatsApp'],['telefone','Telefone'],
   ['emailPallets','E-mail para liberação de paletes','email'],
-  ['formaPagamentoPadrao','Forma de pagamento'],['condicaoPagamento','Prazo negociado'],
   ['localCarregamentoPadrao','Local de carregamento padrão'],
   ['enderecoFiscal','Endereço fiscal'],['emailFiscal','E-mail fiscal','email'],['observacoesFiscais','Observações fiscais']
  ],
@@ -50,6 +51,8 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    if(!String(draft.nome||'').trim())throw Error('Informe o nome principal do cadastro.');
    let item={...draft,nome:String(draft.nome).trim(),ativo:draft.ativo!==false};
    if(kind==='fornecedores'){
+    if(supplierSelectedDueDays(item).length===0)throw Error('Selecione pelo menos um prazo negociado (à vista ou um ou mais dias).');
+    item=supplierWithSelectedTerms(item);
     if(!['CIF','FOB'].includes(item.modalidadeFrete))throw Error('Selecione CIF ou FOB.');
     if(!SUPPLIER_PALLET_OPTIONS.some(option=>option.value===item.condicaoPaletes))throw Error('Selecione a condição de paletes do fornecedor.');
     if(!validSupplierCatalog(item.produtosNegociados||[],data.produtos||[]))throw Error('Confira os produtos e os custos unitários negociados.');
@@ -91,6 +94,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     </div>
     {kind==='fornecedores'&&<>
       <SupplierBuyerCodes supplier={draft} units={data.unidades||[]} onChange={setDraft}/>
+      <SupplierPaymentPreferences supplier={draft} onChange={setDraft}/>
       <SupplierProductCatalog supplier={draft} products={data.produtos||[]} onChange={setDraft}/>
     </>}
     {error&&<p className="ft-quick-error" role="alert">{error}</p>}
