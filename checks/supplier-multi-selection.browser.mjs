@@ -54,7 +54,8 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  assert.equal(await modal.getByRole('checkbox',{name:'14 dias',exact:true}).isChecked(),true);
  await modal.getByRole('combobox',{name:'Forma de pagamento',exact:true}).selectOption('BOLETO');
  for(const day of ['7 dias','21 dias','28 dias'])await modal.getByRole('checkbox',{name:day,exact:true}).check();
- await modal.getByText('Prazo negociado:',{exact:false}).filter({hasText:'7/14/21/28 dias'}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('.ft-supplier-due-summary')?.textContent?.includes('7/14/21/28 dias'));
+ assert.match(await modal.locator('.ft-supplier-due-summary').innerText(),/7\/14\/21\/28 dias/);
  await modal.getByLabel('Pesquisar produtos para vincular').fill('CIPLAN');
  assert.equal(await modal.getByRole('checkbox',{name:/CIMENTO CIPLAN/}).count(),2,'Dois produtos ainda não vinculados');
  await modal.getByRole('button',{name:'Marcar todos os exibidos (2)'}).click();
