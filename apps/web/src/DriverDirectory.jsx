@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
@@ -26,6 +26,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
+ const editorRef=useRef(null);
+ useEffect(()=>{if(editor&&editorRef.current)editorRef.current.scrollIntoView({block:'start',behavior:'instant'});},[editor,selected]);
  const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
   .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.placa1,m.placa2].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
  const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
@@ -171,7 +173,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  <p>Os nomes estão disponíveis para consulta. Cada cadastro permanece <b>inativo</b> até a validação de CNH, documentos e aprovação. Nenhum motorista é liberado apenas por abrir o cadastro.</p>
  {editor&&<p role="status">Formulário de conferência aberto logo abaixo, antes da lista de nomes.</p>}
  </section>}
- {isAdmin&&editor&&<form onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
+ {isAdmin&&editor&&<form ref={editorRef} className="ft-driver-form" onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
  <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10}}>
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
