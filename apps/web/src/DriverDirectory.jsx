@@ -2,6 +2,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
+import FleetLinkManager from './FleetLinkManager.jsx';
 import './driver-directory-mobile.css';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
@@ -23,6 +24,7 @@ const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(
 
 export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false}){
  const [query,setQuery]=useState('');
+ const [view,setView]=useState('motoristas');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
@@ -101,11 +103,10 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  async function save(event){
   event.preventDefault();
   if(!isAdmin)return setMessage('Somente Master ou Administrador pode cadastrar motorista.');
-  if(!cpfValido(form.cpf))return setMessage('Informe CPF válido.');
-  if(digits(form.whatsapp).length<10)return setMessage('Informe WhatsApp com DDD.');
-  if(digits(form.cnh).length!==11)return setMessage('Informe os 11 dígitos do registro CNH.');
-  if(!form.nome.trim()||!form.proprietario_nome.trim()||!form.chave_pix.trim()||!form.favorecido_pix.trim()||!(Number(form.capacidade_operacional_kg)>0))
-   return setMessage('Complete nome, proprietário, chave Pix, favorecido Pix e capacidade operacional positiva.');
+  if(form.cpf.trim()&&!cpfValido(form.cpf))return setMessage('CPF informado inválido. Corrija ou deixe pendente.');
+  if(form.whatsapp.trim()&&digits(form.whatsapp).length<10)return setMessage('WhatsApp informado deve conter DDD.');
+  if(form.cnh.trim()&&digits(form.cnh).length!==11)return setMessage('CNH informada deve ter 11 dígitos.');
+  if(!form.nome.trim())return setMessage('Informe o nome do motorista.');
   setBusy(true);setMessage('');
   try{
    const user=await supabase.auth.getUser();
@@ -118,17 +119,17 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    if(grant.error||!grant.data?.allowed||!grant.data?.isAdmin)throw Error('Cadastro restrito a Master ou Administrador aprovado.');
    const payload={
     ...(selected?{id:selected}:{}),empresa_id:profile.data.empresa_id,
-    nome:form.nome.trim().toUpperCase(),cpf:digits(form.cpf),whatsapp:digits(form.whatsapp),
-    cnh:digits(form.cnh),email:form.email.trim()||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    nome:form.nome.trim().toUpperCase(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
+    cnh:digits(form.cnh)||null,email:form.email.trim()||null,categoria_cnh:form.categoria_cnh.trim()||null,
     validade_cnh:form.validade_cnh||null,rntrc:form.rntrc.trim()||null,
-    proprietario_nome:form.proprietario_nome.trim().toUpperCase(),proprietario_documento:digits(form.proprietario_documento)||null,
-    chave_pix:form.chave_pix.trim(),favorecido_pix:form.favorecido_pix.trim().toUpperCase(),
-    capacidade_operacional_kg:Number(form.capacidade_operacional_kg),
+    proprietario_nome:form.proprietario_nome.trim().toUpperCase()||null,proprietario_documento:digits(form.proprietario_documento)||null,
+    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim().toUpperCase()||null,
+    capacidade_operacional_kg:Number(form.capacidade_operacional_kg)>0?Number(form.capacidade_operacional_kg):null,
     status_ia:'PENDENTE_CONFERENCIA_DOCUMENTAL',ativo:false
    };
    const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
    if(result.error)throw Error(result.error.code==='23505'?'Motorista já registrado; confira os dados existentes.':result.error.message);
-   let note='Cadastro inserido como INATIVO. Ativação somente após conferir CNH, documentos e conjunto.';
+   let note='Motorista cadastrado como INATIVO, independente do veículo. A conferência documental e o vínculo manual serão feitos posteriormente.';
    if(selected){
     const marked=await supabase.from('forte_op_motoristas_pendentes')
       .update({situacao:'CADASTRO_INATIVO',revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()})
@@ -140,12 +141,15 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
  }
  const fields=[
-  ['nome','Nome completo',true],['cpf','CPF',true],['whatsapp','WhatsApp com DDD',true],
-  ['cnh','Registro CNH (11 dígitos)',true],['categoria_cnh','Categoria CNH',false],
-  ['validade_cnh','Validade CNH',false,'date'],['proprietario_nome','Nome do proprietário',true],
-  ['proprietario_documento','CPF/CNPJ do proprietário',false],['chave_pix','Chave Pix',true],
-  ['favorecido_pix','Favorecido Pix',true],['capacidade_operacional_kg','Capacidade operacional (kg)',true,'number'],
-  ['rntrc','RNTRC',false],['email','E-mail',false,'email']
+  ['nome','Nome completo',true],['cpf','CPF',false],['whatsapp','WhatsApp com DDD',false],
+  ['cnh','Registro CNH (11 dígitos)',false],['categoria_cnh','Categoria CNH',false],
+  ['validade_cnh','Validade CNH',false,'date'],['rntrc','RNTRC',false],['email','E-mail',false,'email'],
+  ...(selected?[
+   ['proprietario_nome','Proprietário (histórico)',false],
+   ['proprietario_documento','Documento proprietário (histórico)',false],
+   ['chave_pix','Chave Pix (histórico)',false],['favorecido_pix','Favorecido Pix (histórico)',false],
+   ['capacidade_operacional_kg','Capacidade (histórico)',false,'number']
+  ]:[])
  ];
  return <div className="modalBackdrop ft-driver-backdrop"><section className="modal wide ft-driver-dialog" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
  <div className="modalHead ft-driver-head"><h2>MOTORISTAS — PEDIDOS FT</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
@@ -155,6 +159,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
+ <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['cadastros','Veículos e transportadoras'],['vinculos','Vincular / desvincular']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
+ {view==='motoristas'&&<>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Cadastros históricos:</b> {isAdmin?legacy.length:'restritos à administração'} · <b>Pré-aprovados pelo gestor:</b> {(data?.motoristas||[]).filter(m=>m.preAprovadoCadastro).length} operacionais e {preApprovedLegacyIds.size} históricos.</p>
  {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
  {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Conferindo motoristas do Forte Frete…');try{const result=await onSync();await load();setMessage('Sincronização concluída. '+(result?.count??'Os')+' registro(s) consultados; a seleção exige ativação e aprovação operacional.');}catch(e){setMessage(e.message||'Falha na sincronização. Nenhum motorista foi liberado.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
@@ -175,7 +181,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {editor&&<p role="status">Formulário de conferência aberto logo abaixo, antes da lista de nomes.</p>}
  </section>}
  {isAdmin&&editor&&<form ref={editorRef} className="ft-driver-form" onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>
- <h3>{selected?'Completar cadastro legado':'Novo cadastro'} — documento obrigatório</h3>
+ <h3>{selected?'Conferir motorista antigo':'Cadastrar motorista independente'}</h3><p>O motorista não precisa ter veículo, transportadora ou Pix para ser cadastrado. Documentos serão conferidos antes da expedição.</p>
  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10}}>
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
@@ -190,5 +196,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  </article>)}</div>
  {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
   {isAdmin&&<ForteOpMigrationAudit/>}
+ </>}
+ {view!=='motoristas'&&<FleetLinkManager mode={view} drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
  </section></div>;
 }
