@@ -135,3 +135,9 @@ test('ação real SUPPLIER_TERM grava 7/14/21 sem exigir frete, paletes ou custo
  assert.equal(updated.produtosNegociados,undefined);
  assert.deepEqual(state.fornecedores[0].prazosPagamento,['14 dias']);
 });
+
+
+test('condições legadas independentes não são somadas ao reabrir',()=>{
+ assert.deepEqual(supplierSelectedDueDays({prazosPagamento:['7/14','21']}),[7,14]);
+ assert.deepEqual(supplierTerms({fornecedores:[{id:'f',prazosPagamento:['7/14/21','7,14,21 dias','28 dias']}]},'f'),['7/14/21 dias','28 dias']);
+});

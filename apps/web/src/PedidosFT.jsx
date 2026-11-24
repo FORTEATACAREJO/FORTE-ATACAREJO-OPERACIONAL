@@ -1,3 +1,4 @@
+import {paymentScheduleText} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildPedidosFTDossier} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
@@ -94,7 +95,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
    <Field label="Número interno" value={order?.numero||c.codigo}/>
    <Field label="Protocolo PEDIDOS FT" value={c.protocolo||order?.protocolo||"Aguardando motorista"}/>
-   <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||supplier?.condicaoPagamento}/>
+   <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
+   <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
    <Field label="Expedição / retirada" value={c.localCarregamento||c.origem}/>
    <Field label="Destino" value={c.destino}/>
    <h4>Produtos comprados</h4>

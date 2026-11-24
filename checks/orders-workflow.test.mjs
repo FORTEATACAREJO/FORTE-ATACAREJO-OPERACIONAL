@@ -116,3 +116,18 @@ test('pedido usa o catálogo, custo e condição de paletes do fornecedor',()=>{
  assert.equal(order.custoTotal,21400);
  assert.throws(()=>execute(data,{...supplier,regraPallets:undefined,itens:[{produtoId:'q',qtd:1}]}),/não vinculado/);
 });
+
+
+test('issue 11: condição composta é registrada, salva, reaberta e editada sem perder vencimentos',()=>{
+ let s=base();s.fornecedores[0].prazosPagamento=['7/14/21'];
+ s=execute(s,{action:'SUPPLIER_TERM',fornecedorId:'f',pagamento:'7,14,21 dias'}).state;
+ assert.deepEqual(s.fornecedores[0].prazosPagamento,['7/14/21 dias']);
+ s=execute(s,{...supplier,pagamento:'7/14/21 dias'}).state;
+ const order=s.comprasFornecedor[0];assert.equal(order.pagamento,'7/14/21 dias');
+ assert.deepEqual(order.vencimentosPagamento,[{dias:7,vencimento:'2026-10-15'},{dias:14,vencimento:'2026-10-22'},{dias:21,vencimento:'2026-10-29'}]);
+ assert.deepEqual(s.cargas[0].vencimentosPagamento,order.vencimentosPagamento);
+ s=JSON.parse(JSON.stringify(s));s.fornecedores[0].prazosPagamento=['28 dias'];
+ s=execute(s,{...supplier,action:'SUPPLIER_EDIT',id:order.id,pagamento:order.pagamento,motivo:'Teste de reabertura',destino:'Outro galpão'}).state;
+ assert.equal(s.comprasFornecedor[0].pagamento,order.pagamento);assert.deepEqual(s.comprasFornecedor[0].vencimentosPagamento,order.vencimentosPagamento);
+ assert.equal(s.cargas[0].condicaoFornecedor,order.pagamento);
+});
