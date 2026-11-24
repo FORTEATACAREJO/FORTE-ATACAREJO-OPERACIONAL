@@ -1,3 +1,4 @@
+import {paymentDays} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 // Prazo negociado é uma condição de parcelas (ex.: 7/14/21/28 dias), não a forma de pagamento.
 export const SUPPLIER_DUE_DAY_OPTIONS=[0,7,10,14,21,28,30,35,42,45,60,90];
 export const SUPPLIER_PAYMENT_METHODS=['BOLETO','PIX','TRANSFERÊNCIA','DEPÓSITO','DINHEIRO','CARTÃO','A COMBINAR'];
@@ -6,23 +7,15 @@ export const normalizeDueDays=values=>{
  const clean=[...new Set((Array.isArray(values)?values:[]).filter(numeric).map(Number))].sort((a,b)=>a-b);
  return clean.length>1?clean.filter(n=>n!==0):clean;
 };
-export function parseDueDays(raw){
- if(Array.isArray(raw))return normalizeDueDays(raw.flatMap(parseDueDays));
- if(typeof raw==='number')return numeric(raw)?[raw]:[];
- const value=String(raw||'').trim().toUpperCase();
- if(!value)return [];
- if(/^(À|A)\s*VISTA$|^ANTECIPAD[OA]$/.test(value))return [0];
- const match=value.match(/^(\d{1,3}(?:\s*[/,;]\s*\d{1,3})*)\s*(?:DIAS?|D)?$/i);
- return match?normalizeDueDays(match[1].split(/\s*[/,;]\s*/).map(Number)):[];
-}
+export function parseDueDays(raw){return Array.isArray(raw)?normalizeDueDays(raw.flatMap(parseDueDays)):paymentDays(raw);}
 export function supplierSelectedDueDays(supplier={}){
  if(Array.isArray(supplier.prazosNegociadosDias)){
   return normalizeDueDays(supplier.prazosNegociadosDias);
  }
  const direct=parseDueDays(supplier.condicaoPagamento);
  if(direct.length)return direct;
- const old=parseDueDays(supplier.prazosPagamento);
- if(old.length)return old;
+ const terms=Array.isArray(supplier.prazosPagamento)?supplier.prazosPagamento:[supplier.prazosPagamento];
+ for(const term of terms){const days=parseDueDays(term);if(days.length)return days;}
  return parseDueDays(supplier.formaPagamentoPadrao);
 }
 export const formatSupplierDueDays=days=>{
@@ -78,7 +71,7 @@ export function toggleSupplierDueDay(current,day){
 export function parseCustomSupplierDueDays(input){
  const text=String(input??'').trim().replace(/\s*dias?\s*$/i,'').trim();
  if(!text)return {days:[],error:'Informe um ou mais prazos em dias.'};
- const parts=text.split(/\s*[,;/]\s*/);
+ const parts=text.split(/(?:\s*[,;/]\s*|\s+)/);
  if(parts.some(part=>!/^\d{1,3}$/.test(part))){
   return {days:[],error:'Use números separados por vírgula, barra ou ponto e vírgula. Ex.: 7,14,21.'};
  }

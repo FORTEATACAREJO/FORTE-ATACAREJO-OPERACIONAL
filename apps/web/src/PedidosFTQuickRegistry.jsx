@@ -2,7 +2,7 @@ import {lazy,Suspense,useEffect,useState} from 'react';
 import SupplierProductCatalog,{validSupplierCatalog} from './SupplierProductCatalog.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
 import SupplierPaymentPreferences from './SupplierPaymentPreferences.jsx';
-import {supplierWithSelectedTerms,supplierSelectedDueDays} from './supplier-terms-selection.mjs';
+import {supplierWithSelectedTerms,supplierSelectedDueDays,supplierRegisteredTerms,formatSupplierDueDays} from './supplier-terms-selection.mjs';
 const DriverDirectory=lazy(()=>import('./DriverDirectory.jsx'));
 import {SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
 import {customerAddressError,normalizeCustomerAddress,CUSTOMER_UFS} from './customer-address.js';
@@ -52,6 +52,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    let item={...draft,nome:String(draft.nome).trim(),ativo:draft.ativo!==false};
    if(kind==='fornecedores'){
     if(supplierSelectedDueDays(item).length===0)throw Error('Selecione pelo menos um prazo negociado (à vista ou um ou mais dias).');
+    item={...item,prazosPagamento:[...supplierRegisteredTerms(selected||{}),...supplierRegisteredTerms(item)]};
     item=supplierWithSelectedTerms(item);
     if(!['CIF','FOB'].includes(item.modalidadeFrete))throw Error('Selecione CIF ou FOB.');
     if(!SUPPLIER_PALLET_OPTIONS.some(option=>option.value===item.condicaoPaletes))throw Error('Selecione a condição de paletes do fornecedor.');
@@ -64,7 +65,9 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    const key=kind==='clientes'?digits(item.documento):digits(item.cnpj);
    if(collection.some(r=>r.id!==recordId&&key&&digits(kind==='clientes'?r.documento:r.cnpj)===key))throw Error('Já existe outro cadastro com este CPF/CNPJ.');
    if(collection.some(r=>r.id!==recordId&&String(r.nome||'').trim().toLowerCase()===item.nome.toLowerCase()))throw Error('Já existe outro cadastro com este nome.');
-   await onSave(kind,{...item,id:recordId||'cad-'+crypto.randomUUID()},selected||null);
+   const savedId=recordId||'cad-'+crypto.randomUUID();
+   await onSave(kind,{...item,id:savedId},selected||null);
+   if(kind==='fornecedores'&&recordId&&item.condicaoPagamento!==formatSupplierDueDays(supplierSelectedDueDays(selected||{})))onChooseTerm?.(savedId,item.condicaoPagamento);
    onClose();
   }catch(err){setError(err.message||'Não foi possível salvar o cadastro.');}finally{setBusy(false);}
  }

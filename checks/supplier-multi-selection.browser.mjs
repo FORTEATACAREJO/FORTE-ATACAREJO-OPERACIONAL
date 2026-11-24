@@ -76,9 +76,11 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
  assert.equal(await custom.inputValue(),'');
  for(const day of ['7 dias','14 dias','21 dias','28 dias'])assert.equal(await modal.getByRole('checkbox',{name:day,exact:true}).isChecked(),true);
- // Outras sintaxes acrescentam só os vencimentos ainda não presentes.
+ // Uma condição composta digitada substitui a seleção anterior.
  await custom.fill('7/14/21');
  await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
+ assert.equal(await modal.getByRole('checkbox',{name:'28 dias',exact:true}).isChecked(),false);
+ await modal.getByRole('checkbox',{name:'28 dias',exact:true}).check();
  await custom.fill('7,abc');
  await modal.getByRole('button',{name:'+ Adicionar prazos'}).click();
  assert.equal(await modal.getByRole('alert').count(),1);
