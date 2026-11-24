@@ -10,7 +10,7 @@ const itemWeight=i=>Number(i.pesoKg)||0;
 const itemQty=i=>Number(i.qtd)||0;
 const hasPrice=i=>Number.isFinite(Number(i.custoUnitario))&&Number(i.custoUnitario)>0;
 const asSacks=s=>/CIMENTO|ARGAMASSA|REJUNTE|CAL\b|SACO|\bKG\b/i.test(safe(s));
-const carrierText=o=>[o.motorista,...(Array.isArray(o.placas)?o.placas:[])].filter(Boolean).join(' • ')||'A definir após vinculação';
+const carrierText=o=>!(o.placas||[]).length?([o.motorista?'Previsto: '+o.motorista:'Motorista a definir','Placas a definir — não autoriza carregamento'].join(' • ')):([o.motorista,...o.placas].filter(Boolean).join(' • '));
 const stateBadge=o=>/ENVIADO|ENTREGUE|CONFIRMADO/.test(safe(o.status).toUpperCase())?'PEDIDO REGISTRADO • ENVIO CONFERIR':
  /RASCUNHO|PENDENTE|CONFERÊNCIA|CONFERENCIA/.test(safe(o.status).toUpperCase())?'PEDIDO GRAVADO • ENVIO PENDENTE':'PEDIDO DE COMPRA • CONFERIR ANTES DO ENVIO';
 const terms=o=>missing(o.pagamento||o.condicaoFornecedor);
