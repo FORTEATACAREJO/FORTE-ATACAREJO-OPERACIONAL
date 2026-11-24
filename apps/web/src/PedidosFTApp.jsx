@@ -1,3 +1,4 @@
+import {paymentKey} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 import {useCallback,useEffect,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
 import {applyAuthUser,loadCloudState,saveCloudState,supabase} from './supabase.js';
@@ -12,6 +13,7 @@ export default function PedidosFTApp({profile,grants}){
   const state=await loadCloudState();
   if(!state)throw Error('Base do Pedidos FT indisponível. Tente novamente.');
   setData(applyAuthUser(state));
+  return state;
  },[]);
  useEffect(()=>{
   if(allowed)refresh().catch(error=>setNotice(error.message));
@@ -46,7 +48,7 @@ export default function PedidosFTApp({profile,grants}){
    try{message=(await error.context.json()).error;}catch{}
   }
   if(error||message)throw Error(message||error.message);
-  try{await refresh();}catch{setNotice('A operação foi recebida. Atualize as cargas para conferir.');}
+  try{const state=await refresh();if(body.action==='SUPPLIER_TERM'&&!state.fornecedores?.find(f=>f.id===body.fornecedorId)?.prazosPagamento?.some(t=>paymentKey(t)===paymentKey(body.pagamento)))throw Error('Condição não confirmada na releitura.');}catch(e){setNotice('A operação foi recebida. Atualize as cargas para conferir.');if(body.action==='SUPPLIER_TERM')throw e;}
   return receipt;
  }
  async function checkChannels(){

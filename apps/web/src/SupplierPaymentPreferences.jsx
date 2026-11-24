@@ -27,7 +27,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
  function addCustom(){
   const parsed=parseCustomSupplierDueDays(custom);
   if(parsed.error){setCustomError(parsed.error);return;}
-  setDays([...days.filter(x=>x!==0),...parsed.days]);
+  setDays(parsed.days.length>1?parsed.days:[...days.filter(x=>x!==0),...parsed.days]);
   setCustom('');setCustomError('');
  }
  async function registerCondition(){
