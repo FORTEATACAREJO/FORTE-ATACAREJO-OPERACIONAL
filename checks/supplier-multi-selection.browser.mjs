@@ -6,9 +6,10 @@ import path from 'node:path';
 const root=process.cwd();
 const fixture={
  fornecedores:[{id:'cip',nome:'CIPLAN',cnpj:'00057240000122',
-  modalidadeFrete:'CIF',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias'],
-  produtosNegociados:[{produtoId:'p1',custoUnitario:31}]
+  modalidadeFrete:'CIF',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias'],expedicoes:['sob'],localCarregamentoPadrao:'SOBRADINHO - DF',
+  produtosNegociados:[{produtoId:'p1',custoUnitario:28.9275}]
  },{id:'outro',nome:'OUTRO',modalidadeFrete:'FOB',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias']},{id:'vazio',nome:'VAZIO',modalidadeFrete:'CIF',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias']}],
+ locais:[{id:'sob',nome:'SOBRADINHO - DF',ativo:true},{id:'ede',nome:'EDEALINA - GO',ativo:true}],
  unidades:[{id:'go',nome:'Filial',cnpj:'49832961000232'}],
  produtos:[
   {id:'p1',nome:'CIMENTO CIPLAN CP II 50 KG',marca:'CIPLAN',finalidade:'REVENDA'},
@@ -62,8 +63,12 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  assert.equal(await modal.getByRole('checkbox',{name:'14 dias',exact:true}).isChecked(),true);
  await modal.getByRole('combobox',{name:'Forma de pagamento',exact:true}).selectOption('BOLETO');
  // Selecionar três vencimentos é apenas um rascunho até registrar a CONDIÇÃO.
- await modal.getByRole('checkbox',{name:'7 dias',exact:true}).check();
- await modal.getByRole('checkbox',{name:'21 dias',exact:true}).check();
+ assert.equal(await modal.getByRole('combobox',{name:'Local de carregamento padrão'}).inputValue(),'SOBRADINHO - DF');
+ assert.deepEqual(await modal.getByRole('combobox',{name:'Local de carregamento padrão'}).locator('option').allTextContents(),['Selecionar no pedido','SOBRADINHO - DF']);
+ await modal.getByRole('checkbox',{name:'EDEALINA - GO',exact:true}).check();
+ await modal.getByRole('combobox',{name:'Local de carregamento padrão'}).selectOption('EDEALINA - GO');
+ await modal.getByRole('combobox',{name:'Condições de pagamento prontas'}).selectOption('7/14/21 dias');
+ for(const day of ['7 dias','14 dias','21 dias'])assert(await modal.getByRole('checkbox',{name:day,exact:true}).isChecked());
  const register=modal.getByRole('button',{name:'REGISTRAR CONDIÇÃO 7/14/21 dias'});
  await register.waitFor();
  assert.equal(await page.evaluate(()=>window.registeredTerm),undefined);
@@ -108,10 +113,14 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  assert.deepEqual(saved.prazosPagamento,['14 dias','7/14/21 dias','7/14/21/28 dias']);
  assert.equal(saved.formaPagamentoPadrao,'BOLETO');
  assert.deepEqual(saved.produtosNegociados.map(x=>x.produtoId),['p1','p2','p3']);
- assert.deepEqual(saved.produtosNegociados.map(x=>x.custoUnitario),[31,30,28]);
+ assert.deepEqual(saved.produtosNegociados.map(x=>x.custoUnitario),[28.9275,30,28]);
+ assert.deepEqual(saved.expedicoes,['sob','ede']);
+ assert.equal(saved.localCarregamentoPadrao,'EDEALINA - GO');
  await page.evaluate(()=>window.openSupplier('cip'));
  await modal.waitFor();
  assert.equal(await modal.locator('.ft-supplier-linked-product').count(),3);
+ assert.equal(await modal.getByRole('combobox',{name:'Local de carregamento padrão'}).inputValue(),'EDEALINA - GO');
+ assert.equal(await modal.getByRole('checkbox',{name:'SOBRADINHO - DF',exact:true}).isChecked(),true);
  assert.equal(await modal.getByLabel('Custo negociado CIMENTO CIPLAN EXTRA FORTE 40 KG').inputValue(),'30');
  await page.evaluate(()=>window.openSupplier('outro'));
  await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).waitFor();

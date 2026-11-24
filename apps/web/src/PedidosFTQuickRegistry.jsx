@@ -14,7 +14,6 @@ const fields={
   ['nome','Fornecedor / marca'],['razaoSocial','Razão social'],['cnpj','CNPJ'],['inscricaoEstadual','Inscrição estadual'],
   ['emailPedidos','E-mail para pedidos','email'],['whatsapp','WhatsApp'],['telefone','Telefone'],
   ['emailPallets','E-mail para liberação de paletes','email'],
-  ['localCarregamentoPadrao','Local de carregamento padrão'],
   ['enderecoFiscal','Endereço fiscal'],['emailFiscal','E-mail fiscal','email'],['observacoesFiscais','Observações fiscais']
  ],
  clientes:[
@@ -38,6 +37,17 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  const [error,setError]=useState('');
  const [recordQuery,setRecordQuery]=useState('');
  const [busy,setBusy]=useState(false);
+ const activeLocations=(data.locais||[]).filter(l=>l.ativo!==false);
+ const linkedLocations=Array.isArray(draft.expedicoes)?draft.expedicoes:activeLocations.filter(l=>l.nome===draft.localCarregamentoPadrao).map(l=>l.id);
+ const linkedOptions=activeLocations.filter(l=>linkedLocations.includes(l.id));
+ function toggleLocation(id){
+  setDraft(row=>{
+   const current=Array.isArray(row.expedicoes)?row.expedicoes:activeLocations.filter(l=>l.nome===row.localCarregamentoPadrao).map(l=>l.id);
+   const next=current.includes(id)?current.filter(x=>x!==id):[...current,id];
+   const options=activeLocations.filter(l=>next.includes(l.id));
+   return {...row,expedicoes:next,localCarregamentoPadrao:options.length===1?options[0].nome:options.some(l=>l.nome===row.localCarregamentoPadrao)?row.localCarregamentoPadrao:''};
+  });
+ }
  useEffect(()=>{const close=e=>{if(e.key==='Escape'&&!busy)onClose()};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);},[onClose,busy]);
  function pick(row){setRecordId(row.id);setDraft(structuredClone(row));setEditing(false);setError('');setRecordQuery('');}
  function create(){setRecordId('');setDraft({ativo:true});setEditing(true);setError('');}
@@ -54,6 +64,10 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     if(supplierSelectedDueDays(item).length===0)throw Error('Selecione pelo menos um prazo negociado (à vista ou um ou mais dias).');
     item={...item,prazosPagamento:[...supplierRegisteredTerms(selected||{}),...supplierRegisteredTerms(item)]};
     item=supplierWithSelectedTerms(item);
+    if(Array.isArray(item.expedicoes)){
+     if(!item.expedicoes.length||item.expedicoes.some(id=>!activeLocations.some(l=>l.id===id)))throw Error('Selecione ao menos uma expedição ativa do fornecedor.');
+     if(item.localCarregamentoPadrao&&!activeLocations.some(l=>item.expedicoes.includes(l.id)&&l.nome===item.localCarregamentoPadrao))throw Error('Selecione uma expedição padrão entre as vinculadas.');
+    }
     if(!['CIF','FOB'].includes(item.modalidadeFrete))throw Error('Selecione CIF ou FOB.');
     if(!SUPPLIER_PALLET_OPTIONS.some(option=>option.value===item.condicaoPaletes))throw Error('Selecione a condição de paletes do fornecedor.');
     if(!validSupplierCatalog(item.produtosNegociados||[],data,recordId))throw Error('Confira os produtos e os custos unitários negociados.');
@@ -96,6 +110,18 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
      </>}
     </div>
     {kind==='fornecedores'&&<>
+      <fieldset className="ow-supplier-section">
+       <legend>Expedições / locais de carregamento</legend>
+       <p>Marque as unidades de retirada deste fornecedor. O pedido mostrará somente as unidades vinculadas.</p>
+       <div className="ft-supplier-due-grid" role="group" aria-label="Expedições vinculadas">
+        {activeLocations.map(l=><label key={l.id} className="ft-supplier-due-choice"><input type="checkbox" checked={linkedLocations.includes(l.id)} onChange={()=>toggleLocation(l.id)}/><span>{l.nome}</span></label>)}
+       </div>
+       <label>Local de carregamento padrão<select value={draft.localCarregamentoPadrao||''} onChange={e=>setValue('localCarregamentoPadrao',e.target.value)}>
+        <option value="">Selecionar no pedido</option>
+        {linkedOptions.map(l=><option key={l.id} value={l.nome}>{l.nome}</option>)}
+       </select></label>
+       {!linkedOptions.length&&<p role="status">Marque as expedições disponíveis antes de escolher o local padrão.</p>}
+      </fieldset>
       <SupplierBuyerCodes supplier={draft} units={data.unidades||[]} onChange={setDraft}/>
       <SupplierPaymentPreferences supplier={draft} registered={selected} onChange={setDraft} onRegisterTerm={term=>onRegisterTerm?.(selected?.id,term)} onChooseTerm={term=>onChooseTerm?.(selected?.id,term)}/>
       <SupplierProductCatalog supplier={draft} catalogState={data} onChange={setDraft}/>
