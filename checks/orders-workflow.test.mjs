@@ -166,3 +166,22 @@ test('expedições vinculadas: fornecedor geral mantém o preço, local alheio b
  assert.equal(execute(s,{...supplier,origem:'Pedro Leopoldo'}).state.comprasFornecedor[0].itens[0].custoUnitario,22);
  assert.throws(()=>execute(s,{...supplier,origem:'Sobradinho'}),/expedição cadastrada/);
 });
+
+test('banco central: novos prazos de fornecedor são registrados uma vez e não liberados aos outros',()=>{
+ let s=base();
+ s.pagamentos=[{id:'pg-7',descricao:'7 DIAS',ativo:true}];
+ s=execute(s,{action:'SUPPLIER_TERM',fornecedorId:'f',pagamento:'7,14,21'}).state;
+ s=execute(s,{action:'SUPPLIER_TERM',fornecedorId:'f',pagamento:'7/14/21 dias'}).state;
+ assert.equal(s.pagamentos.filter(x=>x.descricao==='7/14/21 dias').length,1);
+ assert.deepEqual(s.fornecedores[0].prazosPagamento,['7/14/21 dias']);
+ assert.equal(s.fornecedores[1].prazosPagamento,undefined);
+ assert.equal(s.clientes[0].prazosPagamento,undefined);
+});
+test('cliente com condições negociadas: bloqueia prazo e forma não autorizados',()=>{
+ const s=base();
+ s.clientes[0].prazosPagamento=['7/14/21 dias'];
+ s.clientes[0].condicaoPagamento='7/14/21 dias';
+ s.clientes[0].formasPagamentoNegociadas=['BOLETO'];
+ assert.throws(()=>execute(s,{...sale,formaPagamento:'BOLETO',condicaoPagamento:'28 dias'}),/condição negociada/);
+ assert.throws(()=>execute(s,{...sale,condicaoPagamento:'7,14,21'}),/forma de recebimento negociada/);
+});

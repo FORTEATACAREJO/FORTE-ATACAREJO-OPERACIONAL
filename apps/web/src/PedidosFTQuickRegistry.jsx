@@ -2,7 +2,7 @@ import {lazy,Suspense,useEffect,useState} from 'react';
 import SupplierProductCatalog,{validSupplierCatalog} from './SupplierProductCatalog.jsx';
 import SupplierBuyerCodes from './SupplierBuyerCodes.jsx';
 import SupplierPaymentPreferences from './SupplierPaymentPreferences.jsx';
-import {supplierWithSelectedTerms,supplierSelectedDueDays,supplierRegisteredTerms,formatSupplierDueDays} from './supplier-terms-selection.mjs';
+import {supplierWithSelectedTerms,supplierSelectedDueDays,supplierRegisteredTerms,formatSupplierDueDays,sharedPaymentTerms,customerRegisteredTerms,parseCustomSupplierDueDays,CLIENT_PAYMENT_METHODS} from './supplier-terms-selection.mjs';
 const DriverDirectory=lazy(()=>import('./DriverDirectory.jsx'));
 import {SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
 import {customerAddressError,normalizeCustomerAddress,CUSTOMER_UFS} from './customer-address.js';
@@ -20,7 +20,7 @@ const fields={
   ['nome','Cliente / razão social'],['nomeFantasia','Nome fantasia'],['documento','CPF ou CNPJ'],
   ['inscricaoEstadual','Inscrição estadual'],['telefone','Telefone'],['whatsapp','WhatsApp'],['email','E-mail','email'],
   ['cep','CEP'],['logradouro','Logradouro'],['numero','Número'],['bairro','Bairro'],['cidade','Cidade'],
-  ['contatoResponsavel','Contato responsável'],['condicaoPagamento','Prazo de pagamento'],['observacoes','Observações']
+  ['contatoResponsavel','Contato responsável'],['observacoes','Observações']
  ]
 };
 const labels={fornecedores:'Fornecedor',clientes:'Cliente',motoristas:'Motorista',usuarios:'Usuário'};
@@ -37,6 +37,24 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
  const [error,setError]=useState('');
  const [recordQuery,setRecordQuery]=useState('');
  const [busy,setBusy]=useState(false);
+ const [customTerm,setCustomTerm]=useState('');
+ const [termError,setTermError]=useState('');
+ const customerTerms=customerRegisteredTerms(draft);
+ const availableTerms=[...new Set([...sharedPaymentTerms(data,'clientes'),...customerTerms])];
+ function toggleCustomerTerm(term){
+  setDraft(row=>{
+   const terms=customerRegisteredTerms(row);
+   const next=terms.includes(term)?terms.filter(t=>t!==term):[...terms,term];
+   return {...row,prazosPagamento:next,condicaoPagamento:next.includes(row.condicaoPagamento)?row.condicaoPagamento:next[0]||''};
+  });
+ }
+ function addCustomerTerm(){
+  const parsed=parseCustomSupplierDueDays(customTerm);
+  if(parsed.error){setTermError(parsed.error);return;}
+  const term=formatSupplierDueDays(parsed.days);
+  setDraft(row=>({...row,prazosPagamento:[...new Set([...customerRegisteredTerms(row),term])],condicaoPagamento:term}));
+  setCustomTerm('');setTermError('');
+ }
  const activeLocations=(data.locais||[]).filter(l=>l.ativo!==false);
  const linkedLocations=Array.isArray(draft.expedicoes)?draft.expedicoes:activeLocations.filter(l=>l.nome===draft.localCarregamentoPadrao).map(l=>l.id);
  const linkedOptions=activeLocations.filter(l=>linkedLocations.includes(l.id));
@@ -73,6 +91,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     if(!validSupplierCatalog(item.produtosNegociados||[],data,recordId))throw Error('Confira os produtos e os custos unitários negociados.');
     item.produtosNegociados=(item.produtosNegociados||[]).map(row=>({produtoId:row.produtoId,custoUnitario:Number(row.custoUnitario)}));
    }else{
+    if(Array.isArray(item.prazosPagamento))item.prazosPagamento=customerRegisteredTerms(item);
     item=normalizeCustomerAddress(item);
     const err=customerAddressError(item);if(err)throw Error(err);
    }
@@ -123,9 +142,20 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
        {!linkedOptions.length&&<p role="status">Marque as expedições disponíveis antes de escolher o local padrão.</p>}
       </fieldset>
       <SupplierBuyerCodes supplier={draft} units={data.unidades||[]} onChange={setDraft}/>
-      <SupplierPaymentPreferences supplier={draft} registered={selected} onChange={setDraft} onRegisterTerm={term=>onRegisterTerm?.(selected?.id,term)} onChooseTerm={term=>onChooseTerm?.(selected?.id,term)}/>
+      <SupplierPaymentPreferences catalogState={data} supplier={draft} registered={selected} onChange={setDraft} onRegisterTerm={term=>onRegisterTerm?.(selected?.id,term)} onChooseTerm={term=>onChooseTerm?.(selected?.id,term)}/>
       <SupplierProductCatalog supplier={draft} catalogState={data} onChange={setDraft}/>
     </>}
+    {kind==='clientes'&&<fieldset className="ow-supplier-section">
+     <legend>Condições de pagamento negociadas</legend>
+     <p>Marque apenas os prazos acordados com este cliente. Cada combinação é uma condição completa.</p>
+     <div className="ft-supplier-due-grid" role="group" aria-label="Prazos negociados do cliente">{availableTerms.map(term=><label className="ft-supplier-due-choice" key={term}><input type="checkbox" checked={customerTerms.includes(term)} onChange={()=>toggleCustomerTerm(term)}/><span>{term}</span></label>)}</div>
+     <label>Prazo padrão<select value={customerTerms.includes(draft.condicaoPagamento)?draft.condicaoPagamento:customerTerms[0]||''} onChange={e=>setValue('condicaoPagamento',e.target.value)}><option value="">Selecione</option>{customerTerms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
+     <label>Outros prazos (dias)<input value={customTerm} onChange={e=>{setCustomTerm(e.target.value);setTermError('');}} placeholder="Ex.: 7,14,21" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCustomerTerm();}}}/></label>
+     <button type="button" className="secondary" disabled={!customTerm.trim()} onClick={addCustomerTerm}>+ Incluir condição negociada</button>
+     {termError&&<p role="alert">{termError}</p>}
+     <p>Formas de recebimento negociadas (opcional)</p>
+     <div className="ft-supplier-due-grid">{CLIENT_PAYMENT_METHODS.map(method=><label className="ft-supplier-due-choice" key={method}><input type="checkbox" checked={(draft.formasPagamentoNegociadas||[]).includes(method)} onChange={()=>setDraft(row=>{const current=row.formasPagamentoNegociadas||[];return {...row,formasPagamentoNegociadas:current.includes(method)?current.filter(x=>x!==method):[...current,method]};})}/><span>{method}</span></label>)}</div>
+    </fieldset>}
     {error&&<p className="ft-quick-error" role="alert">{error}</p>}
     <div className="ft-quick-actions"><button type="submit" disabled={busy}>{busy?'Gravando…':'Salvar e voltar ao pedido'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>recordId?(setEditing(false),setError('')):onClose()}>Cancelar</button></div>
    </form>}

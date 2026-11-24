@@ -1,3 +1,4 @@
+import {registerSharedTerms,customerRegisteredTerms,supplierRegisteredTerms} from './supplier-terms-selection.mjs';
 import {paymentKey} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 import {useCallback,useEffect,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
@@ -31,7 +32,8 @@ export default function PedidosFTApp({profile,grants}){
    if(JSON.stringify(current)!==JSON.stringify(original))throw Error('Outro usuário alterou este cadastro. Reabra a edição para não sobrescrever alterações.');
   }else if(records.some(r=>r.id===item.id))throw Error('Identificação de cadastro em uso. Tente novamente.');
   if(kind==='fornecedores'&&!validSupplierCatalog(item.produtosNegociados||[],latest,item.id))throw Error('Produto não vinculado ao catálogo deste fornecedor ou custo inválido. Atualize o cadastro.');
-  const next={...latest,[kind]:original?records.map(r=>r.id===item.id?item:r):[...records,item]};
+  const terms=kind==='fornecedores'?supplierRegisteredTerms(item):customerRegisteredTerms(item);
+  const next={...latest,pagamentos:registerSharedTerms(latest.pagamentos||[],terms),[kind]:original?records.map(r=>r.id===item.id?item:r):[...records,item]};
   const saved=await saveCloudState(next);
   if(!saved)throw Error('Servidor não confirmou o cadastro.');
   setData(applyAuthUser(saved));
