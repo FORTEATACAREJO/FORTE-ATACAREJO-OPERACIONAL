@@ -1,4 +1,5 @@
 import {supplierOrderDocument} from './supplier-order-template.mjs';
+import {driverLoadingOrderDocument} from './driver-order-template.mjs';
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'—';
 function renderPDF(jsPDF,title,sections,{generatedAt=new Date().toISOString(),primaryReference='',primaryLabel='PEDIDO OFICIAL DO FORNECEDOR'}={}){
@@ -12,8 +13,7 @@ function renderPDF(jsPDF,title,sections,{generatedAt=new Date().toISOString(),pr
 }
 export function purchaseDocument(jsPDF,order,driver=false){
  if(!driver)return supplierOrderDocument(jsPDF,order);
- const official=String(order.numeroPedidoFornecedor||'').trim();
- if(driver&&!official)throw new Error('Confirme o número oficial do pedido do fornecedor antes de gerar a ordem.');
+ if(driver)return driverLoadingOrderDocument(jsPDF,order);
  const identity=['Nossa OS: '+(order.numero||order.codigo||order.id),'Protocolo PEDIDOS FT: '+(order.protocolo||'Aguardando motorista'),'Fornecedor: '+order.fornecedor,'Unidade compradora: '+order.unidade,'RETIRAR EM: '+(order.localCarregamento||order.origem),'Destino: '+order.destino,'Data de carregamento: '+(order.dataCarregamento||'A definir')];
  const transport=['Motorista: '+(order.motorista||'A definir'),'Placas: '+(order.placas||[]).join(' / '),'Pallets: '+order.regraPallets+' • '+order.palletQuantidade,...['cpf','cnhNumero','rntrc'].filter(k=>order.motoristaSnapshot?.[k]).map(k=>({cpf:'CPF',cnhNumero:'CNH',rntrc:'RNTRC'})[k]+': '+order.motoristaSnapshot[k]),...(order.justificativaPallets?['Observação de pallets: '+order.justificativaPallets]:[]),...(order.liberacaoPalletsFornecedor?.evidencia?['Autorização de pallets do fornecedor: '+order.liberacaoPalletsFornecedor.evidencia]:[])];
  return renderPDF(jsPDF,driver?'ORDEM DE CARREGAMENTO':'ESPELHO DO PEDIDO AO FORNECEDOR',[

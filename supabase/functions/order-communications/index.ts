@@ -14,6 +14,22 @@ const env=(key:string)=>Deno.env.get(key)||'';
 const admin=()=>createClient(env('SUPABASE_URL'),env('SUPABASE_SERVICE_ROLE_KEY'));
 async function rowFor(db:any,empresa:string){const {data,error}=await db.from('fc_app_state').select('estado,versao').eq('empresa_id',empresa).single();if(error||!data)throw new Error('Base indisponível.');return data;}
 async function persist(db:any,empresa:string,row:any){const {data,error}=await db.from('fc_app_state').update({estado:row.estado,versao:row.versao+1}).eq('empresa_id',empresa).eq('versao',row.versao).select('versao');if(error||data?.length!==1)throw new Error('Conflito de versão; atualize os dados.');row.versao++;}
+// Reconfere a vinculação no banco antes de transmitir a ordem ao motorista.
+// A retirada não pode usar veículo desvinculado depois da conferência.
+async function verifyDriverVehicleLink(db:any,empresa:string,load:any){
+ if(!load?.vinculoFrotaId)return; // Ordens legadas seguem seu bloqueio documental existente.
+ const {data:link,error:linkError}=await db.from('fc_frota_vinculos')
+  .select('id,veiculo_id,motorista_operacional_id,fim_em')
+  .eq('empresa_id',empresa).eq('id',load.vinculoFrotaId).maybeSingle();
+ if(linkError||!link||link.fim_em||String(link.motorista_operacional_id)!==String(load.motoristaId)
+   ||String(link.veiculo_id)!==String(load.veiculoId))
+  throw new Error('Vínculo motorista/veículo não está ativo. Revise a ordem antes do envio.');
+ const {data:vehicle,error:vehicleError}=await db.from('fc_veiculos')
+  .select('id,placa,ativo').eq('empresa_id',empresa).eq('id',link.veiculo_id).maybeSingle();
+ const normalizePlate=x=>String(x||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+ if(vehicleError||!vehicle||vehicle.ativo===false||normalizePlate(vehicle.placa)!==normalizePlate(load.placas?.[0]))
+  throw new Error('A placa do vínculo não confere com a ordem revisada. Confira a carga.');
+}
 function supplierPDF(j:any){return new Uint8Array(purchaseDocument(jsPDF,j.order,j.audience==='MOTORISTA').output('arraybuffer'));}
 async function sendJob(j:any,business?:any,template?:string){
  if(j.canal==='EMAIL'&&j.audience==='FORNECEDOR'){
@@ -85,7 +101,7 @@ Deno.serve(async req=>{
   if(body.jobId&&!ids.length){const known=(initial.estado.comunicacoes||[]).find(j=>j.id===body.jobId);if(!known)throw Error('Envio não localizado nesta empresa.');outcomes.push({id:known.id,state:known.state,reason:known.reason||(['SENDING','UNCERTAIN'].includes(known.state)?'Resultado em processamento ou incerto. Confira antes de reenviar.':''),providerId:known.providerId});}
   for(const id of ids){const row=await rowFor(db,p.empresa_id),j=row.estado.comunicacoes.find((j:any)=>j.id===id);if(!j||!['QUEUED','BLOCKED',...(body.jobId?['FAILED']:[])].includes(j.state))continue;const customer=row.estado.clientes?.find((c:any)=>c.id===j.clienteId);if(j.audience==='CLIENTE'&&customer?.whatsappAutorizado!==true){j.state='BLOCKED';j.reason='AUTORIZAÇÃO DO CLIENTE PENDENTE';await persist(db,p.empresa_id,row);blocked++;continue;}
    if(j.audience==='FORNECEDOR'){try{supplierDispatchCapacity(row.estado,j);}catch(e){j.state='BLOCKED';j.reason='CAPACIDADE: '+e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
-   if(j.audience==='MOTORISTA'){try{driverDispatchCheck(row.estado,j);}catch(e){j.state='BLOCKED';j.reason=e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
+   if(j.audience==='MOTORISTA'){try{driverDispatchCheck(row.estado,j);await verifyDriverVehicleLink(db,p.empresa_id,(row.estado.cargas||[]).find((c:any)=>c.id===j.cargaId));}catch(e){j.state='BLOCKED';j.reason=e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
    const permittedTenant=j.canal==='EMAIL'&&j.audience==='FORNECEDOR'?p.empresa_id===gmailTenant.data?.empresa_id:(p.empresa_id===env('WHATSAPP_TENANT_ID')||p.empresa_id===gmailTenant.data?.empresa_id);const configured=permittedTenant&&(j.canal==='EMAIL'?j.audience==='FORNECEDOR'?Boolean(env('FORTE_ATENDE_HOSTINGER_MAIL_TOKEN')):env('RESEND_API_KEY')&&env('ORDERS_EMAIL_FROM'):(await getBusiness()).token&&(await getBusiness()).phone);if(!configured){j.state='BLOCKED';j.reason='INTEGRAÇÃO NÃO CONFIGURADA';await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}
    let template;if(j.canal==='WHATSAPP'&&['FORNECEDOR','MOTORISTA'].includes(j.audience)){try{template=await requireDocumentTemplate(await getBusiness(),j.kind,env);}catch(e){j.state='BLOCKED';j.reason=e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
    j.state='SENDING';j.attemptAt=new Date().toISOString();await persist(db,p.empresa_id,row);let providerId='',failure='',uncertain=false;try{providerId=await sendJob(j,business,template);}catch(e){failure=e.message;uncertain=e.uncertain===true||j.canal==='EMAIL';}
