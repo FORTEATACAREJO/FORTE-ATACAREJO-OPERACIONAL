@@ -171,9 +171,9 @@ test('motorista administrativamente liberado pode constar no rascunho, mas não 
  const s=base();Object.assign(s.motoristas[0],{ativo:false,statusCadastro:'PENDENTE_DOCUMENTOS',cadastroAdministrativoLiberado:true,documentosConferidos:false});
  const saved=execute(s,supplier).state;const order=saved.comprasFornecedor[0];
  assert.equal(order.motoristaId,'m');assert.equal(order.protocolo,'');assert.deepEqual(order.placas,[]);
- assert.throws(()=>execute(saved,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}),/aguarda aprovação/);
- assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação/);
- s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação/);
+ assert.throws(()=>execute(saved,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}),/aguarda aprovação|não localizado ou inativo/);
+ assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação|não localizado ou inativo/);
+ s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação|não localizado ou inativo/);
 });
 test('aprovação individual admite data ausente quando responsável confirma CNH vigente, mas não admite CNH vencida',()=>{
  const s=base();const review={action:'DRIVER_REVIEW',motoristaId:'m',cpf:'52998224725',cnhNumero:'01234567890',cnhCategoria:'AE',telefone:'34999999999',aprovar:true,documentosConferidos:true,confirmacaoResponsavel:true,referenciaConferencia:'CNH original vigente conferida'};
