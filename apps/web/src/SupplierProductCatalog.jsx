@@ -31,7 +31,7 @@ function SupplierProductCatalogFields({supplier,catalogState,onChange}){
    <label>Pesquisar produtos para vincular
     <input aria-label="Pesquisar produtos para vincular" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Nome, marca ou código"/>
    </label>
-   {available.length===0&&<p role="status">Nenhum produto cadastrado neste fornecedor. <a href="/" target="_blank" rel="noopener noreferrer">Abrir cadastro de produtos no FORTE OP</a> e vincule o produto ao ID do fornecedor; depois reabra este cadastro.</p>}
+   {available.length===0&&<p role="status">Nenhum produto cadastrado neste fornecedor. <a href="https://forte-vendas.onrender.com/?forte_view=cadastros" target="_blank" rel="noopener noreferrer">Abrir cadastro de produtos no FORTE OP</a> e vincule o produto ao ID do fornecedor; depois reabra este cadastro.</p>}
    <div className="ft-supplier-bulk-actions">
     <button type="button" className="secondary" disabled={filtered.length===0} onClick={selectAll}>Marcar todos os exibidos ({filtered.length})</button>
     <button type="button" className="secondary" disabled={checked.length===0} onClick={()=>setChosen([])}>Limpar marcação</button>
