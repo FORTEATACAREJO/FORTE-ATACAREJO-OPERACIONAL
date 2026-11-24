@@ -190,7 +190,7 @@ export function applyWorkflow(original,b,p,{id,at}){
   const f=byId(s,'fornecedores',b.fornecedorId,'Fornecedor'),u=byId(s,'unidades',b.unidadeId,'Unidade');
   const selectedTerm=text(b.pagamento,'prazo');const keepHistorical=old?.fornecedorId===f.id&&paymentKey(old.pagamento)===paymentKey(selectedTerm);if(!keepHistorical&&!supplierTerms(s,f.id).some(t=>paymentKey(t)===paymentKey(selectedTerm)))fail('Cadastre o prazo no fornecedor antes de gravar.');const payment=keepHistorical?old.pagamento:paymentLabel(selectedTerm);const schedule=paymentSchedule(payment,old?.dataBasePagamento||old?.criadaEm||at);
   const itens=purchaseItems(s,b,p,at),pesoKg=itens.reduce((a,i)=>a+i.pesoKg,0);
-  const candidate=b.motoristaId?byId(s,'motoristas',b.motoristaId,'Motorista'):null;
+  const candidate=b.motoristaId?(arr(s,'motoristas').find(m=>m.id===b.motoristaId)||fail('Motorista não localizado.')):null;
   const provisional=candidate?.cadastroAdministrativoLiberado===true&&candidate.documentosConferidos!==true&&!/INATIVO|BLOQUEAD|RECUSAD/.test(norm(candidate.statusCadastro));
   const m=provisional?{id:candidate.id,nome:candidate.nome,cpf:candidate.cpf,telefone:candidate.telefone}:candidate?operationDriver(candidate.id,pesoKg,true):null;
   if(m&&!provisional)confirmCapacity(m,pesoKg);
