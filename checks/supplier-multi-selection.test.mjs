@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  supplierSelectedDueDays,parseDueDays,normalizeDueDays,formatSupplierDueDays,
- supplierWithSelectedTerms,toggleSupplierDueDay,supplierPaymentMethod,parseCustomSupplierDueDays
+ supplierWithSelectedTerms,supplierRegisteredTerms,toggleSupplierDueDay,supplierPaymentMethod,parseCustomSupplierDueDays
 } from '../apps/web/src/supplier-terms-selection.mjs';
 import {linkSupplierProductsInBulk} from '../apps/web/src/supplier-products-bulk.mjs';
 import {supplierTerms} from '../supabase/functions/orders-workflow/domain.mjs';
@@ -25,12 +25,12 @@ test('múltiplos vencimentos viram uma condição negociada para o pedido',()=>{
  assert.deepEqual(marked,[7,14,21,28]);
  const edited=supplierWithSelectedTerms({...legacy,prazosNegociadosDias:marked});
  assert.equal(edited.condicaoPagamento,'7/14/21/28 dias');
- assert.deepEqual(edited.prazosPagamento,['7/14/21/28 dias']);
+ assert.deepEqual(edited.prazosPagamento,['14 dias','7/14/21/28 dias']);
  assert.deepEqual(edited.prazosNegociadosDias,marked);
  const state={fornecedores:[edited],custosFornecedor:[]};
  assert.equal(supplierTerms(state,'f')[0],'7/14/21/28 dias');
  assert(supplierTerms(state,'f').includes('7/14/21/28 dias'));
- assert.deepEqual(supplierTerms({fornecedores:[{...edited,formaPagamentoPadrao:'BOLETO'}]},'f'),['7/14/21/28 dias']);
+ assert.deepEqual(supplierTerms({fornecedores:[{...edited,formaPagamentoPadrao:'BOLETO'}]},'f'),['7/14/21/28 dias','14 dias']);
 });
 
 test('prazo legado 14 em forma de pagamento vira prazo, não método',()=>{
@@ -98,4 +98,27 @@ test('campo rejeita valor inválido inteiro, sem salvar prazos parcialmente',()=
   assert.notEqual(result.error,'',input);
   assert.deepEqual(result.days,[],input);
  }
+});
+
+test('7/14/21 dias é uma condição única, registrada sem apagar 14 dias',()=>{
+ const existing={id:'f',nome:'CIPLAN',prazosPagamento:['14 dias']};
+ const pending={...existing,prazosNegociadosDias:[7,14,21],condicaoPagamento:'7/14/21 dias'};
+ const stored=supplierWithSelectedTerms(pending);
+ assert.deepEqual(stored.prazosPagamento,['14 dias','7/14/21 dias']);
+ assert.equal(supplierTerms({fornecedores:[stored]},'f')[0],'7/14/21 dias');
+ assert(!stored.prazosPagamento.includes('7 dias'));
+ assert(!stored.prazosPagamento.includes('21 dias'));
+ assert.deepEqual(supplierRegisteredTerms({...stored,prazosPagamento:['14 dias','7/14/21 dias','7,14,21 DIAS','14 DIAS']}),['14 dias','7/14/21 dias']);
+ const again=supplierWithSelectedTerms(stored);
+ assert.deepEqual(again.prazosPagamento,stored.prazosPagamento);
+});
+test('cadastro rápido tem botão de gravar condição no servidor sem obrigar frete/catálogo',()=>{
+ const registry=readFileSync(new URL('../apps/web/src/PedidosFTQuickRegistry.jsx',import.meta.url),'utf8');
+ const terms=readFileSync(new URL('../apps/web/src/SupplierPaymentPreferences.jsx',import.meta.url),'utf8');
+ const workspace=readFileSync(new URL('../apps/web/src/OrdersWorkspace.jsx',import.meta.url),'utf8');
+ assert.match(terms,/REGISTRAR CONDIÇÃO/);
+ assert.match(terms,/onRegisterTerm\(formatted\)/);
+ assert.match(registry,/onRegisterTerm=\{term=>onRegisterTerm\?\./);
+ assert.match(workspace,/action:'SUPPLIER_TERM',fornecedorId,pagamento:term/);
+ assert.match(terms,/Condições já cadastradas neste fornecedor/);
 });
