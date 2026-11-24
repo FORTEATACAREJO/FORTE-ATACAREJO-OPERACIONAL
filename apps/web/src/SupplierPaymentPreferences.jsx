@@ -11,10 +11,11 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
  const [registerBusy,setRegisterBusy]=useState(false);
  const [registerStatus,setRegisterStatus]=useState('');
  const [registerError,setRegisterError]=useState('');
+ const [confirmed,setConfirmed]=useState([]);
  const days=supplierSelectedDueDays(supplier);
  const method=supplierPaymentMethod(supplier.formaPagamentoPadrao);
  const formatted=formatSupplierDueDays(days);
- const registeredTerms=supplierRegisteredTerms(registered||{});
+ const registeredTerms=[...new Set([...supplierRegisteredTerms(registered||{}),...confirmed])];
  const isRegistered=Boolean(formatted&&registeredTerms.includes(formatted));
  const setDays=selected=>{
   const cleaned=normalizeDueDays(selected),term=formatSupplierDueDays(cleaned);
@@ -35,6 +36,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
   setRegisterBusy(true);setRegisterError('');setRegisterStatus('');
   try{
    await onRegisterTerm(formatted);
+   setConfirmed(previous=>[...new Set([...previous,formatted])]);
    onChange(row=>({...row,
     prazosPagamento:[...new Set([...supplierRegisteredTerms(row),formatted])]}));
    onChooseTerm?.(formatted);
@@ -60,7 +62,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
    <p>Os vencimentos marcados formam <strong>uma única condição de pagamento</strong>. Ex.: 7, 14 e 21 dias = 7/14/21 dias.</p>
    <div className="ft-supplier-term-quick-save">
     <p className="ft-supplier-due-summary" role="status"><strong>Condição selecionada:</strong> {formatted||'Marque os vencimentos'}</p>
-    {isRegistered?<p className="ft-supplier-registered-note">✓ Esta condição já está cadastrada no fornecedor e pode ser selecionada no pedido.</p>
+    {isRegistered?<><p className="ft-supplier-registered-note">✓ Esta condição já está cadastrada no fornecedor e pode ser selecionada no pedido.</p><button type="button" className="secondary" disabled={registerBusy} onClick={()=>useRegisteredTerm(formatted)}>USAR {formatted} NO PEDIDO</button></>
     :<button type="button" className="ft-supplier-register-btn" disabled={!formatted||!registered?.id||!onRegisterTerm||registerBusy} onClick={registerCondition}>
       {registerBusy?'Registrando…':'REGISTRAR CONDIÇÃO '+(formatted||'SELECIONADA')}
      </button>}
@@ -75,6 +77,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
       onClick={()=>useRegisteredTerm(term)} aria-label={'Selecionar condição '+term}>{term}</button>)}
     </div>
    </div>}
+   <label>Condições de pagamento prontas<select aria-label="Condições de pagamento prontas" value={['À VISTA','7 dias','10 dias','12 dias','14 dias','28 dias','7/14/21 dias','7/14/21/28 dias'].includes(formatted)?formatted:''} disabled={registerBusy} onChange={e=>{if(e.target.value)setDays(parseDueDays(e.target.value));}}><option value="">Selecione uma condição completa</option>{['À VISTA','7 dias','10 dias','12 dias','14 dias','28 dias','7/14/21 dias','7/14/21/28 dias'].map(term=><option key={term} value={term}>{term}</option>)}</select></label>
    <div className="ft-supplier-due-grid">
     {SUPPLIER_DUE_DAY_OPTIONS.map(day=><label key={day} className="ft-supplier-due-choice">
      <input type="checkbox" checked={days.includes(day)} disabled={registerBusy}
