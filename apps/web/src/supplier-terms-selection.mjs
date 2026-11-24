@@ -1,4 +1,4 @@
-import {paymentDays} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
+import {paymentDays,paymentKey,paymentOptions} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 // Prazo negociado é uma condição de parcelas (ex.: 7/14/21/28 dias), não a forma de pagamento.
 export const SUPPLIER_DUE_DAY_OPTIONS=[0,7,10,14,21,28,30,35,42,45,60,90];
 export const SUPPLIER_PAYMENT_METHODS=['BOLETO','PIX','TRANSFERÊNCIA','DEPÓSITO','DINHEIRO','CARTÃO','A COMBINAR'];
@@ -80,4 +80,32 @@ export function parseCustomSupplierDueDays(input){
   return {days:[],error:'Cada prazo deve ter de 1 a 365 dias. Para pagamento à vista, marque a opção À vista.'};
  }
  return {days:normalizeDueDays(values),error:''};
+}
+
+// Catálogo geral de prazos: os vínculos comerciais permanecem em cada cadastro.
+export const CLIENT_PAYMENT_METHODS=['PIX','CARTÃO','BOLETO'];
+export const SUPPLIER_INITIAL_TERMS=['À VISTA','7 dias','10 dias','12 dias','14 dias','28 dias','7/14/21 dias','7/14/21/28 dias'];
+export const CLIENT_INITIAL_TERMS=['À VISTA','5 dias','7 dias','10 dias','12 dias','14 dias','7/14/21 dias','7/14/21/28 dias','7/14/21/28/35 dias','7/14/21/28/35/42 dias','5/10/15/20/25/30/35/40 dias'];
+export function sharedPaymentTerms(state={},kind='fornecedores'){
+ const defaults=kind==='clientes'?CLIENT_INITIAL_TERMS:SUPPLIER_INITIAL_TERMS;
+ const catalog=(state.pagamentos||[]).filter(x=>x.ativo!==false).map(x=>x.descricao).filter(x=>paymentDays(x).length);
+ return paymentOptions([...defaults,...catalog]);
+}
+export function customerRegisteredTerms(customer={}){
+ const original=[...(Array.isArray(customer.prazosPagamento)?customer.prazosPagamento:[]),customer.condicaoPagamento];
+ return paymentOptions(original.filter(x=>String(x||'').trim()));
+}
+export function registerSharedTerms(rows=[],terms=[]){
+ const out=[...rows];
+ for(const raw of terms){
+  const days=paymentDays(raw);
+  if(!days.length)continue;
+  const label=formatSupplierDueDays(days),key=paymentKey(label);
+  if(out.some(x=>x.ativo!==false&&paymentKey(x.descricao)===key))continue;
+  const id='pg-prazo-'+days.join('-');
+  const unique=out.some(x=>x.id===id)?id+'-ativo':id;
+  if(out.some(x=>x.id===unique))throw Error('Condição desativada no catálogo. Reative-a no cadastro central.');
+  out.push({id:unique,descricao:label,ativo:true});
+ }
+ return out;
 }
