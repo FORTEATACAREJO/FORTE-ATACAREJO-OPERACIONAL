@@ -28,7 +28,7 @@ const labels={fornecedores:'Fornecedor',clientes:'Cliente',motoristas:'Motorista
 const digits=v=>String(v||'').replace(/\D/g,'');
 const fieldValue=(row,key)=>row[key]??'';
 
-export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSyncDrivers,onManageUsers,onPickDriver,onDataRefresh}){
+export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSyncDrivers,onManageUsers,onPickDriver,onDataRefresh,onRegisterTerm,onChooseTerm}){
  const {kind,mode='view',id=''}=request;
  const collection=data[kind]||[];
  const [recordId,setRecordId]=useState(id);
@@ -94,7 +94,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     </div>
     {kind==='fornecedores'&&<>
       <SupplierBuyerCodes supplier={draft} units={data.unidades||[]} onChange={setDraft}/>
-      <SupplierPaymentPreferences supplier={draft} onChange={setDraft}/>
+      <SupplierPaymentPreferences supplier={draft} registered={selected} onChange={setDraft} onRegisterTerm={term=>onRegisterTerm?.(selected?.id,term)} onChooseTerm={term=>onChooseTerm?.(selected?.id,term)}/>
       <SupplierProductCatalog supplier={draft} products={data.produtos||[]} onChange={setDraft}/>
     </>}
     {error&&<p className="ft-quick-error" role="alert">{error}</p>}
