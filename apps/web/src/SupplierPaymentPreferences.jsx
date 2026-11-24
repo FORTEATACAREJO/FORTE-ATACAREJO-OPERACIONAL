@@ -2,10 +2,10 @@ import {useState} from 'react';
 import {
  SUPPLIER_DUE_DAY_OPTIONS,SUPPLIER_PAYMENT_METHODS,
  supplierSelectedDueDays,formatSupplierDueDays,supplierRegisteredTerms,parseDueDays,
- supplierPaymentMethod,toggleSupplierDueDay,normalizeDueDays,parseCustomSupplierDueDays
+ supplierPaymentMethod,toggleSupplierDueDay,normalizeDueDays,parseCustomSupplierDueDays,sharedPaymentTerms
 } from './supplier-terms-selection.mjs';
 
-export default function SupplierPaymentPreferences({supplier,registered,onChange,onRegisterTerm,onChooseTerm}){
+export default function SupplierPaymentPreferences({supplier,registered,onChange,onRegisterTerm,onChooseTerm,catalogState={}}){
  const [custom,setCustom]=useState('');
  const [customError,setCustomError]=useState('');
  const [registerBusy,setRegisterBusy]=useState(false);
@@ -15,6 +15,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
  const days=supplierSelectedDueDays(supplier);
  const method=supplierPaymentMethod(supplier.formaPagamentoPadrao);
  const formatted=formatSupplierDueDays(days);
+ const catalogTerms=sharedPaymentTerms(catalogState,'fornecedores');
  const registeredTerms=[...new Set([...supplierRegisteredTerms(registered||{}),...confirmed])];
  const isRegistered=Boolean(formatted&&registeredTerms.includes(formatted));
  const setDays=selected=>{
@@ -77,7 +78,7 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
       onClick={()=>useRegisteredTerm(term)} aria-label={'Selecionar condição '+term}>{term}</button>)}
     </div>
    </div>}
-   <label>Condições de pagamento prontas<select aria-label="Condições de pagamento prontas" value={['À VISTA','7 dias','10 dias','12 dias','14 dias','28 dias','7/14/21 dias','7/14/21/28 dias'].includes(formatted)?formatted:''} disabled={registerBusy} onChange={e=>{if(e.target.value)setDays(parseDueDays(e.target.value));}}><option value="">Selecione uma condição completa</option>{['À VISTA','7 dias','10 dias','12 dias','14 dias','28 dias','7/14/21 dias','7/14/21/28 dias'].map(term=><option key={term} value={term}>{term}</option>)}</select></label>
+   <label>Condições de pagamento prontas<select aria-label="Condições de pagamento prontas" value={catalogTerms.includes(formatted)?formatted:''} disabled={registerBusy} onChange={e=>{if(e.target.value)setDays(parseDueDays(e.target.value));}}><option value="">Selecione uma condição completa</option>{catalogTerms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
    <div className="ft-supplier-due-grid">
     {SUPPLIER_DUE_DAY_OPTIONS.map(day=><label key={day} className="ft-supplier-due-choice">
      <input type="checkbox" checked={days.includes(day)} disabled={registerBusy}
