@@ -95,17 +95,4 @@ export function customerRegisteredTerms(customer={}){
  const original=[...(Array.isArray(customer.prazosPagamento)?customer.prazosPagamento:[]),customer.condicaoPagamento];
  return paymentOptions(original.filter(x=>String(x||'').trim()));
 }
-export function registerSharedTerms(rows=[],terms=[]){
- const out=[...rows];
- for(const raw of terms){
-  const days=paymentDays(raw);
-  if(!days.length)continue;
-  const label=formatSupplierDueDays(days),key=paymentKey(label);
-  if(out.some(x=>x.ativo!==false&&paymentKey(x.descricao)===key))continue;
-  const id='pg-prazo-'+days.join('-');
-  const unique=out.some(x=>x.id===id)?id+'-ativo':id;
-  if(out.some(x=>x.id===unique))throw Error('Condição desativada no catálogo. Reative-a no cadastro central.');
-  out.push({id:unique,descricao:label,ativo:true});
- }
- return out;
-}
+export {registerSharedTerms} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
