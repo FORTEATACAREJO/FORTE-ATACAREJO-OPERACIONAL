@@ -27,9 +27,14 @@ function App(){
   window.savedSupplier=item;
   setData(state=>({...state,fornecedores:state.fornecedores.map(f=>f.id===item.id?item:f)}));
  };
+ const registerTerm=async (supplierId,term)=>{
+  window.registeredTerm=term;
+  setData(state=>({...state,fornecedores:state.fornecedores.map(f=>f.id===supplierId?
+    {...f,prazosPagamento:[...(f.prazosPagamento||[]),term]}:f)}));
+ };
  return closed?<p>Cadastro salvo com sucesso</p>:
   <Registry request={{kind:'fornecedores',mode:'edit',id:'cip'}} data={data}
-   onSave={save} onClose={()=>setClosed(true)}/>;
+   onSave={save} onRegisterTerm={registerTerm} onChooseTerm={(_,term)=>{window.selectedTerm=term;}} onClose={()=>setClosed(true)}/>;
 }
 createRoot(document.getElementById('root')).render(<App/>);`;
 const bundle=await build({stdin:{contents:source,resolveDir:root,sourcefile:'supplier-bulk-harness.jsx',loader:'jsx'},bundle:true,jsx:'automatic',write:false,format:'iife',outfile:'supplier-bulk.js',
@@ -53,6 +58,18 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  await modal.waitFor();
  assert.equal(await modal.getByRole('checkbox',{name:'14 dias',exact:true}).isChecked(),true);
  await modal.getByRole('combobox',{name:'Forma de pagamento',exact:true}).selectOption('BOLETO');
+ // Selecionar três vencimentos é apenas um rascunho até registrar a CONDIÇÃO.
+ await modal.getByRole('checkbox',{name:'7 dias',exact:true}).check();
+ await modal.getByRole('checkbox',{name:'21 dias',exact:true}).check();
+ const register=modal.getByRole('button',{name:'REGISTRAR CONDIÇÃO 7/14/21 dias'});
+ await register.waitFor();
+ assert.equal(await page.evaluate(()=>window.registeredTerm),undefined);
+ await register.click();
+ await page.waitForFunction(()=>window.registeredTerm==='7/14/21 dias');
+ assert.equal(await page.evaluate(()=>window.selectedTerm),'7/14/21 dias');
+ assert.equal(await page.evaluate(()=>window.savedSupplier),undefined,'deve registrar condição sem salvar ficha completa do fornecedor');
+ await modal.getByRole('button',{name:'Selecionar condição 7/14/21 dias'}).waitFor();
+ await modal.getByRole('button',{name:'Selecionar condição 7/14/21 dias'}).click();
  const custom=modal.getByLabel('Outros prazos em dias');
  await custom.fill('7,14,21,28');
  assert.equal(await custom.inputValue(),'7,14,21,28');
@@ -81,7 +98,7 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  const saved=await page.evaluate(()=>window.savedSupplier);
  assert.equal(saved.condicaoPagamento,'7/14/21/28 dias');
  assert.deepEqual(saved.prazosNegociadosDias,[7,14,21,28]);
- assert.deepEqual(saved.prazosPagamento,['7/14/21/28 dias']);
+ assert.deepEqual(saved.prazosPagamento,['14 dias','7/14/21 dias','7/14/21/28 dias']);
  assert.equal(saved.formaPagamentoPadrao,'BOLETO');
  assert.deepEqual(saved.produtosNegociados.map(x=>x.produtoId),['p1','p2','p3']);
  assert.deepEqual(saved.produtosNegociados.map(x=>x.custoUnitario),[31,30,28]);

@@ -34,14 +34,33 @@ export const supplierPaymentMethod=value=>{
  const raw=String(value||'').trim();
  return parseDueDays(raw).length?'':raw;
 };
+// A combinação 7/14/21 é uma ÚNICA condição; outras combinações cadastradas
+// continuam disponíveis, sem serem desmembradas em prazos individuais.
+export function supplierRegisteredTerms(supplier={}){
+ const original=[
+  ...(Array.isArray(supplier.prazosPagamento)?supplier.prazosPagamento:[]),
+  supplier.condicaoPagamento
+ ];
+ const dedup=new Set();
+ return original.map(term=>{
+  const parsed=parseDueDays(term);
+  return parsed.length?formatSupplierDueDays(parsed):String(term||'').trim();
+ }).filter(term=>{
+  const key=term.toLocaleUpperCase('pt-BR');
+  if(!term||dedup.has(key))return false;
+  dedup.add(key);return true;
+ });
+}
 export function supplierWithSelectedTerms(supplier){
  const days=supplierSelectedDueDays(supplier);
- const text=formatSupplierDueDays(days);
+ const term=formatSupplierDueDays(days);
+ const original=supplierRegisteredTerms(supplier);
+ const next=term?[...original.filter(x=>x!==term),term]:original;
  return {...supplier,
   formaPagamentoPadrao:supplierPaymentMethod(supplier.formaPagamentoPadrao),
   prazosNegociadosDias:days,
-  condicaoPagamento:text,
-  prazosPagamento:text?[text]:[]
+  condicaoPagamento:term,
+  prazosPagamento:next
  };
 }
 export function toggleSupplierDueDay(current,day){
