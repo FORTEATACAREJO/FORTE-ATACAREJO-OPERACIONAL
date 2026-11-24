@@ -47,11 +47,22 @@ export function supplierTerms(s,id,selected=''){
   ...arr(s,'custosFornecedor').filter(c=>active(c)&&c.fornecedorId===id).map(c=>c.condicaoPagamento)
  ],selected);
 }
+export function supplierExpeditions(s,id) {
+ const f=arr(s,'fornecedores').find(x=>x.id===id);
+ const locations=arr(s,'locais').filter(active);
+ return Array.isArray(f?.expedicoes)?locations.filter(l=>f.expedicoes.includes(l.id)):locations;
+}
+function assertSupplierExpedition(s,id,origin){
+ const f=arr(s,'fornecedores').find(x=>x.id===id);
+ if(Array.isArray(f?.expedicoes)&&!supplierExpeditions(s,id).some(l=>norm(l.nome)===norm(origin)))fail('Selecione uma expedição cadastrada neste fornecedor.');
+}
 export function supplierLocationPrices(s,id,product) {
  const supplier=arr(s,'fornecedores').find(f=>f.id===id);
  return (Array.isArray(supplier?.cotacoesPorLocal)?supplier.cotacoesPorLocal:[]).filter(row=>row?.produtoId===product);
 }
 export function supplierCost(s,id,product,mode='PADRAO',origin='',unitId='') {
+ const f=arr(s,'fornecedores').find(x=>x.id===id);
+ if(Array.isArray(f?.expedicoes)&&!supplierExpeditions(s,id).some(l=>norm(l.nome)===norm(origin)))return undefined;
  const scoped=supplierLocationPrices(s,id,product);
  if(scoped.length){
   const unit=arr(s,'unidades').find(u=>u.id===unitId);
@@ -89,7 +100,7 @@ export function validDriver(s,id,weight,pedido=false,linkedVehicle=null){
 }
 function pallets(s,b,p,at){if(!PALLETS.includes(b.regraPallets))fail('Selecione uma das quatro regras de pallets.');const suggested=palletQuantity(s,b.itens,b.regraPallets);const custom=b.palletQuantidadeAjustada;const qty=custom==null||custom===''?suggested:integer(custom,'Quantidade de pallets',true);if(b.regraPallets===PALLETS[1]&&qty!==0)fail('Sem pallets exige quantidade zero.');if(b.regraPallets!==PALLETS[1]&&qty<=0)fail('Informe a quantidade de pallets.');const reason=qty!==suggested?text(b.justificativaPallets,'justificativa do ajuste de pallets'):'';return {regraPallets:b.regraPallets,pallet:b.regraPallets,palletQuantidade:qty,pallets:qty,palletQuantidadeSugerida:suggested,palletQuantidadeAjustada:qty!==suggested?qty:'',justificativaPallets:reason,aprovacaoPallets:null,liberacaoPalletsFornecedor:null};}
 
-function purchaseItems(s,b,p,at){const mode=b.modalidadeCompra||'PADRAO';if(!PURCHASE_MODES.includes(mode))fail('Modalidade de compra inválida.');if(mode!=='PADRAO'&&!norm(byId(s,'fornecedores',b.fornecedorId,'Fornecedor').nome).includes('CSN'))fail('Direto/Fibra disponíveis somente para CSN.');const allowed=supplierProducts(s,b.fornecedorId);if(!b.itens?.length)fail('Inclua ao menos um produto.');const seen=new Set();return b.itens.map(i=>{if(seen.has(i.produtoId))fail('Consolide quantidades do mesmo produto.');seen.add(i.produtoId);const prod=allowed.find(x=>x.id===i.produtoId)||fail('Produto não vinculado ao fornecedor.');const qtd=integer(i.qtd,'Quantidade'),pesoKg=qtd*num(prod.pesoKg,'peso cadastrado do produto');const cost=supplierCost(s,b.fornecedorId,prod.id,mode,b.origem,b.unidadeId);if(cost==null&&supplierLocationPrices(s,b.fornecedorId,prod.id).length)fail('Cadastre o preço do produto para a unidade de expedição e CNPJ comprador selecionados.');const price=num(cost,'preço negociado no cadastro de produtos');if(i.custoUnitario!=null&&i.custoUnitario!==''&&Math.round(Number(i.custoUnitario)*10000)!==Math.round(price*10000))fail('Preço negociado mudou no cadastro; selecione novamente o produto.');return {produtoId:prod.id,produto:prod.nome,marca:prod.marca,unidadeMedida:prod.unidadeMedida||prod.unidade||'sacos',qtd,pesoKg,custoUnitario:price,total:cents(qtd*price)};});}
+function purchaseItems(s,b,p,at){assertSupplierExpedition(s,b.fornecedorId,b.origem);const mode=b.modalidadeCompra||'PADRAO';if(!PURCHASE_MODES.includes(mode))fail('Modalidade de compra inválida.');if(mode!=='PADRAO'&&!norm(byId(s,'fornecedores',b.fornecedorId,'Fornecedor').nome).includes('CSN'))fail('Direto/Fibra disponíveis somente para CSN.');const allowed=supplierProducts(s,b.fornecedorId);if(!b.itens?.length)fail('Inclua ao menos um produto.');const seen=new Set();return b.itens.map(i=>{if(seen.has(i.produtoId))fail('Consolide quantidades do mesmo produto.');seen.add(i.produtoId);const prod=allowed.find(x=>x.id===i.produtoId)||fail('Produto não vinculado ao fornecedor.');const qtd=integer(i.qtd,'Quantidade'),pesoKg=qtd*num(prod.pesoKg,'peso cadastrado do produto');const cost=supplierCost(s,b.fornecedorId,prod.id,mode,b.origem,b.unidadeId);if(cost==null&&supplierLocationPrices(s,b.fornecedorId,prod.id).length)fail('Cadastre o preço do produto para a unidade de expedição e CNPJ comprador selecionados.');const price=num(cost,'preço negociado no cadastro de produtos');if(i.custoUnitario!=null&&i.custoUnitario!==''&&Math.round(Number(i.custoUnitario)*10000)!==Math.round(price*10000))fail('Preço negociado mudou no cadastro; selecione novamente o produto.');return {produtoId:prod.id,produto:prod.nome,marca:prod.marca,unidadeMedida:prod.unidadeMedida||prod.unidade||'sacos',qtd,pesoKg,custoUnitario:price,total:cents(qtd*price)};});}
 function officialUnique(s,f,n,except){if(arr(s,'cargas').some(c=>c.id!==except&&c.status!=='CANCELADA'&&c.fornecedorId===f&&norm(c.numeroPedidoFornecedor)===norm(n)))fail('Este pedido oficial já está vinculado a outra carga.');}
 function next(s,key,prefix,collection,field){let seq=Number(s.settings?.[key]||1);const used=new Set(arr(s,collection).map(x=>x[field]));let code;do{code=prefix+String(seq++).padStart(6,'0');}while(used.has(code));s.settings={...s.settings,[key]:seq};return code;}
 function nextOS(s){
@@ -238,7 +249,7 @@ export function applyWorkflow(original,b,p,{id,at}){
   if(o&&supplierWasSent(s,o))fail('Pedido já enviado ao fornecedor: confirme a revisão antes de alterar motorista e condições.');
   const cargoFreight=o?.modalidadeFrete||c.modalidadeFrete||requireSupplierFreightMode(f);
   assertFreightSnapshot(b.modalidadeFrete,cargoFreight);
-  const origin=text(b.origem,'local de carregamento');if(norm(origin)!==norm(c.localCarregamento||c.origem)&&(c.itens||[]).some(i=>supplierLocationPrices(s,f.id,i.produtoId).length))fail('A expedição altera o custo: revise o pedido ao fornecedor antes de alterar o local da carga.');const destination=text(b.destino||c.destino,'destino'),m=operationDriver(b.motoristaId,c.pesoKg);
+  const origin=text(b.origem,'local de carregamento');if(norm(origin)!==norm(c.localCarregamento||c.origem))assertSupplierExpedition(s,f.id,origin);if(norm(origin)!==norm(c.localCarregamento||c.origem)&&(c.itens||[]).some(i=>supplierLocationPrices(s,f.id,i.produtoId).length))fail('A expedição altera o custo: revise o pedido ao fornecedor antes de alterar o local da carga.');const destination=text(b.destino||c.destino,'destino'),m=operationDriver(b.motoristaId,c.pesoKg);
   confirmCapacity(m,c.pesoKg);
   const nextPallets=pallets(s,{...b,itens:c.itens},p,at);
   const unchangedPallets=c.regraPallets===nextPallets.regraPallets&&Number(c.palletQuantidade)===nextPallets.palletQuantidade;
