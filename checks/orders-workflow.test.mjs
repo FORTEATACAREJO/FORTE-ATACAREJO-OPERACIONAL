@@ -181,3 +181,12 @@ test('aprovação individual admite data ausente quando responsável confirma CN
  assert.throws(()=>execute(s,{...review,cnhValidade:'2025-10-08'}),/vencida/);
  assert.throws(()=>execute(s,{...review,documentosConferidos:false}),/conferência/);
 });
+
+test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir motorista do rascunho',async()=>{
+ const {driverRegistrationWarnings,isDriverDraftSelectable}=await import('../apps/web/src/pedidos-ft-drivers.mjs');
+ const m={id:'m',nome:'Motorista',ativo:false,statusCadastro:'PENDENTE_DOCUMENTOS',cadastroAdministrativoLiberado:true,cpf:'52998224725',cnhNumero:'01234567890',cnhCategoria:'AE',cnhValidade:'2025-01-01'};
+ const warnings=driverRegistrationWarnings(m,'2026-11-24');
+ assert(warnings.some(w=>w.includes('vencida')));assert(warnings.some(w=>w.includes('Telefone')));
+ assert(isDriverDraftSelectable(m));
+ assert(!driverRegistrationWarnings({...m,cnhValidade:''},'2026-11-24').some(w=>w.includes('validade')));
+});
