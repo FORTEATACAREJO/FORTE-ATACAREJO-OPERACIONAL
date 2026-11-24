@@ -52,7 +52,7 @@ function SupplierProductCatalogFields({supplier,catalogState,onChange}){
     {available.filter(p=>p.id===row.produtoId||!rows.some(r=>r.produtoId===p.id)).map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
    </select></label>
    <label>Custo unitário negociado (R$)
-    <input aria-label={'Custo negociado '+(available.find(p=>p.id===row.produtoId)?.nome||index+1)} type="number" step="0.01" min="0.01"
+    <input aria-label={'Custo negociado '+(available.find(p=>p.id===row.produtoId)?.nome||index+1)} type="number" step="0.0001" min="0.0001"
       value={row.custoUnitario??''} onChange={e=>edit(index,{custoUnitario:e.target.value})} placeholder="Informe o valor acordado"/>
    </label>
    <button type="button" className="secondary" onClick={()=>save(rows.filter((_,i)=>i!==index))}>Remover vínculo</button>
