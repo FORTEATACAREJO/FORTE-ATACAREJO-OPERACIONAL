@@ -29,9 +29,9 @@ export function driverDispatchCheck(s,j){
  const driverForCapacity=linked?{
   ...m,placa1:c.placas?.[0]||'',
   placa2:c.placas?.[1]||'',placa3:c.placas?.[2]||'',placa4:c.placas?.[3]||'',
-  capacidadeMaximaKg:Number(c.motoristaSnapshot?.capacidadeMaximaKg)||0,
-  capacidadeAlvoKg:Number(c.motoristaSnapshot?.capacidadeAlvoKg)||0,
-  freteVeiculoId:c.veiculoId
+  capacidadeMaximaKg:Number(c.motoristaSnapshot?.capacidadeMaximaKg||c.motoristaSnapshot?.capacidadeAlvoKg)||0,
+  capacidadeAlvoKg:Number(c.motoristaSnapshot?.capacidadeAlvoKg||c.motoristaSnapshot?.capacidadeMaximaKg)||0,
+  freteVeiculoId:c.motoristaSnapshot?.freteVeiculoId||''
  }:m;
  requireCapacity(driverForCapacity,c.pesoKg,c.confirmacaoCapacidade?.snapshot);
  if(j.snapshot!==JSON.stringify(driverOrderSnapshot(c))||j.to!==phone(m.whatsapp||m.telefone)||JSON.stringify(c.placas)!==JSON.stringify(plateSnapshot))
