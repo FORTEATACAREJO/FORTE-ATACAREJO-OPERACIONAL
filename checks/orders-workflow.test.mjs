@@ -167,11 +167,21 @@ test('expedições vinculadas: fornecedor geral mantém o preço, local alheio b
  assert.throws(()=>execute(s,{...supplier,origem:'Sobradinho'}),/expedição cadastrada/);
 });
 
-test('motorista administrativamente liberado pode constar no rascunho, mas não expedir ou enviar',()=>{
+test('motorista administrativamente liberado permite rascunho e envio comercial, mas não expedição',()=>{
  const s=base();Object.assign(s.motoristas[0],{ativo:false,statusCadastro:'PENDENTE_DOCUMENTOS',cadastroAdministrativoLiberado:true,documentosConferidos:false});
  const saved=execute(s,supplier).state;const order=saved.comprasFornecedor[0];
  assert.equal(order.motoristaId,'m');assert.equal(order.protocolo,'');assert.deepEqual(order.placas,[]);
- assert.throws(()=>execute(saved,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}),/aguarda aprovação|não localizado ou inativo/);
+ assert.throws(()=>execute(saved,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}),/espelho/);
+ saved.fornecedores[0].emailPedidos='teste@example.invalid';
+ const reviewed=execute(saved,{action:'SUPPLIER_PREVIEW',id:order.id}).state;
+ const sent=execute(reviewed,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}).state;
+ assert.equal(sent.comunicacoes[0].state,'QUEUED');
+ assert.equal(sent.comunicacoes[0].order.pedidoComercialSemLiberacao,true);
+ assert.match(sent.comunicacoes[0].message,/não autoriza carregamento/);
+ assert.equal(supplierDispatchCapacity(sent,sent.comunicacoes[0]).commercialOnly,true);
+ assert.equal(sent.cargas[0].ordemRevisadaEm,undefined);
+ const altered=structuredClone(sent);altered.comprasFornecedor[0].destino='Outro';assert.throws(()=>supplierDispatchCapacity(altered,altered.comunicacoes[0]),/alterado/);
+ const blocked=structuredClone(sent);blocked.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>supplierDispatchCapacity(blocked,blocked.comunicacoes[0]));
  assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação|não localizado ou inativo/);
  s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação|não localizado ou inativo/);
 });

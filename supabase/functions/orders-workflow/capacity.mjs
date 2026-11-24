@@ -20,11 +20,18 @@ export function capacityMessage(check) {
  if(check.above)return `O pedido tem ${kg(check.weight)} e o conjunto suporta ${kg(check.max)}. Deseja continuar com o pedido ao fornecedor? Isso não autoriza carregar acima da capacidade; ajuste a expedição antes de gerar a ordem ao motorista.`;
  return `A capacidade do conjunto não está completamente utilizada. Carga: ${kg(check.weight)}. Capacidade: ${kg(check.max)}. Faltam ${kg(check.remaining)} para completar. Deseja continuar?`;
 }
+// Pedido comercial pode ser comunicado antes de definir um conjunto operacional.
+// Não concede habilitação, não cria protocolo nem libera ordem de carregamento.
+export function isProvisionalCommercialOrder(state,order){
+ const driver=(state.motoristas||[]).find(m=>m.id===order?.motoristaId);
+ const status=String(driver?.statusCadastro||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+ return !!(driver?.cadastroAdministrativoLiberado===true&&driver.documentosConferidos!==true&&driver.bloqueadoGestor!==true&&!/INATIVO|BLOQUEAD|RECUSAD|REPROVADO/.test(status)&&!order.protocolo&&!order.veiculoId&&Array.isArray(order.placas)&&order.placas.length===0);
+}
 export function workflowCapacityCheck(state,body) {
  let driverId=body.motoristaId,weight;
  const orders=state.comprasFornecedor||[],loads=state.cargas||[];
  if(['SUPPLIER_SEND','SUPPLIER_RECEIPT','SUPPLIER_EXTERNAL_SEND'].includes(body.action)){
-  const order=orders.find(o=>o.id===body.id);if(!order)return null;
+  const order=orders.find(o=>o.id===body.id);if(!order||isProvisionalCommercialOrder(state,order))return null;
   driverId=order.motoristaId;weight=order.pesoKg;
  }else if(body.action==='LOAD_ASSIGN'){
   const load=loads.find(c=>c.id===body.cargaId);if(!load)return null;weight=load.pesoKg;
@@ -42,6 +49,8 @@ export function workflowCapacityCheck(state,body) {
 export function supplierDispatchCapacity(state,job) {
  const order=(state.comprasFornecedor||[]).find(o=>o.id===job.compraFornecedorId);
  if(!order||order.status==='CANCELADO')throw Error('Pedido indisponível.');
+ if(job.snapshot!==purchaseSnapshot(order))throw Error('Pedido alterado após preparar envio. Confira e prepare o envio novamente.');
+ if(job.audience==='FORNECEDOR'&&job.order?.pedidoComercialSemLiberacao===true&&isProvisionalCommercialOrder(state,order))return {commercialOnly:true};
  const driver=(state.motoristas||[]).find(m=>m.id===order.motoristaId&&m.ativo!==false);
  const status=String(driver?.statusCadastro||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
  if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO|PRE_CADASTRO|REPROVADO|INATIVO/.test(status))throw Error('Motorista aguarda aprovação.');
