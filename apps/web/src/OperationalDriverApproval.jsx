@@ -18,8 +18,8 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
   setBusy(true);setFeedback('');
   try{
    if(!supabase)throw Error('Conexão ao FORTE OP indisponível.');
-   if(!form.cpf||!form.cnhNumero||!form.cnhCategoria||!form.cnhValidade) {
-    if(approve)throw Error('Complete CPF, CNH, categoria e validade para aprovar.');
+   if(!form.cpf||!form.cnhNumero||!form.cnhCategoria ) {
+    if(approve)throw Error('Complete CPF, CNH e categoria para aprovar.');
    }
    if(approve&&(!checked||!responsible||reference.trim().length<5))
     throw Error('É obrigatório conferir os documentos e informar uma referência antes de habilitar.');
@@ -39,11 +39,11 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
  const fields=[
   ['cpf','CPF','text','00000000000'],['cnhNumero','Registro da CNH','text','11 dígitos'],
   ['cnhCategoria','Categoria da CNH','text','C, D, E, AC, AD ou AE'],
-  ['cnhValidade','Validade da CNH','date',''],['telefone','Telefone com DDD','tel','']
+  ['cnhValidade','Validade da CNH (opcional no cadastro)','date',''],['telefone','Telefone com DDD','tel','']
  ];
  return <section className="ft-driver-review" aria-label={'Conferir e habilitar '+driver.nome}>
   <h3>Conferir e habilitar motorista</h3>
-  <p><strong>{driver.nome}</strong> · {driver.ativo?'Habilitado':'Pendente de aprovação'}</p>
+  <p><strong>{driver.nome}</strong> · {driver.documentosConferidos?'Habilitado':driver.cadastroAdministrativoLiberado?'Cadastro ativo — documentos a conferir':'Pendente de aprovação'}</p>
   <p>Confira os dados da pessoa antes de habilitar. O veículo e a transportadora são vinculados separadamente na aba Veículos.</p>
   <div className="ft-driver-review-grid">
    {fields.map(([name,label,type,placeholder])=><label key={name}>{label}
@@ -55,13 +55,13 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
    <textarea aria-label="Referência da conferência documental" rows={2} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Ex.: CNH original conferida presencialmente em 23/11/2026" disabled={busy}/>
   </label>
   <label className="ft-driver-review-check"><input type="checkbox" checked={checked} disabled={busy}
-   onChange={e=>setChecked(e.target.checked)}/> Conferi a CNH original, categoria e validade do motorista.</label>
+   onChange={e=>setChecked(e.target.checked)}/> Conferi a CNH original e confirmei que está vigente e que a categoria é compatível com o veículo. A data pode ficar em branco.</label>
   <label className="ft-driver-review-check"><input type="checkbox" checked={responsible} disabled={busy}
    onChange={e=>setResponsible(e.target.checked)}/> Confirmo como responsável que os documentos foram efetivamente verificados.</label>
-  <p>O botão de habilitação só pode ser usado por Master/Administrador e após conferência real. Sem vínculo de veículo, não será possível emitir ordem de carregamento.</p>
+  <p>O cadastro pode ser ativo sem data de validade informada. A habilitação para transporte exige conferência real por Master/Administrador. Sem vínculo de veículo, não será possível emitir ordem de carregamento.</p>
   {feedback&&<p role="alert" className="ft-driver-review-feedback">{feedback}</p>}
   <div className="ft-driver-review-actions">
-   <button type="button" disabled={busy} onClick={()=>submit(false)}>SALVAR DADOS SEM LIBERAR</button>
+   <button type="button" disabled={busy} onClick={()=>submit(false)}>SALVAR DADOS CADASTRAIS</button>
    <button type="button" disabled={busy||!checked||!responsible||reference.trim().length<5} onClick={()=>submit(true)}>CONFIRMAR E HABILITAR MOTORISTA</button>
    <button type="button" disabled={busy} onClick={onCancel}>VOLTAR AOS MOTORISTAS</button>
   </div>
