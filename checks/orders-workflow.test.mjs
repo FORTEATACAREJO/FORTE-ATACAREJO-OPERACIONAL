@@ -1,7 +1,7 @@
 import {capacityCheck,supplierDispatchCapacity} from '../supabase/functions/orders-workflow/capacity.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {applyWorkflow,supplierProducts,documentStatus,isResaleProduct,supplierCost} from '../supabase/functions/orders-workflow/domain.mjs';
+import {applyWorkflow,supplierProducts,documentStatus,isResaleProduct,supplierCost,supplierExpeditions} from '../supabase/functions/orders-workflow/domain.mjs';
 const p={user_id:'actor',empresa_id:'e',nome:'Admin',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};
 const base=()=>({settings:{},unidades:[{id:'u',nome:'Filial',cnpj:'11111111000191'}],fornecedores:[{id:'f',nome:'CSN',modalidadeFrete:'FOB',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'},{id:'g',nome:'CIPLAN',modalidadeFrete:'CIF',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'}],produtos:[{id:'p',nome:'Cimento CSN',marca:'CSN',pesoKg:50,precoNegociado:22,palletQtd:50,precoTabela:34},{id:'q',nome:'Ciplan',marca:'CIPLAN',pesoKg:50,precoNegociado:22,palletQtd:50,precoTabela:34}],locais:[{id:'l',nome:'Arcos',ativo:true}],custosFornecedor:[{fornecedorId:'f',produtoId:'p',condicaoPagamento:'14 DIAS',custoUnitario:22}],motoristas:[{id:'m',nome:'Motorista',placa1:'ABC1D23',capacidadeMaximaKg:40000}],usuarios:[{id:'v',nome:'Vendedor'}],clientes:[{id:'c',nome:'Cliente',limiteCredito:100000}],cargas:[],vendas:[],documentos:[]});
 const supplier={action:'SUPPLIER_CREATE',fornecedorId:'f',unidadeId:'u',pagamento:'14 DIAS',motoristaId:'m',itens:[{produtoId:'p',qtd:800}],regraPallets:'Sem pallets',palletQuantidade:0,origem:'Arcos',destino:'Galpão',destinoTipo:'GALPÃO',modalidadeFrete:'FOB'};
@@ -152,4 +152,17 @@ test('preço por expedição: mesmo produto, dois locais, sem alterar o preço g
  assert.equal(b.itens[0].custoUnitario,27.54);
  assert.throws(()=>execute(s,{...supplier,origem:'Arcos'}),/expedição/);
  assert.throws(()=>execute(s,{...supplier,origem:'Sobradinho',itens:[{produtoId:'p',qtd:800,custoUnitario:27.2101}]}),/Preço negociado mudou/);
+});
+
+test('expedições vinculadas: fornecedor geral mantém o preço, local alheio bloqueia',()=>{
+ const s=base();
+ s.locais.push({id:'l2',nome:'Pedro Leopoldo',ativo:true},{id:'l3',nome:'Sobradinho',ativo:true});
+ s.fornecedores[0].expedicoes=['l','l2'];
+ s.fornecedores[0].produtosNegociados=[{produtoId:'p',custoUnitario:22}];
+ assert.deepEqual(supplierExpeditions(s,'f').map(l=>l.id),['l','l2']);
+ assert.equal(supplierCost(s,'f','p','PADRAO','Arcos','u'),22);
+ assert.equal(supplierCost(s,'f','p','PADRAO','Pedro Leopoldo','u'),22);
+ assert.equal(supplierCost(s,'f','p','PADRAO','Sobradinho','u'),undefined);
+ assert.equal(execute(s,{...supplier,origem:'Pedro Leopoldo'}).state.comprasFornecedor[0].itens[0].custoUnitario,22);
+ assert.throws(()=>execute(s,{...supplier,origem:'Sobradinho'}),/expedição cadastrada/);
 });
