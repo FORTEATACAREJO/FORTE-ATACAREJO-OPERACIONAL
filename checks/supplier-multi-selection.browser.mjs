@@ -8,12 +8,13 @@ const fixture={
  fornecedores:[{id:'cip',nome:'CIPLAN',cnpj:'00057240000122',
   modalidadeFrete:'CIF',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias'],
   produtosNegociados:[{produtoId:'p1',custoUnitario:31}]
- }],
+ },{id:'outro',nome:'OUTRO',modalidadeFrete:'FOB',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias']},{id:'vazio',nome:'VAZIO',modalidadeFrete:'CIF',condicaoPaletes:'SEM_PALETES',prazosPagamento:['14 dias']}],
  unidades:[{id:'go',nome:'Filial',cnpj:'49832961000232'}],
  produtos:[
   {id:'p1',nome:'CIMENTO CIPLAN CP II 50 KG',marca:'CIPLAN',finalidade:'REVENDA'},
-  {id:'p2',nome:'CIMENTO CIPLAN EXTRA FORTE 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
-  {id:'p3',nome:'CIMENTO CIPLAN ARI 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+  {id:'p2',fornecedorId:'cip',nome:'CIMENTO CIPLAN EXTRA FORTE 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+  {id:'p3',fornecedorIds:['cip'],nome:'CIMENTO CIPLAN ARI 40 KG',marca:'CIPLAN',finalidade:'REVENDA'},
+  {id:'outro1',fornecedorId:'outro',nome:'CIMENTO OUTRO CP II',marca:'CIPLAN',finalidade:'REVENDA'},
   {id:'uso',nome:'INSUMO INTERNO',finalidade:'USO CONSUMO'}
  ]
 };
@@ -23,6 +24,8 @@ import Registry from './apps/web/src/PedidosFTQuickRegistry.jsx';
 function App(){
  const [data,setData]=useState(${JSON.stringify(fixture)});
  const [closed,setClosed]=useState(false);
+ const [supplierId,setSupplierId]=useState('cip');
+ window.openSupplier=id=>{setSupplierId(id);setClosed(false);};
  const save=async (kind,item)=>{
   window.savedSupplier=item;
   setData(state=>({...state,fornecedores:state.fornecedores.map(f=>f.id===item.id?item:f)}));
@@ -33,7 +36,7 @@ function App(){
     {...f,prazosPagamento:[...(f.prazosPagamento||[]),term]}:f)}));
  };
  return closed?<p>Cadastro salvo com sucesso</p>:
-  <Registry request={{kind:'fornecedores',mode:'edit',id:'cip'}} data={data}
+  <Registry key={supplierId} request={{kind:'fornecedores',mode:'edit',id:supplierId}} data={data}
    onSave={save} onRegisterTerm={registerTerm} onChooseTerm={(_,term)=>{window.selectedTerm=term;}} onClose={()=>setClosed(true)}/>;
 }
 createRoot(document.getElementById('root')).render(<App/>);`;
@@ -88,6 +91,8 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  await custom.fill('');
  await page.waitForFunction(()=>document.querySelector('.ft-supplier-due-summary')?.textContent?.includes('7/14/21/28 dias'));
  assert.match(await modal.locator('.ft-supplier-due-summary').innerText(),/7\/14\/21\/28 dias/);
+ await modal.getByLabel('Pesquisar produtos para vincular').fill('OUTRO');
+ assert.equal(await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).count(),0);
  await modal.getByLabel('Pesquisar produtos para vincular').fill('CIPLAN');
  assert.equal(await modal.getByRole('checkbox',{name:/CIMENTO CIPLAN/}).count(),2,'Dois produtos ainda não vinculados');
  await modal.getByRole('button',{name:'Marcar todos os exibidos (2)'}).click();
@@ -104,6 +109,22 @@ for(const size of [{width:390,height:844},{width:1200,height:980}]){
  assert.equal(saved.formaPagamentoPadrao,'BOLETO');
  assert.deepEqual(saved.produtosNegociados.map(x=>x.produtoId),['p1','p2','p3']);
  assert.deepEqual(saved.produtosNegociados.map(x=>x.custoUnitario),[31,30,28]);
+ await page.evaluate(()=>window.openSupplier('cip'));
+ await modal.waitFor();
+ assert.equal(await modal.locator('.ft-supplier-linked-product').count(),3);
+ assert.equal(await modal.getByLabel('Custo negociado CIMENTO CIPLAN EXTRA FORTE 40 KG').inputValue(),'30');
+ await page.evaluate(()=>window.openSupplier('outro'));
+ await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).waitFor();
+ assert.equal(await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).isChecked(),false);
+ await modal.getByRole('button',{name:'Marcar todos os exibidos (1)'}).click();
+ await page.evaluate(()=>window.openSupplier('vazio'));
+ await modal.getByText(/Nenhum produto cadastrado neste fornecedor/).waitFor();
+ assert.equal(await modal.getByLabel('Pesquisar produtos para vincular').inputValue(),'');
+ assert.equal(await modal.getByRole('button',{name:'Marcar todos os exibidos (0)'}).isDisabled(),true);
+ assert.equal(await modal.getByRole('link',{name:'Abrir cadastro de produtos no FORTE OP'}).count(),1);
+ await page.evaluate(()=>window.openSupplier('outro'));
+ await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).waitFor();
+ assert.equal(await modal.getByRole('checkbox',{name:/CIMENTO OUTRO/}).isChecked(),false);
  assert.deepEqual(errors,[]);
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');
  console.log('PASS: fornecedor prazos multi, método independente e produtos em lote, largura '+size.width);

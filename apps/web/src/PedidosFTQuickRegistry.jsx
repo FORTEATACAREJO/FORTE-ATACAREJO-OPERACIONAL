@@ -56,7 +56,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     item=supplierWithSelectedTerms(item);
     if(!['CIF','FOB'].includes(item.modalidadeFrete))throw Error('Selecione CIF ou FOB.');
     if(!SUPPLIER_PALLET_OPTIONS.some(option=>option.value===item.condicaoPaletes))throw Error('Selecione a condição de paletes do fornecedor.');
-    if(!validSupplierCatalog(item.produtosNegociados||[],data.produtos||[]))throw Error('Confira os produtos e os custos unitários negociados.');
+    if(!validSupplierCatalog(item.produtosNegociados||[],data,recordId))throw Error('Confira os produtos e os custos unitários negociados.');
     item.produtosNegociados=(item.produtosNegociados||[]).map(row=>({produtoId:row.produtoId,custoUnitario:Number(row.custoUnitario)}));
    }else{
     item=normalizeCustomerAddress(item);
@@ -98,7 +98,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
     {kind==='fornecedores'&&<>
       <SupplierBuyerCodes supplier={draft} units={data.unidades||[]} onChange={setDraft}/>
       <SupplierPaymentPreferences supplier={draft} registered={selected} onChange={setDraft} onRegisterTerm={term=>onRegisterTerm?.(selected?.id,term)} onChooseTerm={term=>onChooseTerm?.(selected?.id,term)}/>
-      <SupplierProductCatalog supplier={draft} products={data.produtos||[]} onChange={setDraft}/>
+      <SupplierProductCatalog supplier={draft} catalogState={data} onChange={setDraft}/>
     </>}
     {error&&<p className="ft-quick-error" role="alert">{error}</p>}
     <div className="ft-quick-actions"><button type="submit" disabled={busy}>{busy?'Gravando…':'Salvar e voltar ao pedido'}</button><button type="button" className="secondary" disabled={busy} onClick={()=>recordId?(setEditing(false),setError('')):onClose()}>Cancelar</button></div>
