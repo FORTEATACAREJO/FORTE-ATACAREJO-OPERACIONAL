@@ -19,3 +19,19 @@ export function driverOptionsFrom(drivers=[],{draft=false}={}){
   search:[m.nome,m.cpf,m.placa1,m.placa2,m.placa3,m.placa4].join(' ')
  }));
 }
+
+ // Avisos informativos: não alteram o cadastro, nem o critério de seleção.
+export function driverRegistrationWarnings(m={},today=new Date().toISOString().slice(0,10)){
+ const digits=v=>String(v||'').replace(/\D/g,'');
+ const notices=[];
+ if(digits(m.cpf).length!==11)notices.push('CPF não informado ou incompleto');
+ if(digits(m.cnhNumero||m.cnh).length!==11)notices.push('Registro CNH não informado ou incompleto');
+ const category=normalize(m.cnhCategoria||m.categoria_cnh).trim();
+ if(!category)notices.push('Categoria CNH não informada');
+ else if(!/^(A?[CDE])$/.test(category))notices.push('Conferir compatibilidade da categoria CNH com o conjunto');
+ const validity=String(m.cnhValidade||m.validade_cnh||'').slice(0,10);
+ if(validity&&/^\d{4}-\d{2}-\d{2}$/.test(validity)&&validity<today)notices.push('CNH com data de validade vencida — conferir situação antes de dirigir');
+ if(digits(m.telefone||m.whatsapp).length<10)notices.push('Telefone não informado ou incompleto');
+ if(m.documentosConferidos!==true)notices.push('Documentação pessoal a conferir');
+ return notices;
+}
