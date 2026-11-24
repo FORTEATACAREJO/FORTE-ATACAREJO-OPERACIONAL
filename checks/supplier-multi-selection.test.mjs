@@ -6,7 +6,7 @@ import {
  supplierWithSelectedTerms,supplierRegisteredTerms,toggleSupplierDueDay,supplierPaymentMethod,parseCustomSupplierDueDays
 } from '../apps/web/src/supplier-terms-selection.mjs';
 import {linkSupplierProductsInBulk} from '../apps/web/src/supplier-products-bulk.mjs';
-import {supplierTerms} from '../supabase/functions/orders-workflow/domain.mjs';
+import {supplierTerms,applyWorkflow} from '../supabase/functions/orders-workflow/domain.mjs';
 import {supplierProducts,supplierProductTerms} from '../supabase/functions/orders-workflow/supplier-catalog.mjs';
 
 const products=[
@@ -121,4 +121,17 @@ test('cadastro rápido tem botão de gravar condição no servidor sem obrigar f
  assert.match(registry,/onRegisterTerm=\{term=>onRegisterTerm\?\./);
  assert.match(workspace,/action:'SUPPLIER_TERM',fornecedorId,pagamento:term/);
  assert.match(terms,/Condições já cadastradas neste fornecedor/);
+});
+
+test('ação real SUPPLIER_TERM grava 7/14/21 sem exigir frete, paletes ou custos',()=>{
+ const state={settings:{},fornecedores:[{id:'f',nome:'CIPLAN',prazosPagamento:['14 dias']}]};
+ const actor={user_id:'master',empresa_id:'e',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};
+ const result=applyWorkflow(state,{action:'SUPPLIER_TERM',fornecedorId:'f',pagamento:'7/14/21 dias',requestId:'termo-71421'},actor,{id:'auditoria-termo',at:'2026-11-23T22:00:00.000Z'});
+ const updated=result.state.fornecedores[0];
+ assert.deepEqual(updated.prazosPagamento,['14 dias','7/14/21 dias']);
+ assert.deepEqual(supplierTerms(result.state,'f'),['14 dias','7/14/21 dias']);
+ assert.equal(updated.modalidadeFrete,undefined);
+ assert.equal(updated.condicaoPaletes,undefined);
+ assert.equal(updated.produtosNegociados,undefined);
+ assert.deepEqual(state.fornecedores[0].prazosPagamento,['14 dias']);
 });
