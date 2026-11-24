@@ -31,3 +31,18 @@ export function paymentSchedule(term,reference){
  return {dataBasePagamento,vencimentosPagamento};
 }
 export function paymentScheduleText(record={}){return (record.vencimentosPagamento||[]).map(v=>v.dias+' d: '+String(v.vencimento).split('-').reverse().join('/')).join(' • ');}
+
+export function registerSharedTerms(rows=[],terms=[]){
+ const out=[...rows];
+ for(const raw of terms){
+  const days=paymentDays(raw);
+  if(!days.length)continue;
+  const label=paymentLabel(raw),key=paymentKey(label);
+  if(out.some(x=>x.ativo!==false&&paymentKey(x.descricao)===key))continue;
+  const id='pg-prazo-'+days.join('-');
+  const unique=out.some(x=>x.id===id)?id+'-ativo':id;
+  if(out.some(x=>x.id===unique))throw Error('Condição desativada no catálogo. Reative-a no cadastro central.');
+  out.push({id:unique,descricao:label,ativo:true});
+ }
+ return out;
+}
