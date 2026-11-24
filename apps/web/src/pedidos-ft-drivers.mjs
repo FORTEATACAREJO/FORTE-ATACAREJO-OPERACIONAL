@@ -32,6 +32,8 @@ export function driverRegistrationWarnings(m={},today=new Date().toISOString().s
  const validity=String(m.cnhValidade||m.validade_cnh||'').slice(0,10);
  if(validity&&/^\d{4}-\d{2}-\d{2}$/.test(validity)&&validity<today)notices.push('CNH com data de validade vencida — conferir situação antes de dirigir');
  if(digits(m.telefone||m.whatsapp).length<10)notices.push('Telefone não informado ou incompleto');
+ if(m.enderecoInformado===false)notices.push('Endereço não informado');
+ if(m.comprovanteEnderecoInformado===false)notices.push('Comprovante de endereço não informado');
  if(m.documentosConferidos!==true)notices.push('Documentação pessoal a conferir');
  return notices;
 }
