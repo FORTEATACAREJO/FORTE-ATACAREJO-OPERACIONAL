@@ -4,7 +4,7 @@ import {supplierFreightMode,requireSupplierFreightMode,assertFreightSnapshot} fr
 import {applyWorkflow} from '../supabase/functions/orders-workflow/domain.mjs';
 
 const profile={user_id:'master',empresa_id:'e',nome:'Master',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};
-const setup=()=>({settings:{},unidades:[{id:'u',nome:'Forte',cnpj:'11111111000191'}],fornecedores:[{id:'f',nome:'CIPLAN',codigosPorCnpj:{'11111111000191':'FORTE-1'},condicaoPagamento:'14 DIAS'}],produtos:[{id:'p',nome:'Cimento',marca:'CIPLAN',pesoKg:50,precoNegociado:29,palletQtd:40}],motoristas:[{id:'m',nome:'Cleuber',placa1:'ABC1D23',capacidadeMaximaKg:40000}],cargas:[],vendas:[],documentos:[]});
+const setup=()=>({settings:{},unidades:[{id:'u',nome:'Forte',cnpj:'11111111000191'}],fornecedores:[{id:'f',nome:'CIPLAN',codigosPorCnpj:{'11111111000191':'FORTE-1'},condicaoPagamento:'14 DIAS'}],produtos:[{id:'p',fornecedorId:'f',nome:'Cimento',marca:'CIPLAN',pesoKg:50,precoNegociado:29,palletQtd:40}],motoristas:[{id:'m',nome:'Cleuber',placa1:'ABC1D23',capacidadeMaximaKg:40000}],cargas:[],vendas:[],documentos:[]});
 const purchase={action:'SUPPLIER_CREATE',fornecedorId:'f',unidadeId:'u',pagamento:'14 DIAS',motoristaId:'m',itens:[{produtoId:'p',qtd:800}],origem:'Fabrica',destino:'Obra',destinoTipo:'GALPÃO',modalidadeFrete:'FOB',regraPallets:'Sem pallets',palletQuantidade:0};
 let serial=0;
 function workflow(s,body){serial++;return applyWorkflow(s,{...body,requestId:'frete-fornecedor-'+serial},profile,{id:'ev'+serial,at:'2026-11-22T12:00:00Z'}).state;}
