@@ -73,3 +73,13 @@
 .ft-quick-modal .ft-supplier-add-day label{max-width:none;min-width:0}
 .ft-quick-modal .ft-supplier-add-day button{white-space:normal;max-width:210px}
 @media(max-width:600px){.ft-quick-modal .ft-supplier-add-day{grid-template-columns:1fr}.ft-quick-modal .ft-supplier-add-day button{max-width:none;width:100%}}
+
+/* Registro imediato de uma condição composta no fornecedor, sem depender da ficha completa. */
+.ft-quick-modal .ft-supplier-term-quick-save{display:grid;gap:8px;position:relative;margin:8px 0 12px;padding:9px 10px;border:1px solid #d8dfe8;border-radius:10px;background:#f9fafc}
+.ft-quick-modal .ft-supplier-term-quick-save .ft-supplier-due-summary{margin:0;padding:8px 10px}
+.ft-quick-modal .ft-supplier-register-btn{width:100%;font-weight:750;white-space:normal;overflow-wrap:anywhere;background:#ae1236;color:#fff;border-radius:9px;min-height:44px}
+.ft-quick-modal .ft-supplier-registered-note{margin:2px 0;padding:8px 10px;background:#eef6ef;color:#164b27;font-weight:650;font-size:13px;border-radius:8px}
+.ft-quick-modal .ft-supplier-registered-terms{margin:8px 0;padding:9px 10px;border:1px solid #d8dfe8;border-radius:9px}
+.ft-quick-modal .ft-supplier-registered-terms>strong{display:block;font-size:13px;margin-bottom:8px}
+.ft-quick-modal .ft-supplier-registered-list{display:flex;gap:7px;flex-wrap:wrap}
+.ft-quick-modal .ft-supplier-registered-list button{flex:0 1 auto;min-width:96px;padding:8px 10px;font-size:13px;font-weight:650;min-height:38px}
