@@ -13,7 +13,7 @@ const asSacks=s=>/CIMENTO|ARGAMASSA|REJUNTE|CAL\b|SACO|\bKG\b/i.test(safe(s));
 const carrierText=o=>[o.motorista,...(Array.isArray(o.placas)?o.placas:[])].filter(Boolean).join(' • ')||'A definir após vinculação';
 const stateBadge=o=>/ENVIADO|ENTREGUE|CONFIRMADO/.test(safe(o.status).toUpperCase())?'PEDIDO REGISTRADO • ENVIO CONFERIR':
  /RASCUNHO|PENDENTE|CONFERÊNCIA|CONFERENCIA/.test(safe(o.status).toUpperCase())?'PEDIDO GRAVADO • ENVIO PENDENTE':'PEDIDO DE COMPRA • CONFERIR ANTES DO ENVIO';
-const terms=o=>missing(o.pagamento||o.condicaoFornecedor||o.fornecedorSnapshot?.condicaoPagamento);
+const terms=o=>missing(o.pagamento||o.condicaoFornecedor);
 const mode=o=>missing(o.modalidadeFrete);
 const pallets=o=>missing(o.regraPallets);
 const supplierInfo=o=>o.fornecedorSnapshot||{};

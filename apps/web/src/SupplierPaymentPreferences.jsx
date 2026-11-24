@@ -36,11 +36,11 @@ export default function SupplierPaymentPreferences({supplier,registered,onChange
   try{
    await onRegisterTerm(formatted);
    onChange(row=>({...row,
-    prazosPagamento:[...new Set([...(row.prazosPagamento||[]),formatted])]}));
+    prazosPagamento:[...new Set([...supplierRegisteredTerms(row),formatted])]}));
    onChooseTerm?.(formatted);
    setRegisterStatus('Condição '+formatted+' cadastrada! Já está disponível no campo Prazo do fornecedor.');
   }catch(error){
-   setRegisterError(error?.message||'Não foi possível gravar a condição. Nenhum prazo foi registrado.');
+   setRegisterError(error?.message||'Não foi possível confirmar a gravação. Atualize o cadastro antes de tentar novamente.');
   }finally{setRegisterBusy(false);}
  }
  function useRegisteredTerm(term){

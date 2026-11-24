@@ -33,6 +33,7 @@ export default function PedidosFTApp({profile,grants}){
   const saved=await saveCloudState(next);
   if(!saved)throw Error('Servidor não confirmou o cadastro.');
   setData(applyAuthUser(saved));
+  if(kind==='fornecedores'&&(!saved.fornecedores?.find(f=>f.id===item.id)?.prazosPagamento?.some(t=>paymentKey(t)===paymentKey(item.condicaoPagamento))))throw Error('Condição não confirmada na releitura do cadastro.');
   return saved;
  },[]);
  function openUsers(){

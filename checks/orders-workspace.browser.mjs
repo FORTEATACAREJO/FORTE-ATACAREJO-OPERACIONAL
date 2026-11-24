@@ -68,7 +68,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByLabel('Condição de paletes',{exact:true}).inputValue(),'Com pallets');
  assert.equal(await page.getByLabel('Frete conforme fornecedor',{exact:true}).inputValue(),'CIF');
  assert.equal(await page.getByRole('combobox',{name:'Expedição / origem',exact:true}).inputValue(),'Arcos');
- assert.equal(await page.getByRole('combobox',{name:'Prazo do fornecedor',exact:true}).inputValue(),'14 DIAS');
+ assert.equal(await page.getByRole('combobox',{name:'Prazo do fornecedor',exact:true}).inputValue(),'14 dias');
  await page.getByRole('combobox',{name:'Produto 1',exact:true}).selectOption('q');
  assert.equal(await page.getByLabel('Custo unitário 1',{exact:true}).inputValue(),'27');
 
