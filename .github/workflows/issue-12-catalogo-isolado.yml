@@ -1,0 +1,21 @@
+name: Issue 12 - catalogo isolado (sem deploy)
+on:
+  push:
+    branches: ['fix/issue-12-catalogo-fornecedor-20261124']
+permissions:
+  contents: read
+jobs:
+  catalogo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test checks/supplier-catalog-isolation.test.mjs checks/supplier-multi-selection.test.mjs checks/orders-workflow.test.mjs
+      - run: npm ci --prefix qa
+      - run: npx --prefix qa playwright install --with-deps chromium
+      - run: node checks/supplier-multi-selection.browser.mjs
