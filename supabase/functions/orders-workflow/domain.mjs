@@ -91,7 +91,7 @@ export function validDriver(s,id,weight,pedido=false,linkedVehicle=null){
   transportadoraNome:linkedVehicle.transportadora_nome||'',
   transportadoraCnpj:linkedVehicle.transportadora_cnpj||''
  }:original;
- if(/PENDENTE|ANALISE|RECUSADO|CONFERENCIA|AGUARDANDO/.test(norm(m.statusCadastro)))fail('Motorista aguarda aprovação.');
+ if(/PENDENTE|ANALISE|RECUSAD|CONFERENCIA|AGUARDANDO|INATIVO|BLOQUEAD/.test(norm(m.statusCadastro)))fail('Motorista aguarda aprovação.');
  if(m.documentosConferidos===true&&!linkedVehicle)fail('Motorista aprovado sem veículo vinculado. Vincule o veículo na aba Veículos antes de emitir ordem.');
  const capacity=num(m.capacidadeMaximaKg||m.capacidadeAlvoKg,'capacidade do conjunto');
  if(weight>capacity&&!pedido)fail('Peso acima da capacidade do conjunto.');
@@ -141,6 +141,7 @@ export function applyWorkflow(original,b,p,{id,at}){
   if(!privileged(p))fail('Somente Master ou Administrador pode conferir e habilitar motoristas.');
   const m=arr(s,'motoristas').find(x=>String(x.id)===String(b.motoristaId))||fail('Motorista não localizado no cadastro operacional.');
   if(!m.id||!String(m.nome||'').trim())fail('Cadastro de motorista inválido.');
+  if(m.bloqueadoGestor===true||norm(m.statusCadastro)==='INATIVO')fail('Cadastro bloqueado pelo gestor.');
   const approved=b.aprovar===true,cpf=String(b.cpf||'').replace(/\D/g,''),
    cnh=String(b.cnhNumero||'').replace(/\D/g,''),
    categoria=norm(b.cnhCategoria).replace(/\s/g,''),
@@ -152,9 +153,9 @@ export function applyWorkflow(original,b,p,{id,at}){
   if(b.cnhValidade&&!validity)fail('Data de validade da CNH inválida.');
   if(telefone&&telefone.length<10)fail('Telefone incompleto. Informe DDD.');
   if(approved){
-   if(!cpfValidoOperacional(cpf)||cnh.length!==11||!/^(A?[CDE])$/.test(categoria)||!validity)
-    fail('Para habilitar, confira CPF válido, registro da CNH, categoria de carga e validade.');
-   if(validity<=at.slice(0,10))fail('CNH vencida. Não é possível habilitar esse motorista.');
+   if(!cpfValidoOperacional(cpf)||cnh.length!==11||!/^(A?[CDE])$/.test(categoria))
+    fail('Para habilitar, confira CPF válido, registro da CNH e categoria de carga.');
+   if(validity&&validity<=at.slice(0,10))fail('CNH vencida. Não é possível habilitar esse motorista.');
    if(b.documentosConferidos!==true||b.confirmacaoResponsavel!==true)
     fail('Confirme expressamente a conferência dos documentos originais e sua responsabilidade.');
    if(String(b.referenciaConferencia||'').trim().length<5)
@@ -164,6 +165,7 @@ export function applyWorkflow(original,b,p,{id,at}){
    cpf:cpf||'',cnhNumero:cnh||'',cnhCategoria:categoria||'',cnhValidade:validity||'',
    telefone:telefone||'',statusCadastro:approved?'APROVADO':'PENDENTE_DOCUMENTOS',
    ativo:approved,documentosConferidos:approved,elegivelParaCarga:approved,
+   cadastroAdministrativoLiberado:approved||m.cadastroAdministrativoLiberado===true,
    ultimaRevisaoCadastro:{responsavel:p.user_id,em:at,tipo:approved?'APROVACAO_DOCUMENTAL':'RASCUNHO'}
   });
   if(approved){
@@ -176,9 +178,10 @@ export function applyWorkflow(original,b,p,{id,at}){
   const imported=b.internalDrivers||[];
   // A sincronização de frete não pode apagar a aprovação documental feita
   // por um administrador no FORTE OP nem reativar cadastros não conferidos.
-  const preserved=arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'||m.documentosConferidos===true&&m.aprovacaoOperacional?.responsavel);
+  const preserved=arr(s,'motoristas').filter(m=>m.origemCadastro!=='FORTE FRETE'||m.documentosConferidos===true&&m.aprovacaoOperacional?.responsavel||m.cadastroAdministrativoLiberado===true||norm(m.statusCadastro)==='INATIVO');
   const preservedIds=new Set(preserved.map(m=>m.id));
-  s.motoristas=[...preserved,...imported.filter(m=>!preservedIds.has(m.id))];
+  const preservedSources=new Set(preserved.map(m=>m.freteMotoristaId).filter(Boolean));
+  s.motoristas=[...preserved,...imported.filter(m=>!preservedIds.has(m.id)&&!preservedSources.has(m.freteMotoristaId))];
   result={count:imported.length};
  }else if(b.action==='FRETE_PUBLISHED'){
   const c=load();if(palletReleaseNeeded(c))fail('Liberação de pallets pendente.');Object.assign(c,{fretePublicadaId:b.internalReceipt.id,fretePublicadaEm:at,ordemMotoristaEnviada:true,ordemEnviadaEm:b.internalReceipt.enviadaEm,ordemCanal:'FORTE FRETE',ordemDestinatario:b.internalReceipt.motoristaId,fase:'ORDEM DISPONÍVEL NO FORTE FRETE'});result={cargaId:c.id,freteId:b.internalReceipt.id};
@@ -186,8 +189,11 @@ export function applyWorkflow(original,b,p,{id,at}){
   const old=b.action==='SUPPLIER_EDIT'?purchase():null;if(old&&!canEditPurchase(s,old))fail('Pedido enviado, cancelado, confirmado ou faturado não pode ser editado.');const editReason=old?text(b.motivo,'motivo da edição'):'';
   const f=byId(s,'fornecedores',b.fornecedorId,'Fornecedor'),u=byId(s,'unidades',b.unidadeId,'Unidade');
   const selectedTerm=text(b.pagamento,'prazo');const keepHistorical=old?.fornecedorId===f.id&&paymentKey(old.pagamento)===paymentKey(selectedTerm);if(!keepHistorical&&!supplierTerms(s,f.id).some(t=>paymentKey(t)===paymentKey(selectedTerm)))fail('Cadastre o prazo no fornecedor antes de gravar.');const payment=keepHistorical?old.pagamento:paymentLabel(selectedTerm);const schedule=paymentSchedule(payment,old?.dataBasePagamento||old?.criadaEm||at);
-  const itens=purchaseItems(s,b,p,at),pesoKg=itens.reduce((a,i)=>a+i.pesoKg,0),m=b.motoristaId?operationDriver(b.motoristaId,pesoKg,true):null;
-  if(m)confirmCapacity(m,pesoKg);
+  const itens=purchaseItems(s,b,p,at),pesoKg=itens.reduce((a,i)=>a+i.pesoKg,0);
+  const candidate=b.motoristaId?(arr(s,'motoristas').find(m=>m.id===b.motoristaId)||fail('Motorista não localizado.')):null;
+  const provisional=candidate?.cadastroAdministrativoLiberado===true&&candidate.documentosConferidos!==true&&!/INATIVO|BLOQUEAD|RECUSAD/.test(norm(candidate.statusCadastro));
+  const m=provisional?{id:candidate.id,nome:candidate.nome,cpf:candidate.cpf,telefone:candidate.telefone}:candidate?operationDriver(candidate.id,pesoKg,true):null;
+  if(m&&!provisional)confirmCapacity(m,pesoKg);
   const sameSupplier=old?.fornecedorId===f.id;
   const supplierFreight=(sameSupplier&&old.modalidadeFrete)||requireSupplierFreightMode(f);
   assertFreightSnapshot(b.modalidadeFrete,supplierFreight);
@@ -196,7 +202,7 @@ export function applyWorkflow(original,b,p,{id,at}){
   if(palletRule)b={...b,regraPallets:palletRule};
   if(!['GALPÃO','VENDA DIRETA','A DEFINIR'].includes(b.destinoTipo))fail('Selecione o tipo de destino.');
   const order={id:old?.id||id,numero:old?.numero||nextOS(s),fornecedorId:f.id,fornecedor:f.nome,unidadeId:u.id,unidade:u.nome,modalidadeCompra:b.modalidadeCompra||'PADRAO',fornecedorSnapshot:supplierSnapshot(f,u),cnpjComprador:buyerCnpj(u),motoristaSnapshot:driverSnapshot(m),confirmacaoCapacidade:capacityDecision,codigoFornecedor:supplierBuyerCode(f,u),itens,pesoKg,custoTotal:cents(itens.reduce((a,i)=>a+i.total,0)),qtd:itens.reduce((a,i)=>a+i.qtd,0),produto:itens.map(i=>i.produto).join(' / '),motoristaId:m?.id||'',motorista:m?.nome||'',veiculoId:m?.veiculoId||'',vinculoFrotaId:m?.vinculoFrotaId||'',transportadoraNome:m?.transportadoraNome||'',placas:m?[m.placa1,m.placa2,m.placa3,m.placa4].filter(Boolean):[],origem:text(b.origem,'expedição'),destino:text(b.destino,'destino'),destinoTipo:b.destinoTipo,modalidadeFrete:supplierFreight,pagamento:payment,...schedule,...pallets(s,b,p,at),nfPalletsAplica:b.regraPallets!==PALLETS[1],origemPreenchimento:b.origemPreenchimento||'MANUAL',protocolo:old?.protocolo||'',protocoloMotoristaId:old?.protocoloMotoristaId||'',protocoloDataReferencia:old?.protocoloDataReferencia||'',protocoloGeradoEm:old?.protocoloGeradoEm||'',protocoloHistorico:structuredClone(old?.protocoloHistorico||[]),status:'RASCUNHO — NÃO ENVIADO',criadaEm:old?.criadaEm||at,criadaPor:old?.criadaPor||p.nome,revisao:old?(old.revisao||0)+1:0,historico:[...(old?.historico||[]),{id,acao:old?'EDIÇÃO':'CRIAÇÃO',at,actor:p.user_id,motivo:editReason,...(old?{antes:purchaseSnapshot(old)}:{})}]};
-  if(old){const c=arr(s,'cargas').find(c=>c.id===old.cargaId);if(c?.vendaIds?.length&&(c.fornecedorId!==order.fornecedorId||c.unidadeId!==order.unidadeId))fail('Carga com vendas vinculadas: mantenha fornecedor e unidade.');for(const v of arr(s,'vendas').filter(v=>c?.vendaIds?.includes(v.id))){const i=order.itens.find(i=>i.produtoId===v.produtoId);const qty=arr(s,'vendas').filter(x=>c.vendaIds.includes(x.id)&&x.produtoId===v.produtoId).reduce((a,x)=>a+Number(x.qtd),0);if(!i||qty>i.qtd)fail('Ajuste primeiro as vendas vinculadas.');}order.cargaId=old.cargaId;order.codigoCarga=old.codigoCarga;if(c)Object.assign(c,{...order,itensPedido:structuredClone(order.itens),pesoPedidoKg:order.pesoKg,qtdPedida:order.qtd,condicaoFornecedor:order.pagamento,localCarregamento:order.origem,qtdSemDestino:order.qtd-arr(s,'vendas').filter(v=>c.vendaIds?.includes(v.id)).reduce((a,v)=>a+Number(v.qtd),0),id:c.id,codigo:c.codigo,compraFornecedorId:old.id,status:'VERMELHO',vendaIds:c.vendaIds||[],fase:'PEDIDO EDITADO — CONFERIR ESPELHO'});for(const j of arr(s,'comunicacoes').filter(j=>j.compraFornecedorId===old.id&&['QUEUED','BLOCKED','FAILED'].includes(j.state))){j.state='CANCELLED';j.reason='PEDIDO EDITADO';}s.comprasFornecedor=arr(s,'comprasFornecedor').map(x=>x.id===old.id?order:x);}else s.comprasFornecedor=[...arr(s,'comprasFornecedor'),order];const c=ensureLoad(s,order,id+'-carga',at);if(m)assignOrderProtocol(s,order,c,m,at);if(b.vendaIds?.length){c.destinoTipo='VENDA DIRETA';linkSales(s,c,b.vendaIds);}c.fase='PEDIDO EM CONFERÊNCIA — ENVIO PENDENTE';result={id:order.id,numero:order.numero,cargaId:c.id};
+  if(old){const c=arr(s,'cargas').find(c=>c.id===old.cargaId);if(c?.vendaIds?.length&&(c.fornecedorId!==order.fornecedorId||c.unidadeId!==order.unidadeId))fail('Carga com vendas vinculadas: mantenha fornecedor e unidade.');for(const v of arr(s,'vendas').filter(v=>c?.vendaIds?.includes(v.id))){const i=order.itens.find(i=>i.produtoId===v.produtoId);const qty=arr(s,'vendas').filter(x=>c.vendaIds.includes(x.id)&&x.produtoId===v.produtoId).reduce((a,x)=>a+Number(x.qtd),0);if(!i||qty>i.qtd)fail('Ajuste primeiro as vendas vinculadas.');}order.cargaId=old.cargaId;order.codigoCarga=old.codigoCarga;if(c)Object.assign(c,{...order,itensPedido:structuredClone(order.itens),pesoPedidoKg:order.pesoKg,qtdPedida:order.qtd,condicaoFornecedor:order.pagamento,localCarregamento:order.origem,qtdSemDestino:order.qtd-arr(s,'vendas').filter(v=>c.vendaIds?.includes(v.id)).reduce((a,v)=>a+Number(v.qtd),0),id:c.id,codigo:c.codigo,compraFornecedorId:old.id,status:'VERMELHO',vendaIds:c.vendaIds||[],fase:'PEDIDO EDITADO — CONFERIR ESPELHO'});for(const j of arr(s,'comunicacoes').filter(j=>j.compraFornecedorId===old.id&&['QUEUED','BLOCKED','FAILED'].includes(j.state))){j.state='CANCELLED';j.reason='PEDIDO EDITADO';}s.comprasFornecedor=arr(s,'comprasFornecedor').map(x=>x.id===old.id?order:x);}else s.comprasFornecedor=[...arr(s,'comprasFornecedor'),order];const c=ensureLoad(s,order,id+'-carga',at);if(m&&!provisional)assignOrderProtocol(s,order,c,m,at);if(b.vendaIds?.length){c.destinoTipo='VENDA DIRETA';linkSales(s,c,b.vendaIds);}c.fase='PEDIDO EM CONFERÊNCIA — ENVIO PENDENTE';result={id:order.id,numero:order.numero,cargaId:c.id};
  }else if(b.action==='SUPPLIER_CANCEL'){
   const o=purchase(),c=arr(s,'cargas').find(c=>c.id===o.cargaId);if(o.status==='CANCELADO')fail('Pedido já cancelado.');if(c?.fretePublicadaId||c?.ordemEnviadaEm)fail('Ordem já enviada ao motorista: revise o cancelamento operacional antes de cancelar.');if(c?.finalizadaEm||c&&arr(s,'documentos').some(d=>d.cargaId===c.id&&['XML NF','PDF NF'].includes(d.categoria)))fail('Pedido faturado ou carga finalizada exige revisão fiscal.');if(arr(s,'comunicacoes').some(j=>j.compraFornecedorId===o.id&&j.state==='SENDING'))fail('Aguarde a conclusão do envio antes de cancelar.');const motivo=text(b.motivo,'motivo do cancelamento');o.status='CANCELADO';o.canceladoEm=at;o.canceladoPor=p.user_id;o.historico=[...(o.historico||[]),{id,acao:'CANCELAMENTO',at,actor:p.user_id,motivo}];if(c){c.status='CANCELADA';c.fase='CANCELADA';for(const v of arr(s,'vendas').filter(v=>v.cargaId===c.id)){v.cargaId='';v.destinoPainel='AGUARDANDO ROTEAMENTO';}c.vendaIds=[];}for(const j of arr(s,'comunicacoes').filter(j=>(j.compraFornecedorId===o.id||j.cargaId===c?.id)&&['QUEUED','BLOCKED','FAILED'].includes(j.state))){j.state='CANCELLED';j.reason='PEDIDO CANCELADO';}result={id:o.id,warning:'Cancelamento registrado sem apagar o histórico. Se o fornecedor já recebeu o pedido, confirme o cancelamento com ele.'};
  }else if(b.action==='PALLETS_RELEASE'){

@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
-import {isDriverSelectable} from './pedidos-ft-drivers.mjs';
+import {isDriverSelectable,isDriverDraftSelectable} from './pedidos-ft-drivers.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
 import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import './driver-directory-mobile.css';
@@ -23,7 +23,7 @@ const cpfValido=value=>{
 };
 const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(3,6)}.${d.slice(6,9)}-**`:'PENDENTE';};
 
-export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false,onDataRefresh}){
+export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false,onDataRefresh,forForm}){
  const [query,setQuery]=useState('');
  const [view,setView]=useState('motoristas');
  const [reviewId,setReviewId]=useState('');
@@ -32,7 +32,9 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
  const editorRef=useRef(null);
  useEffect(()=>{if(editor&&editorRef.current)editorRef.current.scrollIntoView({block:'start',behavior:'instant'});},[editor,selected]);
- const rows=useMemo(()=>[...(existing||[]),...(data?.motoristas||[]).filter(m=>!existing.some(e=>e.id===m.id))]
+ const selectable=forForm==='fornecedor'?isDriverDraftSelectable:isDriverSelectable;
+ const operational=(data?.motoristas||[]).filter((m,i,all)=>!m.freteMotoristaId||all.findIndex(d=>d.freteMotoristaId===m.freteMotoristaId)===i);
+ const rows=useMemo(()=>[...operational,...(existing||[]).filter(e=>!operational.some(m=>m.id===e.id||m.freteMotoristaId===e.id))]
   .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.cnh,m.cnhNumero].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
  const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
  const preApprovedLegacyIds=useMemo(()=>new Set((data?.preaprovacoesMotoristasLegados||[]).filter(x=>x.tipo==='PRE_APROVACAO_CADASTRAL').map(x=>x.sourceId)),[data?.preaprovacoesMotoristasLegados]);
@@ -76,10 +78,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
     !cpfValido(form.cpf)?'CPF':null,
     digits(form.cnh).length!==11?'CNH':null,
     digits(form.whatsapp).length<10?'WHATSAPP':null,
-    !form.proprietario_nome.trim()?'PROPRIETARIO':null,
-    !form.chave_pix.trim()?'PIX':null,
-    !form.favorecido_pix.trim()?'FAVORECIDO_PIX':null,
-    !(capacity>0)?'CAPACIDADE_OPERACIONAL':null,
+    !/^(A?[CDE])$/.test(form.categoria_cnh.trim().toUpperCase())?'CATEGORIA_CNH_COMPATIVEL':null,
     'DOCUMENTOS_NAO_CONFERIDOS','APROVACAO_ADMINISTRATIVA'
    ].filter(Boolean);
    const payload={
@@ -145,7 +144,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const fields=[
   ['nome','Nome completo',true],['cpf','CPF',false],['whatsapp','WhatsApp com DDD',false],
   ['cnh','Registro CNH (11 dígitos)',false],['categoria_cnh','Categoria CNH',false],
-  ['validade_cnh','Validade CNH',false,'date'],['rntrc','RNTRC',false],['email','E-mail',false,'email'],
+  ['validade_cnh','Validade CNH (opcional)',false,'date'],['email','E-mail',false,'email'],
   ...(selected?[
    ['proprietario_nome','Proprietário (histórico)',false],
    ['proprietario_documento','Documento proprietário (histórico)',false],
@@ -164,7 +163,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['veiculos','Veículos']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
  {view==='motoristas'&&<>
  <p><b>Motoristas operacionais:</b> {existing.length} · <b>Veículos cadastrados:</b> {vehicles.length} · <b>Cadastros históricos:</b> {isAdmin?legacy.length:'restritos à administração'} · <b>Pré-aprovados pelo gestor:</b> {(data?.motoristas||[]).filter(m=>m.preAprovadoCadastro).length} operacionais e {preApprovedLegacyIds.size} históricos.</p>
- {onPick&&!(data?.motoristas||[]).some(isDriverSelectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
+ {onPick&&!(data?.motoristas||[]).some(selectable)&&<p role="status">Nenhum motorista ativo e aprovado para selecionar. Consulte as pendências documentais; os registros inativos continuam apenas para conferência. Sincronize o Forte Frete após a aprovação.</p>}
  {onPick&&onSync&&<button type="button" disabled={busy} onClick={async()=>{setBusy(true);setMessage('Conferindo motoristas do Forte Frete…');try{const result=await onSync();await load();setMessage('Sincronização concluída. '+(result?.count??'Os')+' registro(s) consultados; a seleção exige ativação e aprovação operacional.');}catch(e){setMessage(e.message||'Falha na sincronização. Nenhum motorista foi liberado.');}finally{setBusy(false);}}}>SINCRONIZAR MOTORISTAS APROVADOS</button>}
  <label className="ft-driver-search">BUSCAR MOTORISTA<input aria-label="Buscar motorista pelo nome ou CPF" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Digite nome ou CPF"/></label>
  <h3 className="ft-driver-section-title">Motoristas do cadastro operacional ({rows.length})</h3>
@@ -172,10 +171,10 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <strong className="ft-driver-name">{m.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(m.cpf)} · CNH: {m.cnh||m.cnhNumero?'Informada':'A conferir'}</span>
   
-  <span className="ft-driver-status">{isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'APTO PARA SELEÇÃO':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
+  <span className="ft-driver-status">{isDriverSelectable(m)?'APTO PARA EXPEDIÇÃO':m.cadastroAdministrativoLiberado?'CADASTRO ATIVO · DOCUMENTOS A CONFERIR':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
   {isAdmin&&(data?.motoristas||[]).some(d=>d.id===m.id)&&<button type="button" className="ft-driver-approve-button" disabled={busy} onClick={()=>setReviewId(old=>old===m.id?'':m.id)}>{reviewId===m.id?'FECHAR CONFERÊNCIA':isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'REVISAR DOCUMENTOS':'CONFERIR / LIBERAR MOTORISTA'}</button>}
   {reviewId===m.id&&<OperationalDriverApproval driver={(data?.motoristas||[]).find(d=>d.id===m.id)||m} onCancel={()=>setReviewId('')} onSaved={async result=>{setMessage(result?.warning||'Conferência gravada.');if(onDataRefresh)await onDataRefresh();setReviewId('');}}/>}
-  {onPick&&(isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))
+  {onPick&&(selectable((data?.motoristas||[]).find(d=>d.id===m.id))
     ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
     :<small>Cadastro disponível para conferência. Não habilitado para emissão de ordem.</small>)}
  </article>)}</div>
