@@ -10,14 +10,12 @@ const fmtDate=date=>{
 };
 const array=x=>Array.isArray(x)?x:[];
 const textWidth=(doc,str,width)=>doc.splitTextToSize(val(str),width);
-const titleCase=x=>val(x);
 export function driverLoadingOrderDocument(jsPDF,order){
  const official=String(order?.numeroPedidoFornecedor||'').trim();
  if(!official)throw new Error('Confirme o número oficial do pedido do fornecedor antes de gerar a ordem.');
  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
  const maxX=198,margin=12,cols={item:16,product:28,qty:133,weight:160};
  const items=array(order.itens);
- const paymentWords=/R\$|PIX|BOLETO|FRETE COMBINADO|CONDIÇÃO DE PAGAMENTO|VALOR UNITÁRIO|CUSTO UNITÁRIO/i;
  const paint=(color)=>doc.setFillColor(...color);
  const rect=(x,y,w,h,color,r=0)=>{paint(color);if(r)doc.roundedRect(x,y,w,h,r,r,'F');else doc.rect(x,y,w,h,'F');};
  const text=(value,x,y,{size=8.8,bold=false,color=palette.navy,width=180,align='left',maxLines}={})=>{
@@ -64,14 +62,14 @@ export function driverLoadingOrderDocument(jsPDF,order){
  let y=stripe(79,'Fornecedor e local de retirada');
  sectionLine('FORNECEDOR',supplier,16,y+2,178);
  sectionLine('RETIRAR EM',pickup,16,y+20,178);
- y+=39;
+ y+=31;
  y=stripe(y,'Motorista e veículo');
  sectionLine('MOTORISTA',order.motorista,16,y+1,101);
  sectionLine('PLACA DO VEÍCULO',plates.join(' / '),120,y+1,74);
- sectionLine('CPF',transport.cpf,16,y+16,83);
- sectionLine('CNH',transport.cnhNumero||transport.cnh,104,y+16,91);
- sectionLine('TRANSPORTADORA',order.transportadoraNome||transport.transportadoraNome||'Não informada',16,y+31,169);
- y+=49;
+ sectionLine('CPF',transport.cpf,16,y+13,83);
+ sectionLine('CNH',transport.cnhNumero||transport.cnh,104,y+13,91);
+ sectionLine('TRANSPORTADORA',order.transportadoraNome||transport.transportadoraNome||'Não informada',16,y+26,169);
+ y+=38;
  y=stripe(y,'Produtos autorizados para retirada');
  const tableHeader=at=>{
   rect(margin,at,186,8,palette.navy,1);
