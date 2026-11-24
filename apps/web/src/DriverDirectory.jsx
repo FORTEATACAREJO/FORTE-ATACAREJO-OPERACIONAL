@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
-import {isDriverSelectable,isDriverDraftSelectable} from './pedidos-ft-drivers.mjs';
+import {isDriverSelectable,isDriverDraftSelectable,driverRegistrationWarnings} from './pedidos-ft-drivers.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
 import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import './driver-directory-mobile.css';
@@ -36,7 +36,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const operational=(data?.motoristas||[]).filter((m,i,all)=>!m.freteMotoristaId||all.findIndex(d=>d.freteMotoristaId===m.freteMotoristaId)===i);
  const rows=useMemo(()=>[...operational,...(existing||[]).filter(e=>!operational.some(m=>m.id===e.id||m.freteMotoristaId===e.id))]
   .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.cnh,m.cnhNumero].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
- const legacyRows=useMemo(()=>legacy.filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query]);
+ const legacyRows=useMemo(()=>legacy.filter(l=>!existing.some(e=>e.id===l.id_origem)&&!(data?.motoristas||[]).some(m=>m.freteMotoristaId===l.id_origem||m.id===l.id_origem)).filter(l=>[l.dados?.nome,l.dados?.cpf,l.dados?.whatsapp].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[legacy,query,existing,data]);
  const preApprovedLegacyIds=useMemo(()=>new Set((data?.preaprovacoesMotoristasLegados||[]).filter(x=>x.tipo==='PRE_APROVACAO_CADASTRAL').map(x=>x.sourceId)),[data?.preaprovacoesMotoristasLegados]);
  async function load(){
   if(!supabase)return;
@@ -172,6 +172,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <span>CPF: {maskCpf(m.cpf)} · CNH: {m.cnh||m.cnhNumero?'Informada':'A conferir'}</span>
   
   <span className="ft-driver-status">{isDriverSelectable(m)?'APTO PARA EXPEDIÇÃO':m.cadastroAdministrativoLiberado?'CADASTRO ATIVO · DOCUMENTOS A CONFERIR':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
+  {driverRegistrationWarnings(m).length>0&&<p className="ft-driver-status" role="status">Avisos: {driverRegistrationWarnings(m).join(' • ')}</p>}
   {isAdmin&&(data?.motoristas||[]).some(d=>d.id===m.id)&&<button type="button" className="ft-driver-approve-button" disabled={busy} onClick={()=>setReviewId(old=>old===m.id?'':m.id)}>{reviewId===m.id?'FECHAR CONFERÊNCIA':isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'REVISAR DOCUMENTOS':'CONFERIR / LIBERAR MOTORISTA'}</button>}
   {reviewId===m.id&&<OperationalDriverApproval driver={(data?.motoristas||[]).find(d=>d.id===m.id)||m} onCancel={()=>setReviewId('')} onSaved={async result=>{setMessage(result?.warning||'Conferência gravada.');if(onDataRefresh)await onDataRefresh();setReviewId('');}}/>}
   {onPick&&(selectable((data?.motoristas||[]).find(d=>d.id===m.id))
@@ -180,7 +181,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  </article>)}</div>
  {rows.length===0&&<p role="status">Nenhum motorista do cadastro operacional corresponde à busca.</p>}
  {isAdmin&&<section className="ft-driver-legacy"><h3 className="ft-driver-section-title">Cadastros antigos para regularizar ({legacyRows.length})</h3>
- <p>A autorização do gestor para pré-aprovação cadastral está registrada. A documentação ainda precisa ser conferida individualmente; todos continuam <b>inativos para transporte</b> até a validação. Pré-aprovação não equivale a CNH ou veículo aprovados.</p>
+ <p>Histórico sem duplicar motoristas já cadastrados. Dados complementares serão tratados como avisos. A expedição real exige habilitação e conjunto conferidos.</p>
  {editor&&<p role="status">Formulário de conferência aberto logo abaixo, antes da lista de nomes.</p>}
  </section>}
  {isAdmin&&editor&&<form ref={editorRef} className="ft-driver-form" onSubmit={save} style={{display:'grid',gap:12,marginTop:16}}>

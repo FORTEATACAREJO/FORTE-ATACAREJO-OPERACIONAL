@@ -7,6 +7,7 @@ const emptyVehicle={placa:'',tipo:'CAVALO MECÂNICO',marca_modelo:'',capacidade_
 const emptyLink={motorista_operacional_id:'',veiculo_id:'',observacao:''};
 const digits=v=>String(v||'').replace(/\D/g,'');
 const pretty=v=>v?new Date(v).toLocaleString('pt-BR'):'';
+const vehicleNotices=v=>[!v.proprietario_nome?'Proprietário a conferir':null,!v.proprietario_documento?'CPF/CNPJ do proprietário a conferir':null,!v.crlv_referencia?'CRLV a conferir':null,!v.rntrc?'RNTRC a conferir':null,!(Number(v.capacidade_kg)>0)?'Capacidade a conferir':null,v.ativo===false?'Veículo não liberado para transporte':null].filter(Boolean);
 const carrierLabel=(vehicle,link)=>link?.transportadora_nome_snapshot||vehicle?.transportadora_nome||'Transportadora não informada';
 
 export default function FleetLinkManager({drivers=[],isAdmin=false}){
@@ -22,7 +23,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false}){
  async function load(){
   if(!supabase)throw Error('Supabase não configurado.');
   const [vr,lr,dr]=await Promise.all([
-   supabase.from('fc_veiculos').select('id,empresa_id,placa,tipo,marca_modelo,capacidade_kg,proprietario_nome,proprietario_documento,crlv_referencia,transportadora_nome,transportadora_cnpj,transportadora_whatsapp,ativo').order('placa').limit(500),
+   supabase.from('fc_veiculos').select('id,empresa_id,placa,tipo,marca_modelo,capacidade_kg,proprietario_nome,proprietario_documento,crlv_referencia,transportadora_nome,transportadora_cnpj,transportadora_whatsapp,rntrc,ativo').order('placa').limit(500),
    supabase.from('fc_frota_vinculos').select('id,empresa_id,motorista_operacional_id,veiculo_id,transportadora_nome_snapshot,transportadora_cnpj_snapshot,inicio_em,fim_em,observacao').order('inicio_em',{ascending:false}).limit(1000),
    supabase.from('fc_motoristas').select('id,nome,ativo').order('nome').limit(500)
   ]);
@@ -141,6 +142,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false}){
    <b>{v.placa} · {v.tipo}</b>
    <span>Transportadora: {v.transportadora_nome||'A preencher na ficha do veículo'}</span>
    <small>{v.proprietario_nome||'Proprietário a conferir'} · {v.capacidade_kg?Number(v.capacidade_kg).toLocaleString('pt-BR')+' kg':'Capacidade a conferir'}</small>
+   {vehicleNotices(v).length>0&&<small role="status">Avisos: {vehicleNotices(v).join(' • ')}</small>}
    {isAdmin&&<button type="button" disabled={busy} onClick={()=>editExisting(v)}>EDITAR VEÍCULO / TRANSPORTADORA</button>}
   </article>)}</div>
   <h3>Vincular motorista a um veículo</h3>
