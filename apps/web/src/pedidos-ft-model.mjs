@@ -51,13 +51,15 @@ export function buildPedidosFTDossier(state,cargaId){
  for(const v of sold){
   const id=String(v.clienteId||v.cliente||v.id);
   const match=rows(state,'clientes').find(x=>x.id===v.clienteId);
-  if(!clients.has(id))clients.set(id,{id,nome:match?.nomeFantasia||match?.fantasia||match?.nome||v.cliente||'Cliente',cidade:match?.cidade||'',uf:match?.uf||'',items:[],documents:[]});
+  if(!clients.has(id))clients.set(id,{id,nome:match?.nomeFantasia||match?.fantasia||match?.nome||v.cliente||'Cliente',cidade:match?.cidade||'',uf:match?.uf||'',items:[],documents:[],salesGroups:[]});
+  const group=v.grupoPedidoId||v.id;
+  if(!clients.get(id).salesGroups.some(g=>g.id===group))clients.get(id).salesGroups.push({id:group,numero:v.numeroVenda||group,formaPagamento:v.formaPagamento||'',prazo:v.condicaoPagamento||''});
   clients.get(id).items.push({id:v.id,produto:v.produto,produtoId:v.produtoId,qtd:numeric(v.qtd),precoUnitario:v.precoUnitario,condicaoPagamento:v.condicaoPagamento||v.formaPagamento||'',numeroVenda:v.numeroVenda,ordemCompraCliente:v.ordemCompraCliente||'',itemOrdemCompraCliente:v.itemOrdemCompraCliente??null});
  }
  for(const d of docs){
   const client=clients.get(String(d.clienteId||''));
   if(client)client.documents.push(d);
-  else if(d.vendaId){const match=[...clients.values()].find(x=>x.items.some(i=>i.id===d.vendaId));if(match)match.documents.push(d);}
+  else if(d.vendaId){const match=[...clients.values()].find(x=>x.items.some(i=>i.id===d.vendaId)||x.salesGroups.some(g=>g.id===d.vendaId));if(match)match.documents.push(d);}
  }
  const preferenceRule=supplierPalletRule(supplier);
  const rule=preferenceRule||c.regraPallets||order?.regraPallets||'';
