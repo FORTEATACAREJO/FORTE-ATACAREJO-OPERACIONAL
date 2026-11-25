@@ -57,7 +57,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await review.getByRole('button',{name:'CONFIRMAR E HABILITAR MOTORISTA',exact:true}).isDisabled(),true);
  assert.equal(await review.getByLabel('Registro da CNH').count(),1);
  await review.getByRole('button',{name:'VOLTAR AOS MOTORISTAS',exact:true}).click();
- assert.equal(await driverModal.locator('.ft-driver-card').count(),1);
+ assert.equal(await driverModal.locator('.ft-driver-card').count(),2); // motorista original e substituto permanecem cadastrados
  assert(await driverModal.getByRole('button',{name:/VOLTAR AO PEDIDO/}).isVisible());
  assert.equal(await driverModal.getByRole('button',{name:'Motoristas',exact:true}).count(),1);
   assert.equal(await driverModal.getByRole('button',{name:'Veículos',exact:true}).count(),1);
