@@ -112,7 +112,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="4. Clientes vinculados" aside={<button type="button" className="ft-text-button" onClick={()=>go('venda')}>Abrir vendas</button>}>
    {clients.length?clients.map(client=><div className="ft-client" key={client.id}>
     <div className="ft-client-name"><b>{client.nome}</b><small>{[client.cidade,client.uf].filter(Boolean).join(' / ')||'Cidade não cadastrada'}</small></div>
-    {client.items.map((item,i)=><div className="ft-client-item" key={item.id||i}><div><span>{text(item.produto)}</span><small>{text(item.condicaoPagamento)}</small></div><div className="ft-right"><b>{number(item.qtd)} sacos</b><small>{item.precoUnitario==null?'Preço não informado':money(item.precoUnitario)+' / un.'}</small></div></div>)}
+    {client.items.map((item,i)=><div className="ft-client-item" key={item.id||i}><div><span>{text(item.produto)}</span><small>{text(item.condicaoPagamento)}</small>{item.ordemCompraCliente&&<small>OC do cliente: {item.ordemCompraCliente}{item.itemOrdemCompraCliente!=null?' · item '+item.itemOrdemCompraCliente:''}</small>}</div><div className="ft-right"><b>{number(item.qtd)} sacos</b><small>{item.precoUnitario==null?'Preço não informado':money(item.precoUnitario)+' / un.'}</small></div></div>)}
     {client.documents.length>0&&<small className="ft-hint">{client.documents.length} documento(s) vinculado(s)</small>}
    </div>):<p className="ft-hint">Ainda não há clientes atribuídos a esta carga.</p>}
   </Panel>
