@@ -86,3 +86,12 @@ test('painel identifica pendências reais e não mistura cargas finalizadas com 
  assert(!pending.includes('saldo'));assert.deepEqual(dossierPending(buildPedidosFTDossier(data,'c2')),['finalizada']);
  data.cargas[0].status='CANCELADA';assert.deepEqual(dossierPending(buildPedidosFTDossier(data,'c1')),['cancelada']);
 });
+
+test('boletos vinculados ao grupo de venda aparecem apenas no cliente correto',()=>{
+ const data=fixture();data.vendas[0].grupoPedidoId='grupo-a';
+ data.documentos.push({id:'bol-a',cargaId:'c1',vendaId:'grupo-a',categoria:'BOLETO CLIENTE'});
+ const one=buildPedidosFTDossier(data,'c1');
+ assert(one.clients[0].documents.some(x=>x.id==='bol-a'));
+ assert(!one.clients[1].documents.some(x=>x.id==='bol-a'));
+ assert(!buildPedidosFTDossier(data,'c2').documents.some(x=>x.id==='bol-a'));
+});

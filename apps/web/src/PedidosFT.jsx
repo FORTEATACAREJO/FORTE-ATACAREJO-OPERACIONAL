@@ -67,13 +67,16 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,busy=false}) {
+export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,busy=false}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
  const [pendingFilter,setPendingFilter]=useState('');
  const pendingLoads=useMemo(()=>cargas.map(c=>({id:c.id,keys:dossierPending(buildPedidosFTDossier(data,c.id))})),[data,cargas]);
  const [scrollField,setScrollField]=useState(null);
+ const [syncStatus,setSyncStatus]=useState('');
+ const [syncBusy,setSyncBusy]=useState(false);
+ const synced=useRef(new Set());
  useEffect(()=>{if(!loadView&&scrollField){document.getElementById('ft-campo-'+scrollField)?.scrollIntoView?.({block:'start'});setScrollField(null);}},[loadView,scrollField,selection]);
  const loadHeading=useRef(null);
  useEffect(()=>{
@@ -83,6 +86,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  },[loadView]);
  const cargaId=cargas.some(c=>c.id===selection)?selection:(cargas.some(c=>c.id===initialCargaId)?initialCargaId:cargas[0]?.id||'');
  const d=useMemo(()=>buildPedidosFTDossier(data,cargaId),[data,cargaId]);
+ async function syncDocs(id){if(!onSyncSupplierDocs||syncBusy)return;setSyncBusy(true);setSyncStatus('Consultando documentos recebidos…');try{const count=await onSyncSupplierDocs(id);setSyncStatus(count?count+' documento(s) vinculado(s). Aguardam conferência.':'Consulta concluída. Nenhum novo documento com vínculo seguro.');}catch(e){setSyncStatus(e.message||'Consulta indisponível.');}finally{setSyncBusy(false);}}
+ useEffect(()=>{if(!validMaster(currentUser)||!d||d.carga.finalizadaEm||d.carga.status==='CANCELADA'||!onSyncSupplierDocs||synced.current.has(d.carga.id))return;synced.current.add(d.carga.id);syncDocs(d.carga.id);},[d?.carga?.id]);
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
  const go=target=>onGo?.(target,d?.carga?.id||'');
  if(loadView)return <section className="ft-app" aria-label="PEDIDOS FT">
@@ -179,10 +184,16 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   </Panel>
 
   <Panel title="6. Faturamento — Juliana" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
-   <p>Os documentos de cada cliente desta carga aparecerão aqui, após vinculação e conferência.</p>
-   <DocList docs={customerDocs} onOpenDocument={onOpenDocument}/>
+   <h4>Documentos do fornecedor — recebimento automático</h4>
+   {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
+   {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Consultar documentos do fornecedor</button>}
+   {syncStatus&&<p role="status">{syncStatus}</p>}
+   <h4>Boletos dos clientes — anexar manualmente</h4>
+   {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
+   {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&<label className="ow-upload">Anexar boletos — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:'BOLETO CLIENTE'});}}/></label>}</div>)}<DocList docs={client.documents.filter(doc=>doc.categoria==='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/></div>)}
+   {customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE').length>0&&<DocList docs={customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/>}
    <button type="button" className="ft-outline" onClick={()=>go('cargas')}>Conferir documentos e faturamento</button>
-   <p className="ft-hint">Login próprio, envio de boletos e ações fiscais serão habilitados somente depois das validações de autorização por carga.</p>
+   <p className="ft-hint">Anexar não emite, paga ou envia boleto. Login próprio da Juliana depende da validação de permissões por carga.</p>
   </Panel>
 
   <Panel title="7. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
