@@ -4,6 +4,7 @@ import {buildPedidosFTDossier} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
 import './pedidos-ft.css';
 import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
+import DriverIntake from './DriverIntake.jsx';
 
 const number=n=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -41,7 +42,32 @@ function Field({label,value}){return <div className="ft-field"><span>{label}</sp
 function Pill({children,tone='neutral'}){return <span className={'ft-pill ft-'+tone}>{children}</span>;}
 function DocList({docs,onOpenDocument}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button></li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
 
-export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId=''}) {
+function PedroClosing({data,carga,order}){
+ const recipient=data.settings?.pedidoPreviaInterna;
+ const phone=String(recipient?.whatsapp||'').replace(/\D/g,'');
+ const valid=/^55\d{11}$/.test(phone);
+ const [open,setOpen]=useState(false);
+ const os=order?.numero||carga.numeroOS||'OS não vinculada';
+ const message='FORTE ATACAREJO — Dossiê para conferência interna: '+os+'\nFornecedor: '+(carga.fornecedor||'A conferir')+'\nMotorista: '+(carga.motorista||'A definir')+'\nSegue o relatório da carga para conferência. Anexo PDF a incluir manualmente.';
+ return <><button type="button" className="ft-primary" onClick={()=>setOpen(v=>!v)}>Enviar para Pedro</button>{open&&<section aria-label="Enviar dossiê ao Pedro"><p>Conferência interna — {os}. Não encerra a carga nem registra envio automático.</p><button type="button" onClick={()=>loadReport(data,carga).save(os+'-DOSSIE.pdf')}>Baixar PDF do dossiê</button>{valid?<a className="ft-outline" href={'https://wa.me/'+phone+'?text='+encodeURIComponent(message)} target="_blank" rel="noopener noreferrer">Abrir WhatsApp de Pedro</a>:<p role="alert">WhatsApp do Pedro não configurado em prévia interna.</p>}<p>Anexe o PDF na conversa e confirme o envio.</p><button type="button" className="ft-outline" onClick={()=>setOpen(false)}>Fechar envio</button></section>}</>;
+}
+function DriverChange({carga,options=[],onSave,busy}){
+ const [open,setOpen]=useState(false),[id,setId]=useState(''),[query,setQuery]=useState(''),[error,setError]=useState('');
+ const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const locked=carga.finalizadaEm||carga.fretePublicadaId||carga.ordemEnviadaEm||carga.status==='CANCELADA';
+ return <div className="ow-actions"><button type="button" className="ft-outline" disabled={busy||!!locked} aria-expanded={open} onClick={()=>{setId('');setQuery('');setError('');setOpen(v=>!v);}}>Alterar motorista</button>
+ {locked&&<small className="ft-hint">Carga enviada ou encerrada: revise a operação antes de trocar o motorista.</small>}
+ {open&&!locked&&<div className="ow-preview" role="region" aria-label="Alterar motorista da carga">
+ <label>Buscar motorista<input aria-label="Buscar motorista para esta carga" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+ <label>Novo motorista<select aria-label="Novo motorista da carga" value={id} onChange={e=>setId(e.target.value)}><option value="">Selecione...</option>{options.filter(o=>o.value!==carga.motoristaId&&(o.value===id||normalize(o.search||o.label).includes(normalize(query)))).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+ <p className="ft-hint">Mantém a mesma OS. Motoristas com pendências liberadas podem ser previstos na carga; para expedição, confira documentos, veículo e capacidade. A ordem deverá ser conferida novamente.</p>
+ {error&&<p role="alert">{error}</p>}
+ <button type="button" className="ft-primary" disabled={busy||!id} onClick={async()=>{setError('');try{await onSave(carga,id);setOpen(false);}catch(e){setError(e.message||'Não foi possível alterar o motorista.');}}}>Salvar novo motorista</button>
+ <button type="button" className="ft-outline" disabled={busy} onClick={()=>setOpen(false)}>Cancelar alteração</button>
+ </div>}</div>;
+}
+
+export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,busy=false}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -103,7 +129,9 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
 
   <Panel title="3. Motorista e carregamento" aside={<button type="button" className="ft-text-button" onClick={()=>go('ordem')}>Abrir ordem</button>}>
    <Field label="Motorista" value={driver?.nome||c.motorista}/>
-   <Field label="Placas" value={(c.placas||[]).join(' / ')||driver?.placa1}/>
+   {onChangeDriver&&<DriverChange key={c.id} carga={c} options={driverOptions} onSave={onChangeDriver} busy={busy}/> }
+   {driver&&<DriverIntake key={driver.id} driver={driver}/>}
+   <Field label="Placas" value={(c.placas||[]).join(' / ')||(driver?.documentosConferidos===false?'':driver?.placa1)}/>
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
    <Field label="Origem da ordem" value={c.localCarregamento||c.origem}/>
    <p className="ft-hint">Dados de Pix permanecem protegidos no FORTE FRETE e não são exibidos nesta consulta inicial.</p>
@@ -148,6 +176,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="7. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
    <DocList docs={supplierDocs} onOpenDocument={onOpenDocument}/>
+   <PedroClosing key={c.id} data={data} carga={c} order={order}/>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
   </Panel>
