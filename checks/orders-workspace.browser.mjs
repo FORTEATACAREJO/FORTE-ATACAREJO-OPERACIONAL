@@ -24,7 +24,9 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').count(),1);
  assert.match(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').first().innerText(),/^OS-000001 • CSN/);
  const actualLoadCode=await page.evaluate(()=>window.fixtureState.cargas[0].codigo);
- assert(await page.getByText('Código interno da carga: '+actualLoadCode+' — não é o número da OS.',{exact:true}).isVisible());
+ assert.equal(await page.getByText('Código interno da carga: '+actualLoadCode+' — não é o número da OS.',{exact:true}).count(),0);
+ assert.equal(await page.getByLabel('Protocolo do pedido',{exact:true}).count(),0);
+ assert(!((await page.locator('.ft-overview').innerText()).includes(actualLoadCode)));
  assert(await page.getByText('Rascunho gravado. Pedido não enviado; carregamento não iniciado por este registro.',{exact:true}).isVisible());
  assert.equal(await page.evaluate(()=>window.fixtureState.comprasFornecedor.length),1);
  assert.equal(await page.getByRole('heading',{name:'2. Paletes da carga'}).count(),1);
