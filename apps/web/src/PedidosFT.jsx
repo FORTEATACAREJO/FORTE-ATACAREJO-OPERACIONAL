@@ -122,7 +122,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
   <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
 
-  <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra e paletes','Motorista','Clientes','Conciliação','Faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
+  <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra e paletes','Motorista','Clientes','Conciliação e faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
   <Panel title="1. Compra, fornecedor e paletes" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor',1)}>Abrir compra</button>}>
    <Field label="Fornecedor" value={supplier?.nome||c.fornecedor}/>
    <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
@@ -167,7 +167,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    </div>):<p className="ft-hint">Ainda não há clientes atribuídos a esta carga.</p>}
   </Panel>
 
-  <Panel title="4. Conciliação por produto" aside={<Pill tone={statusTone}>{r.status}</Pill>}>
+  <Panel title="4. Conciliação e faturamento — Juliana" aside={<Pill tone={statusTone}>{r.status}</Pill>}>
+   <h4>Conciliação por produto</h4>
    <div className="ft-numbers">
     <div><small>Comprado</small><strong>{number(r.comprado)}</strong></div>
     <div><small>Vendido</small><strong>{number(r.distribuido)}</strong></div>
@@ -175,9 +176,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    </div>
    {r.details.map(item=><div className="ft-line" key={item.produtoId}><span>{item.produto}</span><b>{number(item.comprado)} / {number(item.distribuido)} • saldo {number(item.saldo)}</b></div>)}
    <p className="ft-hint">O status verde confere a distribuição comercial por produto. Não equivale a nota fiscal autorizada ou boleto pago.</p>
-  </Panel>
-
-  <Panel title="Resumo financeiro da carga" aside={<Pill tone={finance.completo&&r.status==='CONCILIADA'?'good':'warn'}>{finance.modalidadeFrete}</Pill>}>
+   <div className="ft-subsection"><div className="ft-subsection-heading"><h4>Resumo financeiro da carga</h4><Pill tone={finance.completo&&r.status==='CONCILIADA'?'good':'warn'}>{finance.modalidadeFrete}</Pill></div>
    <Field label="Vendas de mercadorias" value={finance.receitaVendas===null?'Pendente':money(finance.receitaVendas)}/>
    <Field label="Compra do fornecedor" value={finance.custoFornecedor===null?'Pendente':money(finance.custoFornecedor)}/>
    <Field label="Diferença antes do frete" value={finance.diferencaAntesFrete===null?'Pendente':money(finance.diferencaAntesFrete)}/>
@@ -187,9 +186,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    {finance.statusFrete==='INCLUSO_NO_PRECO'&&<p className="ft-hint">Frete CIF já incluído no custo do fornecedor: não descontar duas vezes.</p>}
    {finance.statusFrete==='MODALIDADE_PENDENTE'&&<p className="ft-warning">Modalidade do frete ainda não definida; resultado pendente.</p>}
    <p className="ft-hint">Estimativa comercial antes de impostos, despesas e conciliação de pagamentos. Não equivale a lucro líquido.</p>
-  </Panel>
-
-  <Panel title="5. Faturamento — Juliana" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
+   </div>
+   <div className="ft-subsection"><div className="ft-subsection-heading"><h4>Faturamento — Juliana</h4><Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill></div>
    <h4>Documentos do fornecedor — recebimento automático</h4>
    {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
    {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Consultar documentos do fornecedor</button>}
@@ -198,21 +196,22 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
    {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&<label className="ow-upload">Anexar boletos — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:'BOLETO CLIENTE'});}}/></label>}</div>)}<DocList docs={client.documents.filter(doc=>doc.categoria==='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/></div>)}
    {customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE').length>0&&<DocList docs={customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/>}
-   {onValidateDocument&&<p className="ft-hint">A conferência dos arquivos ocorre no campo 6 desta mesma OS.</p>}
+   {onValidateDocument&&<p className="ft-hint">A conferência dos arquivos ocorre no campo 5 desta mesma OS.</p>}
    <p className="ft-hint">Anexar não emite, paga ou envia boleto. Login próprio da Juliana depende da validação de permissões por carga.</p>
+   </div>
   </Panel>
 
-  <Panel title="6. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
+  <Panel title="5. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
    <DocList docs={documents} onOpenDocument={onOpenDocument} onValidate={onValidateDocument&&!c.finalizadaEm&&c.status!=='CANCELADA'?doc=>onValidateDocument(c.id,doc):undefined}/>
    <PedroClosing key={c.id} data={data} carga={c} order={order}/>
    {onFinalize&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onFinalize(c.id)}>Conferir fechamento / solicitar confirmação</button>}
-   <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',6)}>Ajustes e comprovantes da carga</button></details>
+   <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',5)}>Ajustes e comprovantes da carga</button></details>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
   </Panel>
 
-  <Panel title="7. Histórico desta carga">
+  <Panel title="6. Histórico desta carga">
    {timeline.length?<ol className="ft-timeline">{timeline.map((event,i)=><li key={i}><time>{when(event.when)}</time><span>{event.label}</span></li>)}</ol>:<p className="ft-hint">Nenhum evento com data registrada para esta carga.</p>}
   </Panel>
   <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((order?.numero||c.numeroOS||'OS-NAO-VINCULADA')+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Painel de cargas</button></div>
