@@ -26,3 +26,14 @@ export function identifyFile(bytes){
  throw Error('Use fotos JPG, PNG, WEBP ou documento PDF.');
 }
 export function validToken(t){return typeof t==='string'&&/^[a-f0-9]{64}$/.test(t)}
+
+export function validateScope(scope){
+ if(scope==null)return null;
+ if(typeof scope!=='object'||Array.isArray(scope)||Object.keys(scope).some(k=>!['fields','documents'].includes(k))||!Array.isArray(scope.fields)||!Array.isArray(scope.documents)||scope.fields.some(k=>typeof k!=='string'||!Object.hasOwn(fields,k))||scope.documents.some(k=>typeof k!=='string'||!Object.hasOwn(documents,k))||!scope.fields.length&&!scope.documents.length)throw Error('Selecione as pendências a solicitar.');
+ return {fields:[...new Set(scope.fields)],documents:[...new Set(scope.documents)]};
+}
+export function scopeAllows(scope,kind,key){return scope==null||scope[kind].includes(key);}
+export function suggestedFields(driver){
+ const values={nome:driver.nome,cpf:driver.cpf,whatsapp:driver.whatsapp||driver.telefone,cnh:driver.cnhNumero||driver.cnh,categoria:driver.cnhCategoria||driver.categoria_cnh,validade:driver.cnhValidade||driver.validade_cnh};
+ return Object.keys(values).filter(k=>!String(values[k]||'').trim()||(['cpf','cnh'].includes(k)&&String(values[k]).replace(/\D/g,'').length!==11));
+}
