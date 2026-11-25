@@ -1,9 +1,9 @@
 import {useState} from 'react';
 import {loadReport,reportPDF} from './orders-reports';
 
-const statuses=['Em andamento','Finalizadas','Canceladas'];
+const statuses=['Em andamento','Finalizadas','Canceladas','Rascunhos'];
 const searchKey=value=>String(value??'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
-const loadStatus=load=>load.status==='CANCELADA'?statuses[2]:load.finalizadaEm?statuses[1]:statuses[0];
+const loadStatus=(load,order)=>load.status==='CANCELADA'?statuses[2]:load.finalizadaEm?statuses[1]:String(order?.status||'').startsWith('RASCUNHO')?statuses[3]:statuses[0];
 const reference=load=>load.codigo||load.id;
 
 export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
@@ -20,19 +20,20 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
    supplier:load.fornecedor||suppliers.get(load.fornecedorId)||order?.fornecedor,
    official:load.numeroPedidoFornecedor||order?.numeroPedidoFornecedor,
    protocol:load.protocolo||order?.protocolo,
-   status:loadStatus(load),
+   os:order?.numero||load.numeroOS,
+   status:loadStatus(load,order),
   };
  });
  const term=searchKey(query);
- const filtered=records.filter(({load,supplier,official,protocol,status:current})=>
+ const filtered=records.filter(({load,supplier,official,protocol,os,status:current})=>
   (!status||status===current)&&
-  searchKey([reference(load),supplier,official,protocol,load.motorista].join(' ')).includes(term)
+  searchKey([os,reference(load),supplier,official,protocol,load.motorista].join(' ')).includes(term)
  );
  function downloadSummary(){
   const sections=statuses.map(title=>({
    title,
-   rows:filtered.filter(record=>record.status===title).map(({load,supplier,official})=>
-    [reference(load),supplier,official&&'Pedido '+official,load.fase].filter(Boolean).join(' • ')
+   rows:filtered.filter(record=>record.status===title).map(({load,supplier,official,os})=>
+    [os&&'Nossa OS '+os,'Carga '+reference(load),supplier,official&&'Pedido '+official,load.fase].filter(Boolean).join(' • ')
    ),
   })).filter(section=>section.rows.length);
   reportPDF('RESUMO DE CARGAS — PEDIDOS FT',sections).save('PEDIDOS-FT-CARGAS.pdf');
@@ -48,9 +49,10 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
   <p className="ft-hint">{filtered.length} de {records.length} cargas</p>
   {showReports&&<button type="button" className="ft-primary" disabled={!filtered.length} onClick={downloadSummary}>Baixar resumo das cargas em PDF</button>}
   {filtered.length?<ul className="ft-doc-list ft-load-list">
-   {filtered.map(({load,supplier,official,protocol,status:current})=><li key={load.id}>
+   {filtered.map(({load,supplier,official,protocol,os,status:current})=><li key={load.id}>
     <div>
-     <b>{reference(load)}{supplier&&' · '+supplier}</b>
+     <b>{os||reference(load)}{supplier&&' · '+supplier}</b>
+     {os&&<small>Código interno da carga: {reference(load)}</small>}
      <span>{current}{load.fase&&' · '+load.fase}</span>
      {official&&<small>Pedido oficial {official}</small>}
      {protocol&&<small>Protocolo {protocol}</small>}
