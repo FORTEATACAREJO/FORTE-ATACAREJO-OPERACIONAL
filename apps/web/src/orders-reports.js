@@ -18,8 +18,9 @@ export function loadReport(data,c){
  const d=buildPedidosFTDossier(data,c.id);
  const f=d?.finance;
  const amount=n=>n===null||n===undefined?'Pendente':money(n);
- return reportPDF('DOSSIÊ DA CARGA • '+c.codigo,[
- {title:'Carga e pedido',rows:[c.codigo+' • '+c.fase,'Nossa OS: '+(c.numeroOS||'Não vinculada'),'Protocolo: '+(c.protocolo||'Aguardando motorista'),'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Pagamento: '+(c.condicaoFornecedor||'Não registrado'),'Vencimentos previstos: '+(paymentScheduleText(c)||'Não registrados'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
+ const os=(data.comprasFornecedor||[]).find(o=>o.id===c.compraFornecedorId||o.cargaId===c.id)?.numero||c.numeroOS||c.codigo;
+ return reportPDF('DOSSIÊ DA CARGA • '+os,[
+ {title:'Carga e pedido',rows:['Nossa referência: '+os+' • '+c.fase,'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Pagamento: '+(c.condicaoFornecedor||'Não registrado'),'Vencimentos previstos: '+(paymentScheduleText(c)||'Não registrados'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
  {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
  {title:'Resumo financeiro da carga',rows:f?[
   'Modalidade de frete: '+f.modalidadeFrete,
