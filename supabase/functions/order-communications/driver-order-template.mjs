@@ -56,7 +56,6 @@ export function driverLoadingOrderDocument(jsPDF,order){
  text(official,margin,62,{size:14.7,bold:true,width:116,maxLines:2});
  text('NOSSA OS',198,53,{size:8,bold:true,color:palette.slate,align:'right'});
  text(os,198,62,{size:11.3,bold:true,width:70,align:'right'});
- text('Código da carga: '+val(order.codigo||order.codigoCarga,'—'),margin,71,{size:8,color:palette.slate});
  text('Emissão: '+fmtDate(order.criadaEm||order.createdAt),198,71,{size:8,color:palette.slate,align:'right'});
  doc.setDrawColor(...palette.line);doc.line(margin,75,maxX,75);
  let y=stripe(79,'Fornecedor e local de retirada');
