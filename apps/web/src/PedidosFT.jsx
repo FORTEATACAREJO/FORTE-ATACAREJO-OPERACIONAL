@@ -80,6 +80,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  const [syncStatus,setSyncStatus]=useState('');
  const [syncBusy,setSyncBusy]=useState(false);
  const synced=useRef(new Set());
+ const syncLock=useRef(false);
+ const activeCarga=useRef('');
  useEffect(()=>{if(!loadView&&scrollField){document.getElementById('ft-campo-'+scrollField)?.scrollIntoView?.({block:'start'});setScrollField(null);}},[loadView,scrollField,selection]);
  const loadHeading=useRef(null);
  useEffect(()=>{
@@ -89,9 +91,10 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  },[loadView]);
  const cargaId=cargas.some(c=>c.id===selection)?selection:(cargas.some(c=>c.id===initialCargaId)?initialCargaId:cargas[0]?.id||'');
  const d=useMemo(()=>buildPedidosFTDossier(data,cargaId),[data,cargaId]);
+ activeCarga.current=cargaId;
  useEffect(()=>{if(cargaId&&cargaId!==initialCargaId)onSelectCarga?.(cargaId);setSaleToLink('');setSyncStatus('');},[cargaId]);
- async function syncDocs(id){if(!onSyncSupplierDocs||syncBusy)return;setSyncBusy(true);setSyncStatus('Consultando documentos recebidos…');try{const count=await onSyncSupplierDocs(id);setSyncStatus(count?count+' documento(s) vinculado(s). Aguardam conferência.':'Consulta concluída. Nenhum novo documento com vínculo seguro.');}catch(e){setSyncStatus(e.message||'Consulta indisponível.');}finally{setSyncBusy(false);}}
- useEffect(()=>{if(!validMaster(currentUser)||!d||d.carga.finalizadaEm||d.carga.status==='CANCELADA'||!onSyncSupplierDocs||synced.current.has(d.carga.id))return;synced.current.add(d.carga.id);syncDocs(d.carga.id);},[d?.carga?.id]);
+ async function syncDocs(id){if(!onSyncSupplierDocs||syncLock.current)return;syncLock.current=true;setSyncBusy(true);setSyncStatus('Consultando documentos recebidos…');try{const count=await onSyncSupplierDocs(id);if(activeCarga.current===id)setSyncStatus(count?count+' documento(s) vinculado(s). Aguardam conferência.':'Consulta concluída. Nenhum novo documento com vínculo seguro.');}catch(e){if(activeCarga.current===id)setSyncStatus(e.message||'Consulta indisponível.');}finally{syncLock.current=false;setSyncBusy(false);}}
+ useEffect(()=>{if(syncBusy||syncLock.current||!validMaster(currentUser)||!d||d.carga.finalizadaEm||d.carga.status==='CANCELADA'||!onSyncSupplierDocs||synced.current.has(d.carga.id))return;synced.current.add(d.carga.id);syncDocs(d.carga.id);},[d?.carga?.id,syncBusy]);
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
  const go=(target,field=0)=>onGo?.(target,d?.carga?.id||'',field);
  const jump=field=>document.getElementById('ft-campo-'+field)?.scrollIntoView?.({block:'start',behavior:'smooth'});
