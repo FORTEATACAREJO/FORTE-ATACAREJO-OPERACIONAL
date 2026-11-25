@@ -181,6 +181,8 @@ test('motorista administrativamente liberado permite rascunho e envio comercial,
  assert.equal(supplierDispatchCapacity(sent,sent.comunicacoes[0]).commercialOnly,true);
  assert.equal(sent.cargas[0].ordemRevisadaEm,undefined);
  const altered=structuredClone(sent);altered.comprasFornecedor[0].destino='Outro';assert.throws(()=>supplierDispatchCapacity(altered,altered.comunicacoes[0]),/alterado/);
+ const prepared=execute(saved,{action:'LOAD_ASSIGN',prepararCadastro:true,cargaId:saved.cargas[0].id,fornecedorId:'f',motoristaId:'m'}).state;
+ assert.equal(prepared.cargas[0].motoristaId,'m');assert.equal(prepared.cargas[0].ordemRevisadaEm,null);assert.deepEqual(prepared.cargas[0].placas,[]);assert.equal(prepared.comprasFornecedor[0].numero,order.numero);assert.equal(prepared.cargas[0].id,saved.cargas[0].id);assert.equal(prepared.motoristas[0].documentosConferidos,false);
  const blocked=structuredClone(sent);blocked.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>supplierDispatchCapacity(blocked,blocked.comunicacoes[0]));
  assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação|não localizado ou inativo/);
  s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação|não localizado ou inativo/);
@@ -188,6 +190,7 @@ test('motorista administrativamente liberado permite rascunho e envio comercial,
 test('aprovação individual admite data ausente quando responsável confirma CNH vigente, mas não admite CNH vencida',()=>{
  const s=base();const review={action:'DRIVER_REVIEW',motoristaId:'m',cpf:'52998224725',cnhNumero:'01234567890',cnhCategoria:'AE',telefone:'34999999999',aprovar:true,documentosConferidos:true,confirmacaoResponsavel:true,referenciaConferencia:'CNH original vigente conferida'};
  const saved=execute(s,review).state;assert.equal(saved.motoristas[0].ativo,true);
+ const withoutObservation=execute(s,{...review,referenciaConferencia:''}).state;assert.equal(withoutObservation.motoristas[0].documentosConferidos,true);assert(withoutObservation.motoristas[0].aprovacaoOperacional.referenciaConferencia);
  assert.throws(()=>execute(s,{...review,cnhValidade:'2025-10-08'}),/vencida/);
  assert.throws(()=>execute(s,{...review,documentosConferidos:false}),/conferência/);
 });
