@@ -24,9 +24,9 @@ const cpfValido=value=>{
 };
 const maskCpf=value=>{const d=digits(value);return d.length===11?`***.${d.slice(3,6)}.${d.slice(6,9)}-**`:'PENDENTE';};
 
-export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false,onDataRefresh,forForm}){
+export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=false,onDataRefresh,forForm,initialView='motoristas',initialDriverId=''}){
  const [query,setQuery]=useState('');
- const [view,setView]=useState('motoristas');
+ const [view,setView]=useState(initialView);
  const [reviewId,setReviewId]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [legacy,setLegacy]=useState([]),[existing,setExisting]=useState([]),[vehicles,setVehicles]=useState([]);
@@ -203,6 +203,6 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {legacyRows.length===0&&<p>Nenhum cadastro antigo corresponde à busca.</p>}</section>}
   {isAdmin&&<ForteOpMigrationAudit/>}
  </>}
- {view==='veiculos'&&<FleetLinkManager drivers={data?.motoristas||[]} isAdmin={isAdmin}/>}
+ {view==='veiculos'&&<FleetLinkManager drivers={data?.motoristas||[]} isAdmin={isAdmin} initialDriverId={initialDriverId}/>}
  </section></div>;
 }
