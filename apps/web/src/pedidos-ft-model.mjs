@@ -1,4 +1,5 @@
 import {supplierPalletRule,SUPPLIER_PALLET_OPTIONS} from './supplier-pallet-preferences.mjs';
+import {documentStatus} from '../../../supabase/functions/orders-workflow/domain.mjs';
 import {financialSummary} from './pedidos-ft-finance.mjs';
 
 const rows=(state,key)=>Array.isArray(state?.[key])?state[key]:[];
@@ -79,4 +80,24 @@ export function buildPedidosFTDossier(state,cargaId){
   pallets:{rule,label:palletLabel(rule),quantity:pallets,status:palletStatus,needsRelease:requested&&!evidence},
   timeline:timeline.slice(0,30)
  };
+}
+
+export const pendingTypes=[
+ ['fornecedor','Aguardando fornecedor',1],['motorista','Motorista ou documentos pendentes',3],['veiculo','Veículo a definir',3],['ordem','Ordem de carregamento pendente',3],['saldo','Mercadoria disponível para venda',5],['faturamento','Documentos fiscais pendentes',6],['frete','Frete pendente',7],['fechamento','Conferência do fechamento',7],['finalizada','Finalizadas',8],['cancelada','Canceladas',8]
+];
+export function dossierPending(d){
+ if(!d)return [];
+ const {carga:c,driver,order,reconciliation,finance,pallets,sales}=d;
+ if(isCancelled(c))return ['cancelada'];if(c.finalizadaEm)return ['finalizada'];
+ const keys=[];
+ if(!String(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||'').trim())keys.push('fornecedor');
+ if(!driver||driver.ativo!==true||driver.documentosConferidos!==true)keys.push('motorista');
+ if(!(c.placas||[]).some(Boolean))keys.push('veiculo');
+ if(!c.ordemRevisadaEm||!c.ordemMotoristaEnviada||pallets.needsRelease)keys.push('ordem');
+ if(c.destinoTipo!=='GALPÃO'&&reconciliation.details.some(i=>i.saldo>0))keys.push('saldo');
+ const docsState={documentos:d.documents,comunicacoes:d.communications};
+ if(['XML NF','PDF NF','BOLETO FORNECEDOR','NF PALLETS'].some(t=>!['VALIDADO','NÃO SE APLICA'].includes(documentStatus(docsState,c,t))))keys.push('faturamento');
+ if(finance.statusFrete==='FRETE_PENDENTE'||finance.statusFrete==='MODALIDADE_PENDENTE'||c.modalidadeFrete==='FOB'&&!['VALIDADO','NÃO SE APLICA'].includes(documentStatus(docsState,c,'COMPROVANTE FRETE')))keys.push('frete');
+ if(!keys.length&&c.destinoTipo!=='A DEFINIR'&&(c.destinoTipo!=='VENDA DIRETA'||reconciliation.status==='CONCILIADA'))keys.push('fechamento');
+ return keys;
 }
