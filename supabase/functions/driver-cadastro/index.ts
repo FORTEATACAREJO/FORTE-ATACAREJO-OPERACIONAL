@@ -21,6 +21,9 @@ async function admin(req:Request){
  const u=await db.auth.getUser(jwt);if(u.error||!u.data.user)throw new Fault(401,'Sessão inválida.');
  const p=check(await db.from('fc_perfis').select('user_id,empresa_id,perfil,ativo,trocar_senha,status_aprovacao').eq('user_id',u.data.user.id).maybeSingle());
  if(!p||!p.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!['MASTER','ADMINISTRADOR'].includes(p.perfil))throw new Fault(403,'Acesso restrito à administração.');
+ const scoped=createClient(url,Deno.env.get('SUPABASE_ANON_KEY')!,{global:{headers:{Authorization:'Bearer '+jwt}},auth:{persistSession:false,autoRefreshToken:false}});
+ const gate=await scoped.rpc('access_current_module',{p_app:'vendas'});if(gate.error||!gate.data?.allowed||!['MASTER','ADMINISTRADOR'].includes(gate.data.role))throw new Fault(403,'Acesso administrativo não autorizado para este módulo.');
+ const permission=await scoped.rpc('fc_operacao_autorizada');if(permission.error||permission.data!==true)throw new Fault(403,'Aplicativo sem aprovação operacional.');
  return p;
 }
 async function linkFor(req:Request){
