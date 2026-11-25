@@ -42,7 +42,23 @@ function Field({label,value}){return <div className="ft-field"><span>{label}</sp
 function Pill({children,tone='neutral'}){return <span className={'ft-pill ft-'+tone}>{children}</span>;}
 function DocList({docs,onOpenDocument}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button></li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
 
-export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId=''}) {
+function DriverChange({carga,options=[],onSave,busy}){
+ const [open,setOpen]=useState(false),[id,setId]=useState(''),[query,setQuery]=useState(''),[error,setError]=useState('');
+ const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const locked=carga.finalizadaEm||carga.fretePublicadaId||carga.ordemEnviadaEm||carga.status==='CANCELADA';
+ return <div className="ow-actions"><button type="button" className="ft-outline" disabled={busy||!!locked} aria-expanded={open} onClick={()=>{setId('');setQuery('');setError('');setOpen(v=>!v);}}>Alterar motorista</button>
+ {locked&&<small className="ft-hint">Carga enviada ou encerrada: revise a operação antes de trocar o motorista.</small>}
+ {open&&!locked&&<div className="ow-preview" role="region" aria-label="Alterar motorista da carga">
+ <label>Buscar motorista<input aria-label="Buscar motorista para esta carga" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+ <label>Novo motorista<select aria-label="Novo motorista da carga" value={id} onChange={e=>setId(e.target.value)}><option value="">Selecione...</option>{options.filter(o=>o.value!==carga.motoristaId&&(o.value===id||normalize(o.search||o.label).includes(normalize(query)))).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+ <p className="ft-hint">Mantém a mesma OS. O conjunto e a capacidade serão conferidos no servidor. A ordem deverá ser conferida novamente.</p>
+ {error&&<p role="alert">{error}</p>}
+ <button type="button" className="ft-primary" disabled={busy||!id} onClick={async()=>{setError('');try{await onSave(carga,id);setOpen(false);}catch(e){setError(e.message||'Não foi possível alterar o motorista.');}}}>Salvar novo motorista</button>
+ <button type="button" className="ft-outline" disabled={busy} onClick={()=>setOpen(false)}>Cancelar alteração</button>
+ </div>}</div>;
+}
+
+export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,busy=false}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -105,6 +121,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
 
   <Panel title="3. Motorista e carregamento" aside={<button type="button" className="ft-text-button" onClick={()=>go('ordem')}>Abrir ordem</button>}>
    <Field label="Motorista" value={driver?.nome||c.motorista}/>
+   {onChangeDriver&&<DriverChange key={c.id} carga={c} options={driverOptions} onSave={onChangeDriver} busy={busy}/> }
    <Field label="Placas" value={(c.placas||[]).join(' / ')||driver?.placa1}/>
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
    <Field label="Origem da ordem" value={c.localCarregamento||c.origem}/>
