@@ -40,7 +40,7 @@ function FtOptions({onSelect}){
 function Panel({title,children,aside}){return <section id={/^\d\./.test(title)?'ft-campo-'+title.split('.')[0]:undefined} className="ft-card"><div className="ft-card-heading"><h3>{title}</h3>{aside}</div>{children}</section>;}
 function Field({label,value}){return <div className="ft-field"><span>{label}</span><b>{text(value)}</b></div>;}
 function Pill({children,tone='neutral'}){return <span className={'ft-pill ft-'+tone}>{children}</span>;}
-function DocList({docs,onOpenDocument}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button></li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
+function DocList({docs,onOpenDocument,onValidate}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button>{onValidate&&d.validationStatus!=='VALIDADO'&&<button type="button" className="ft-outline" onClick={()=>onValidate(d)}>Validar</button>}</li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
 
 function PedroClosing({data,carga,order}){
  const recipient=data.settings?.pedidoPreviaInterna;
@@ -67,13 +67,14 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,busy=false}) {
+export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
  const [pendingFilter,setPendingFilter]=useState('');
  const pendingLoads=useMemo(()=>cargas.map(c=>({id:c.id,keys:dossierPending(buildPedidosFTDossier(data,c.id))})),[data,cargas]);
- const [scrollField,setScrollField]=useState(null);
+ const [scrollField,setScrollField]=useState(returnField||null);
+ const [saleToLink,setSaleToLink]=useState('');
  const [syncStatus,setSyncStatus]=useState('');
  const [syncBusy,setSyncBusy]=useState(false);
  const synced=useRef(new Set());
@@ -86,10 +87,12 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  },[loadView]);
  const cargaId=cargas.some(c=>c.id===selection)?selection:(cargas.some(c=>c.id===initialCargaId)?initialCargaId:cargas[0]?.id||'');
  const d=useMemo(()=>buildPedidosFTDossier(data,cargaId),[data,cargaId]);
+ useEffect(()=>{if(cargaId&&cargaId!==initialCargaId)onSelectCarga?.(cargaId);setSaleToLink('');setSyncStatus('');},[cargaId]);
  async function syncDocs(id){if(!onSyncSupplierDocs||syncBusy)return;setSyncBusy(true);setSyncStatus('Consultando documentos recebidos…');try{const count=await onSyncSupplierDocs(id);setSyncStatus(count?count+' documento(s) vinculado(s). Aguardam conferência.':'Consulta concluída. Nenhum novo documento com vínculo seguro.');}catch(e){setSyncStatus(e.message||'Consulta indisponível.');}finally{setSyncBusy(false);}}
  useEffect(()=>{if(!validMaster(currentUser)||!d||d.carga.finalizadaEm||d.carga.status==='CANCELADA'||!onSyncSupplierDocs||synced.current.has(d.carga.id))return;synced.current.add(d.carga.id);syncDocs(d.carga.id);},[d?.carga?.id]);
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
- const go=target=>onGo?.(target,d?.carga?.id||'');
+ const go=(target,field=0)=>onGo?.(target,d?.carga?.id||'',field);
+ const jump=field=>document.getElementById('ft-campo-'+field)?.scrollIntoView?.({block:'start',behavior:'smooth'});
  if(loadView)return <section className="ft-app" aria-label="PEDIDOS FT">
   <header className="ft-top">
    <FtTitle heading={loadHeading} subtitle={loadView==='relatorios'?'Relatórios':'Todas as cargas'}/>
@@ -103,7 +106,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    setLoadView(null);
   }}/>
  </section>;
- if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
+ if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
  const supplierDocs=documents.filter(doc=>!doc.clienteId&&!doc.vendaId);
  const customerDocs=documents.filter(doc=>doc.clienteId||doc.vendaId);
@@ -112,12 +115,13 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  return <section className="ft-app ft-overview" aria-label="PEDIDOS FT">
   <header className="ft-top">
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
-   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={setLoadView}/></div>
+   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
   </header>
-  <section className="ft-card" aria-label="Central de pendências"><div className="ft-card-heading"><h3>Central de pendências</h3><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button></div><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></section>
+  <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
   <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
 
-  <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
+  <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra','Paletes','Motorista','Clientes','Conciliação','Faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
+  <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor',1)}>Abrir compra</button>}>
    <Field label="Fornecedor" value={supplier?.nome||c.fornecedor}/>
    <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
@@ -127,18 +131,20 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <h4>Produtos comprados</h4>
    {items.map((item,i)=><div className="ft-line" key={item.produtoId||i}><span>{text(item.produto)}</span><b>{number(item.qtd)} sacos</b></div>)}
    {!items.length&&<p className="ft-hint">Nenhum produto na carga.</p>}
+   {order&&order.status!=='CANCELADO'&&onPurchaseActions?.(order)}
   </Panel>
 
   <Panel title="2. Paletes da carga" aside={<Pill tone={needsPalletAttention?'warn':'good'}>{pallets.label}</Pill>}>
    <Field label="Regra de paletes definida em" value={supplier?.condicaoPaletes?'Cadastro do fornecedor':'Condição do pedido — conferir fornecedor'}/>
    <Field label="Quantidade registrada" value={pallets.quantity===null?'Pendente':number(pallets.quantity)+' paletes'}/>
    <Field label="Situação" value={pallets.status}/>
+   {pallets.needsRelease&&onReleasePallets&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onReleasePallets(c.id)}>Registrar liberação do fornecedor</button>}
    {pallets.needsRelease&&<p className="ft-warning" role="status">Solicitação de paletes: comprovação de liberação do vendedor pendente antes da expedição.</p>}
-   <button type="button" className="ft-outline" onClick={()=>go('ordem')}>Conferir paletes desta carga</button>
+   <button type="button" className="ft-outline" onClick={()=>go('ordem',2)}>Ajustar quantidade de paletes</button>
    {needsPalletAttention&&!pallets.needsRelease&&<p className="ft-warning" role="status">Revise a preferência de paletes no cadastro do fornecedor e confira esta carga.</p>}
   </Panel>
 
-  <Panel title="3. Motorista e carregamento" aside={<button type="button" className="ft-text-button" onClick={()=>go('ordem')}>Abrir ordem</button>}>
+  <Panel title="3. Motorista e carregamento" aside={<button type="button" className="ft-text-button" onClick={()=>go('ordem',3)}>Abrir ordem</button>}>
    <Field label="Motorista" value={driver?.nome||c.motorista}/>
    {onChangeDriver&&<DriverChange key={c.id} carga={c} options={driverOptions} onSave={onChangeDriver} busy={busy}/> }
    {driver&&onLinkVehicle&&<button type="button" className="ft-primary" disabled={busy} onClick={()=>onLinkVehicle(driver.id)}>Vincular motorista e veículo</button>}
@@ -146,14 +152,13 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <Field label="Placas" value={(c.placas||[]).join(' / ')||(driver?.documentosConferidos===false?'':driver?.placa1)}/>
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
    <Field label="Expedição do pedido" value={c.localCarregamento||c.origem}/>
-   <button type="button" className="ft-outline" onClick={()=>go('ordem')}>Selecionar veículo / preparar ordem de carregamento</button>
    {c.ordemRevisadaEm&&onDriverActions?.(c)}
    {!c.ordemRevisadaEm&&<p className="ft-hint">Grave e confira a ordem antes de gerar o PDF ou enviar ao motorista.</p>}
    <p className="ft-hint">Dados de Pix permanecem protegidos no FORTE FRETE e não são exibidos nesta consulta inicial.</p>
   </Panel>
 
-  <Panel title="4. Clientes vinculados" aside={<button type="button" className="ft-text-button" onClick={()=>go('venda')}>Abrir vendas</button>}>
-   <button type="button" className="ft-outline" onClick={()=>go('cargas')}>Vincular vendas existentes à OS</button>
+  <Panel title="4. Clientes vinculados" aside={<button type="button" className="ft-text-button" onClick={()=>go('venda',4)}>Nova venda</button>}>
+   {onLinkSale&&<div className="ft-client"><label>Vincular venda à OS<select aria-label="Vincular venda à OS" value={saleToLink} onChange={e=>setSaleToLink(e.target.value)}><option value="">Selecione uma venda disponível</option>{availableSales.filter(g=>g.rows.every(v=>!v.cargaId||v.cargaId===c.id)&&!g.rows.some(v=>(c.vendaIds||[]).includes(v.id)||v.cargaId===c.id)).map(g=><option key={g.id} value={g.id}>{g.numero} · {g.cliente}</option>)}</select></label><button type="button" className="ft-outline" disabled={!saleToLink||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={async()=>{try{await onLinkSale(c.id,saleToLink);setSaleToLink('');}catch{}}}>Vincular venda selecionada</button></div>}
    {clients.length?clients.map(client=><div className="ft-client" key={client.id}>
     <div className="ft-client-name"><b>{client.nome}</b><small>{[client.cidade,client.uf].filter(Boolean).join(' / ')||'Cidade não cadastrada'}</small></div>
     {client.items.map((item,i)=><div className="ft-client-item" key={item.id||i}><div><span>{text(item.produto)}</span><small>{text(item.condicaoPagamento)}</small>{item.ordemCompraCliente&&<small>OC do cliente: {item.ordemCompraCliente}{item.itemOrdemCompraCliente!=null?' · item '+item.itemOrdemCompraCliente:''}</small>}</div><div className="ft-right"><b>{number(item.qtd)} sacos</b><small>{item.precoUnitario==null?'Preço não informado':money(item.precoUnitario)+' / un.'}</small></div></div>)}
@@ -192,15 +197,16 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
    {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&<label className="ow-upload">Anexar boletos — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:'BOLETO CLIENTE'});}}/></label>}</div>)}<DocList docs={client.documents.filter(doc=>doc.categoria==='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/></div>)}
    {customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE').length>0&&<DocList docs={customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/>}
-   <button type="button" className="ft-outline" onClick={()=>go('cargas')}>Conferir documentos e faturamento</button>
+   {onValidateDocument&&<p className="ft-hint">A conferência dos arquivos ocorre no campo 7 desta mesma OS.</p>}
    <p className="ft-hint">Anexar não emite, paga ou envia boleto. Login próprio da Juliana depende da validação de permissões por carga.</p>
   </Panel>
 
   <Panel title="7. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
-   <DocList docs={supplierDocs} onOpenDocument={onOpenDocument}/>
+   <DocList docs={documents} onOpenDocument={onOpenDocument} onValidate={onValidateDocument&&!c.finalizadaEm&&c.status!=='CANCELADA'?doc=>onValidateDocument(c.id,doc):undefined}/>
    <PedroClosing key={c.id} data={data} carga={c} order={order}/>
-   <button type="button" className="ft-outline" onClick={()=>go('cargas')}>Conferir documentos e fechamento</button>
+   {onFinalize&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onFinalize(c.id)}>Conferir fechamento / solicitar confirmação</button>}
+   <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',7)}>Ajustes e comprovantes da carga</button></details>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
   </Panel>
