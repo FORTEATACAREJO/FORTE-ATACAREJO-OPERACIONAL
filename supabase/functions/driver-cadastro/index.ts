@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
-import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken} from './validation.mjs';
+import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken,validateScope,scopeAllows} from './validation.mjs';
 const origins=new Set(['https://pedidos-ft.onrender.com','https://forte-vendas.onrender.com']);
 const url=Deno.env.get('SUPABASE_URL')!,secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -28,7 +28,7 @@ async function admin(req:Request){
 }
 async function linkFor(req:Request){
  const t=req.headers.get('x-cadastro-token');if(!validToken(t))throw new Fault(403,'Link inválido ou expirado.');
- const l=check(await db.from('fc_driver_intake_links').select('id,empresa_id,expira_em,revogado_em').eq('token_hash',await hash(t!)).maybeSingle());
+ const l=check(await db.from('fc_driver_intake_links').select('id,empresa_id,expira_em,revogado_em,solicitacao').eq('token_hash',await hash(t!)).maybeSingle());
  if(!l||l.revogado_em||Date.parse(l.expira_em)<=Date.now())throw new Fault(403,'Link inválido ou expirado.');
  return l;
 }
@@ -41,15 +41,16 @@ Deno.serve(async(req)=>{
  if(req.method!=='POST')return reply({error:'Método inválido.'},405);
  try{
   const action=req.headers.get('x-cadastro-action');
-  if(action==='CHECK'){await linkFor(req);return reply({ok:true});}
+  if(action==='CHECK'){const l=await linkFor(req);return reply(l.solicitacao?{ok:true,solicitacao:l.solicitacao}:{ok:true});}
   if(action==='SUBMIT'){
    const l=await linkFor(req);
    const body=await readBounded(req),form=await body.formData();
    let data;try{data=validateFields(JSON.parse(String(form.get('dados')||'{}')));}catch(e){throw new Fault(400,e instanceof Error?e.message:'Dados inválidos.');}
+   if(Object.keys(data).some(k=>!scopeAllows(l.solicitacao,'fields',k)))throw new Fault(400,'Envie apenas os dados solicitados.');
    const uploads:any[]=[];const seen=new Set<string>();
    for(const [name,value] of form.entries()){
     if(name==='dados')continue;
-    if(!Object.hasOwn(documents,name)||typeof value==='string'||seen.has(name)||!value.size||value.size>maxFile)throw new Fault(400,'Anexo inválido. Limite de 6 MB por arquivo.');
+    if(!scopeAllows(l.solicitacao,'documents',name)||!Object.hasOwn(documents,name)||typeof value==='string'||seen.has(name)||!value.size||value.size>maxFile)throw new Fault(400,'Anexo inválido. Limite de 6 MB por arquivo.');
     seen.add(name);const bytes=new Uint8Array(await value.arrayBuffer());let kind;try{kind=identifyFile(bytes);}catch(e){throw new Fault(400,(e as Error).message);}
     uploads.push({name,bytes,...kind});
    }
@@ -76,9 +77,10 @@ Deno.serve(async(req)=>{
    const exists=state?.estado?.motoristas?.some((m:any)=>m.id===driverId);
    if(!exists)throw new Fault(404,'Motorista não localizado nesta empresa.');
    if(action==='CREATE'){
+    let solicitacao;try{solicitacao=validateScope(b.solicitacao);}catch(e){throw new Fault(400,(e as Error).message);}
     const t=token(),expiry=new Date(Date.now()+7*86400000).toISOString();
-    const item=check(await db.from('fc_driver_intake_links').insert({empresa_id:p.empresa_id,motorista_id:driverId,criado_por:p.user_id,token_hash:await hash(t),expira_em:expiry}).select('id,expira_em').single());
-    return reply({id:item.id,expiraEm:expiry,link:'https://pedidos-ft.onrender.com/cadastro-motorista.html#'+t});
+    const item=check(await db.from('fc_driver_intake_links').insert({empresa_id:p.empresa_id,motorista_id:driverId,criado_por:p.user_id,token_hash:await hash(t),expira_em:expiry,solicitacao}).select('id,expira_em').single());
+    return reply({id:item.id,expiraEm:expiry,solicitacao,link:'https://pedidos-ft.onrender.com/cadastro-motorista.html#'+t});
    }
    const links=check(await db.from('fc_driver_intake_links').select('id,criado_em,expira_em,revogado_em').eq('empresa_id',p.empresa_id).eq('motorista_id',driverId).order('criado_em',{ascending:false}).limit(30));
    const submissions=links.length?check(await db.from('fc_driver_intake_submissions').select('id,link_id,criado_em,dados,arquivos').in('link_id',links.map((l:any)=>l.id)).eq('status','RECEBIDO').order('criado_em',{ascending:false})):[];return reply({links,submissions});
