@@ -43,6 +43,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
 
  await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');
+ assert.equal(await page.getByLabel('Expedição (origem da carga)',{exact:true}).inputValue(),'Arcos');assert(await page.getByLabel('Expedição (origem da carga)',{exact:true}).evaluate(e=>e.readOnly));
  assert.equal(await page.getByRole('navigation',{name:'Navegação do Pedidos FT'}).count(),1);await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
  await page.getByRole('button',{name:'Novo pedido ao fornecedor',exact:true}).click();
  await page.evaluate(()=>window.disableDrivers());
