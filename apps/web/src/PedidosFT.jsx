@@ -79,22 +79,11 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
    <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={setLoadView}/></div>
   </header>
-  <div className="ft-picker"><label htmlFor="ft-carga">Selecionar carga</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>setSelection(e.target.value)}>{cargas.map(x=><option key={x.id} value={x.id}>{x.codigo||x.id} • {x.fornecedor||'Fornecedor a definir'}</option>)}</select></div>
-  <div className="ft-summary">
-   <div><small>CARGA</small><strong>{text(c.codigo||c.id)}</strong></div>
-   <div><small>FORNECEDOR</small><strong>{text(supplier?.nome||c.fornecedor)}</strong></div>
-   <div><small>PEDIDO OFICIAL</small><strong>{text(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||'Aguardando')}</strong></div>
-  </div>
-  <div className="ft-protocol" aria-label="Protocolo do pedido"><span>PROTOCOLO DO PEDIDO</span><strong>{c.protocolo||order?.protocolo||"Aguardando identificação do motorista"}</strong><small>Primeiro nome do motorista + data do pedido (DDMMAA), tudo junto</small></div>
-  <div className="ft-status">
-   <Pill tone={statusTone}>{r.status==='CONCILIADA'?'Comercial conciliado':r.status==='DIVERGENTE'?'Quantidade divergente':'Comercial em aberto'}</Pill>
-   <Pill tone="warn">Faturamento: conferir</Pill>
-   <Pill tone="neutral">Fechamento: conferir</Pill>
-  </div>
+  <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>setSelection(e.target.value)}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
 
   <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
-   <Field label="Número interno" value={order?.numero||c.codigo}/>
-   <Field label="Protocolo PEDIDOS FT" value={c.protocolo||order?.protocolo||"Aguardando motorista"}/>
+   <Field label="Fornecedor" value={supplier?.nome||c.fornecedor}/>
+   <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
    <Field label="Expedição / retirada" value={c.localCarregamento||c.origem}/>
@@ -166,6 +155,6 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="8. Histórico desta carga">
    {timeline.length?<ol className="ft-timeline">{timeline.map((event,i)=><li key={i}><time>{when(event.when)}</time><span>{event.label}</span></li>)}</ol>:<p className="ft-hint">Nenhum evento com data registrada para esta carga.</p>}
   </Panel>
-  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((c.codigo||c.id)+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>setLoadView('cargas')}>Painel de cargas</button></div>
+  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((order?.numero||c.numeroOS||'OS-NAO-VINCULADA')+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>setLoadView('cargas')}>Painel de cargas</button></div>
  </section>;
 }
