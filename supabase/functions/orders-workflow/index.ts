@@ -1,7 +1,7 @@
 import {freightReceipt} from './freight-receipts.mjs';
 import {findFreightRate,resolveFreightRate} from './freight-rates.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-import { applyWorkflow } from './domain.mjs';
+import { applyWorkflow, matchingSupplierInvoices } from './domain.mjs';
 import { palletReleaseNeeded,mayReadDriverPayment } from './complements.mjs';
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Content-Type':'application/json'};
 Deno.serve(async(req)=>{
@@ -42,6 +42,50 @@ Deno.serve(async(req)=>{
   const permission=await client.rpc('fc_operacao_autorizada');if(permission.error||permission.data!==true)return Response.json({error:'Aplicativo sem aprovação operacional.'},{status:403,headers:cors});
   const stateClient=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const {data:row,error:loadError}=await stateClient.from('fc_app_state').select('estado,versao').eq('empresa_id',p.empresa_id).single();if(loadError||!row)throw new Error('Base não encontrada. Atualize os dados.');
+  if(b.action==='SUPPLIER_DOCS_SYNC'){
+   if(!['MASTER','ADMINISTRADOR'].includes(p.perfil))return Response.json({error:'Conferência de documentos restrita à administração.'},{status:403,headers:cors});
+   const c=(row.estado.cargas||[]).find(x=>x.id===b.cargaId&&x.status!=='CANCELADA');
+   if(!c)throw Error('Carga não localizada.');
+   if(c.finalizadaEm)return Response.json({ok:true,count:0},{headers:cors});
+   const o=(row.estado.comprasFornecedor||[]).find(x=>x.id===c.compraFornecedorId||x.cargaId===c.id);
+   const refs=[...new Set([o?.numero,c.numeroOS,o?.numeroPedidoFornecedor,c.numeroPedidoFornecedor].filter(Boolean))];
+   if(!refs.length)return Response.json({ok:true,count:0},{headers:cors});
+   const xmlSources=[];
+   for(const reference of refs){
+    const query=await stateClient.from('gmail_hub_sources').select('id,file_id,dossier_id,kind,allowed,metadata').eq('empresa_id',p.empresa_id).eq('kind','XML_NFE').eq('allowed',true).contains('metadata',{order_references:[String(reference)]}).limit(100);
+    if(query.error)throw Error('Central de documentos indisponível: '+query.error.message);
+    xmlSources.push(...query.data);
+   }
+   const invoices=matchingSupplierInvoices(row.estado,c.id,[...new Map(xmlSources.map(x=>[x.id,x])).values()]);
+   const ids=[...new Set(invoices.map(x=>x.dossier_id))];
+   if(!ids.length)return Response.json({ok:true,count:0},{headers:cors});
+   const attached=await stateClient.from('gmail_hub_sources').select('id,file_id,dossier_id,filename,kind,allowed,metadata,gmail_date').eq('empresa_id',p.empresa_id).eq('allowed',true).in('dossier_id',ids).in('kind',['XML_NFE','DANFE','BOLETO']).limit(200);
+   if(attached.error)throw Error(attached.error.message);
+   const docs=row.estado.documentos||[],added=[];
+   for(const source of attached.data){
+    const inv=invoices.find(x=>x.dossier_id===source.dossier_id);if(!inv)continue;
+    if(source.kind==='XML_NFE'&&source.id!==inv.id||source.kind==='DANFE'&&source.metadata?.key!==inv.metadata?.key)continue;
+    if(source.kind==='BOLETO'&&(source.metadata?.valid!==true||String(source.metadata?.payer_cnpj)!==String(inv.metadata?.recipient_cnpj)||!inv.metadata?.installments?.some(x=>x.due===source.metadata?.due&&x.amount_cents===source.metadata?.amount_cents)))continue;
+    const cat={XML_NFE:'XML NF',DANFE:'PDF NF',BOLETO:'BOLETO FORNECEDOR'}[source.kind];
+    const file=await stateClient.from('gmail_hub_files').select('hash,storage_path').eq('empresa_id',p.empresa_id).eq('id',source.file_id).maybeSingle();
+    if(file.error)throw Error(file.error.message);
+    if(!file.data?.storage_path||!file.data.hash||docs.concat(added).some(x=>x.gmailSourceId===source.id||x.hash===file.data.hash))continue;
+    added.push({id:crypto.randomUUID(),cargaId:c.id,compraFornecedorId:o?.id||'',categoria:cat,tipo:cat,filename:source.filename,hash:file.data.hash,storageBucket:'forte-gmail-central',storagePath:file.data.storage_path,gmailSourceId:source.id,validationStatus:'RECEBIDO',identificacaoConfirmada:false,origem:'GMAIL — VÍNCULO AUTOMÁTICO',receivedAt:source.gmail_date||new Date().toISOString(),usuario:'GMAIL CENTRAL'});
+   }
+   if(added.length){row.estado.documentos=[...docs,...added];const saved=await stateClient.rpc('fc_gravar_workflow',{p_empresa:p.empresa_id,p_actor:user.id,p_versao:row.versao,p_estado:row.estado});if(saved.error||saved.data!==row.versao+1)throw Error('Os dados mudaram. Atualize e tente novamente.');}
+   return Response.json({ok:true,count:added.length},{headers:cors});
+  }
+  if(b.action==='SUPPLIER_DOC_OPEN'){
+   if(!['MASTER','ADMINISTRADOR'].includes(p.perfil))return Response.json({error:'Acesso restrito à administração.'},{status:403,headers:cors});
+   const doc=(row.estado.documentos||[]).find(x=>x.id===b.documentoId&&x.gmailSourceId&&x.storageBucket==='forte-gmail-central');
+   if(!doc)throw Error('Documento não localizado.');
+   const file=await stateClient.from('gmail_hub_sources').select('file_id').eq('empresa_id',p.empresa_id).eq('id',doc.gmailSourceId).eq('allowed',true).single();
+   if(file.error||!file.data)throw Error('Origem do documento indisponível.');
+   const stored=await stateClient.from('gmail_hub_files').select('hash,storage_path').eq('empresa_id',p.empresa_id).eq('id',file.data.file_id).single();
+   if(stored.error||stored.data?.hash!==doc.hash||stored.data?.storage_path!==doc.storagePath)throw Error('Documento não confere com a origem.');
+   const signed=await stateClient.storage.from('forte-gmail-central').createSignedUrl(stored.data.storage_path,60);if(signed.error)throw Error(signed.error.message);
+   return Response.json(signed.data,{headers:cors});
+  }
   if(b.action==='DRIVER_REPORT_DETAILS'){if(!mayReadDriverPayment(p))return Response.json({allowDriverPayment:false},{headers:cors});const remote=await freteBridge('DRIVER_DETAILS',b.cargaId);return Response.json({allowDriverPayment:true,payment:remote.payment},{headers:cors});}
   if(b.action==='DOCUMENT_ADD'){
    if(!String(b.path||'').startsWith(p.empresa_id+'/'))throw new Error('Arquivo de outra empresa.');
