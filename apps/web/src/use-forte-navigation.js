@@ -18,11 +18,12 @@ export function useForteLayer(name,value,setValue){
  }},[!!value,name]);
  useEffect(()=>{const pop=()=>{if(closing.current){closing.current=false;if(latest.current.value&&!layers().includes(name))pushLayer(name);return;}const open=layers().includes(name);if(!open&&latest.current.value){const event=new Event('forte:before-layer-close',{cancelable:true});window.dispatchEvent(event);if(event.defaultPrevented){window.history.forward();return;}latest.current.setValue(null);}else if(open&&!latest.current.value&&saved.current)latest.current.setValue(saved.current);};const navigate=()=>{if(latest.current.value)latest.current.setValue(null);};window.addEventListener('popstate',pop);window.addEventListener('forte:navigate',navigate);return()=>{window.removeEventListener('popstate',pop);window.removeEventListener('forte:navigate',navigate);};},[name]);
 }
-export function useForteTabs(name,initial,allowed){
- const first=allowed.includes(window.history.state?.forteTabs?.[name])?window.history.state.forteTabs[name]:initial;
+export function useForteTabs(name,initial,allowed,{resetOnMount=false}={}){
+ const first=!resetOnMount&&allowed.includes(window.history.state?.forteTabs?.[name])?window.history.state.forteTabs[name]:initial;
  const [value,setValue]=useState(first);
+ useEffect(()=>{if(resetOnMount){const state=window.history.state||{};window.history.replaceState({...state,forteTabs:{...state.forteTabs,[name]:initial}},'',window.location.href);}},[name,initial,resetOnMount]);
  useEffect(()=>{const pop=()=>setValue(allowed.includes(window.history.state?.forteTabs?.[name])?window.history.state.forteTabs[name]:initial);window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop);},[name,initial]);
- return [value,next=>{if(!allowed.includes(next)||next===value)return;const state=window.history.state||{};window.history.pushState({...state,forteTabs:{...state.forteTabs,[name]:next},forteUIIndex:(state.forteUIIndex||0)+1},'',window.location.href);setValue(next);}];
+ return [value,(next,{replace=false}={})=>{if(!allowed.includes(next)||next===value)return;const state=window.history.state||{};window.history[replace?'replaceState':'pushState']({...state,forteTabs:{...state.forteTabs,[name]:next},forteUIIndex:(state.forteUIIndex||0)+1},'',window.location.href);setValue(next);}];
 }
 
 // Keep view filters in memory, scoped to the authenticated user and route; never credentials or business records.
