@@ -117,7 +117,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
-   <Field label="Expedição / retirada" value={c.localCarregamento||c.origem}/>
+   <Field label="Expedição (origem da carga)" value={c.localCarregamento||c.origem}/>
    <Field label="Destino" value={c.destino}/>
    <h4>Produtos comprados</h4>
    {items.map((item,i)=><div className="ft-line" key={item.produtoId||i}><span>{text(item.produto)}</span><b>{number(item.qtd)} sacos</b></div>)}
@@ -125,7 +125,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   </Panel>
 
   <Panel title="2. Paletes da carga" aside={<Pill tone={needsPalletAttention?'warn':'good'}>{pallets.label}</Pill>}>
-   <Field label="Origem da regra" value={supplier?.condicaoPaletes?'Cadastro do fornecedor':'Condição do pedido — conferir fornecedor'}/>
+   <Field label="Regra de paletes definida em" value={supplier?.condicaoPaletes?'Cadastro do fornecedor':'Condição do pedido — conferir fornecedor'}/>
    <Field label="Quantidade registrada" value={pallets.quantity===null?'Pendente':number(pallets.quantity)+' paletes'}/>
    <Field label="Situação" value={pallets.status}/>
    {pallets.needsRelease&&<p className="ft-warning" role="status">Solicitação de paletes: comprovação de liberação do vendedor pendente antes da expedição.</p>}
@@ -140,7 +140,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    {driver&&<DriverIntake key={driver.id} driver={driver}/>}
    <Field label="Placas" value={(c.placas||[]).join(' / ')||(driver?.documentosConferidos===false?'':driver?.placa1)}/>
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
-   <Field label="Origem da ordem" value={c.localCarregamento||c.origem}/>
+   <Field label="Expedição do pedido" value={c.localCarregamento||c.origem}/>
    <button type="button" className="ft-outline" onClick={()=>go('ordem')}>Selecionar veículo / preparar ordem de carregamento</button>
    {c.ordemRevisadaEm&&onDriverActions?.(c)}
    {!c.ordemRevisadaEm&&<p className="ft-hint">Grave e confira a ordem antes de gerar o PDF ou enviar ao motorista.</p>}
