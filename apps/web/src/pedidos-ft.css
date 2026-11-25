@@ -35,3 +35,5 @@
 .ft-load-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
 .ft-load-list li{flex-wrap:wrap}
 @media(max-width:520px){.ft-load-filters{grid-template-columns:1fr;gap:0}}
+
+.ft-pending-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;margin:10px 0}.ft-pending-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;min-height:64px;white-space:normal}.ft-pending-grid strong{font-size:1.25rem}.ft-card[id]{scroll-margin-top:18px}
