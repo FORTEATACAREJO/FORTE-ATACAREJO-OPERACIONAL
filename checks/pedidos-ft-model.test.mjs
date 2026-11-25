@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {quantityReconciliation,buildPedidosFTDossier} from '../apps/web/src/pedidos-ft-model.mjs';
+import {quantityReconciliation,buildPedidosFTDossier,dossierPending} from '../apps/web/src/pedidos-ft-model.mjs';
 
 const fixture=()=>({
  cargas:[
@@ -73,4 +73,16 @@ test('ausencia de pedido ou carga e paletes pendentes nao geram aprovacao falsa'
  assert.equal(buildPedidosFTDossier(data,'c1').pallets.status,'REGRA CADASTRADA');
  assert.equal(buildPedidosFTDossier(data,'inexistente'),null);
  assert.equal(quantityReconciliation([],[]).status,'PENDENTE');
+});
+
+test('painel identifica pendências reais e não mistura cargas finalizadas com abertas',()=>{
+ const data=fixture();
+ data.cargas[0].destinoTipo='VENDA DIRETA';
+ data.cargas[0].modalidadeFrete='FOB';
+ data.cargas[0].ordemRevisadaEm=null;
+ data.cargas[1].finalizadaEm='2026-11-25';
+ const pending=dossierPending(buildPedidosFTDossier(data,'c1'));
+ for(const key of ['fornecedor','motorista','veiculo','ordem','faturamento','frete'])assert(pending.includes(key),key);
+ assert(!pending.includes('saldo'));assert.deepEqual(dossierPending(buildPedidosFTDossier(data,'c2')),['finalizada']);
+ data.cargas[0].status='CANCELADA';assert.deepEqual(dossierPending(buildPedidosFTDossier(data,'c1')),['cancelada']);
 });
