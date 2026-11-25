@@ -181,6 +181,8 @@ test('motorista administrativamente liberado permite rascunho e envio comercial,
  assert.equal(supplierDispatchCapacity(sent,sent.comunicacoes[0]).commercialOnly,true);
  assert.equal(sent.cargas[0].ordemRevisadaEm,undefined);
  const altered=structuredClone(sent);altered.comprasFornecedor[0].destino='Outro';assert.throws(()=>supplierDispatchCapacity(altered,altered.comunicacoes[0]),/alterado/);
+ const prepared=execute(saved,{action:'LOAD_ASSIGN',prepararCadastro:true,cargaId:saved.cargas[0].id,fornecedorId:'f',motoristaId:'m'}).state;
+ assert.equal(prepared.cargas[0].motoristaId,'m');assert.equal(prepared.cargas[0].ordemRevisadaEm,null);assert.deepEqual(prepared.cargas[0].placas,[]);assert.equal(prepared.comprasFornecedor[0].numero,order.numero);assert.equal(prepared.motoristas[0].documentosConferidos,false);
  const blocked=structuredClone(sent);blocked.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>supplierDispatchCapacity(blocked,blocked.comunicacoes[0]));
  assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação|não localizado ou inativo/);
  s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação|não localizado ou inativo/);
