@@ -183,6 +183,9 @@ test('motorista administrativamente liberado permite rascunho e envio comercial,
  const altered=structuredClone(sent);altered.comprasFornecedor[0].destino='Outro';assert.throws(()=>supplierDispatchCapacity(altered,altered.comunicacoes[0]),/alterado/);
  const blocked=structuredClone(sent);blocked.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>supplierDispatchCapacity(blocked,blocked.comunicacoes[0]));
  assert.throws(()=>execute(saved,{action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',origem:'Arcos',destino:'Galpão'}),/aguarda aprovação|não localizado ou inativo/);
+ const draft=execute(saved,{...supplier,action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id,motoristaId:'m',prepararCadastro:true}).state;
+ assert.equal(draft.cargas[0].motoristaId,'m');assert.match(draft.cargas[0].fase,/MOTORISTA PREVISTO/);assert.equal(draft.cargas[0].ordemRevisadaEm,null);assert.deepEqual(draft.cargas[0].placas,[]);
+ assert.throws(()=>execute(draft,{...supplier,action:'LOADING_SAVE',cargaId:draft.cargas[0].id,numeroPedidoFornecedor:'TESTE-123',motoristaId:'m',dataCarregamento:'2026-11-25',evidencia:'Teste'}),/aprovação|inativo|não localizado/);
  s.motoristas[0].statusCadastro='INATIVO';assert.throws(()=>execute(s,supplier),/aguarda aprovação|não localizado ou inativo/);
 });
 test('aprovação individual admite data ausente quando responsável confirma CNH vigente, mas não admite CNH vencida',()=>{
