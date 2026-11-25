@@ -21,13 +21,13 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
    if(!form.cpf||!form.cnhNumero||!form.cnhCategoria ) {
     if(approve)throw Error('Complete CPF, CNH e categoria para aprovar.');
    }
-   if(approve&&(!checked||!responsible||reference.trim().length<5))
-    throw Error('É obrigatório conferir os documentos e informar uma referência antes de habilitar.');
+   if(approve&&(!checked||!responsible))
+    throw Error('Confirme a conferência documental e sua responsabilidade antes de habilitar.');
    const {data,error}=await supabase.functions.invoke('orders-workflow',{
     body:{
      action:'DRIVER_REVIEW',requestId:crypto.randomUUID(),motoristaId:driver.id,
      ...form,aprovar:approve,documentosConferidos:checked,
-     confirmacaoResponsavel:responsible,referenciaConferencia:reference.trim()
+     confirmacaoResponsavel:responsible,referenciaConferencia:reference.trim().length>=5?reference.trim():approve?'Confirmação documental registrada pelo responsável autenticado no PEDIDOS FT.':reference.trim()
     }
    });
    if(error||data?.error)throw Error(data?.error||error.message);
@@ -51,18 +51,19 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
      onChange={e=>patch(name,e.target.value)} disabled={busy}/>
    </label>)}
   </div>
-  <label>Referência da conferência documental
-   <textarea aria-label="Referência da conferência documental" rows={2} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Ex.: CNH original conferida presencialmente em 23/11/2026" disabled={busy}/>
+  <label>Observação da conferência (opcional)
+   <textarea aria-label="Referência da conferência documental" rows={2} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Observação adicional, se necessário" disabled={busy}/>
   </label>
   <label className="ft-driver-review-check"><input type="checkbox" checked={checked} disabled={busy}
    onChange={e=>setChecked(e.target.checked)}/> Conferi a CNH original e confirmei que está vigente e que a categoria é compatível com o veículo. A data pode ficar em branco.</label>
   <label className="ft-driver-review-check"><input type="checkbox" checked={responsible} disabled={busy}
    onChange={e=>setResponsible(e.target.checked)}/> Confirmo como responsável que os documentos foram efetivamente verificados.</label>
   <p>O cadastro pode ser ativo sem data de validade informada. A habilitação para transporte exige conferência real por Master/Administrador. Sem vínculo de veículo, não será possível emitir ordem de carregamento.</p>
+  <p className="ft-hint">Ao marcar as duas confirmações, a habilitação fica disponível. O sistema registra automaticamente o responsável e a data; a observação é opcional.</p>
   {feedback&&<p role="alert" className="ft-driver-review-feedback">{feedback}</p>}
   <div className="ft-driver-review-actions">
    <button type="button" disabled={busy} onClick={()=>submit(false)}>SALVAR DADOS CADASTRAIS</button>
-   <button type="button" disabled={busy||!checked||!responsible||reference.trim().length<5} onClick={()=>submit(true)}>CONFIRMAR E HABILITAR MOTORISTA</button>
+   <button type="button" disabled={busy||!checked||!responsible} onClick={()=>submit(true)}>CONFIRMAR E HABILITAR MOTORISTA</button>
    <button type="button" disabled={busy} onClick={onCancel}>VOLTAR AOS MOTORISTAS</button>
   </div>
  </section>;
