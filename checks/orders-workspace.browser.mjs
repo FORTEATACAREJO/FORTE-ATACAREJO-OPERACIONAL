@@ -22,6 +22,9 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
  assert.equal(await page.locator('.ow-tabs').count(),0);
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').count(),1);
+ assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').first().innerText(),'OS-000001');
+ assert.equal(await page.locator('.ft-summary,.ft-protocol,.ft-status').count(),0);
+ assert.equal(await page.getByLabel('Protocolo do pedido',{exact:true}).count(),0);
  assert.equal(await page.getByRole('heading',{name:'2. Paletes da carga'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'6. Faturamento — Juliana'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'7. Fechamento — Pedro'}).count(),1);
