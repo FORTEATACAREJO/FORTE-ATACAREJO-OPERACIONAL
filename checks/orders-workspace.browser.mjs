@@ -42,6 +42,8 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.evaluate(()=>window.disableDrivers());
  await page.getByText('Nenhum motorista habilitado para pedidos',{exact:true}).waitFor();
  assert.equal(await page.getByRole('combobox',{name:'Motorista, CPF ou placa',exact:true}).locator('option').count(),1);
+ assert.equal(await page.getByRole('combobox',{name:'Motorista, CPF ou placa',exact:true}).locator('option').first().innerText(),'Não — definir no carregamento');
+ assert.equal(await page.getByRole('combobox',{name:'Motorista, CPF ou placa',exact:true}).inputValue(),'');
  assert.equal(await page.getByRole('button',{name:'Conferir motoristas',exact:true}).count(),1);
  await page.getByRole('button',{name:'Conferir motoristas',exact:true}).click();
  const driverModal=page.getByRole('dialog',{name:'Motoristas FORTE-OP'});
