@@ -202,11 +202,12 @@ test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir mot
 });
 
  test('ordem de compra externa fica por venda e item sem substituir a OS da carga',()=>{
- const initial=execute(base(),supplier).state;
+ const initial=confirmed();initial.clientes.push({id:'c2',nome:'Outra construtora',limiteCredito:100000});
  const one=execute(initial,{...sale,ordemCompraCliente:'000OC-128',itens:[{...sale.itens[0],qtd:10,itemOrdemCompraCliente:'7'}]}).state;
- const two=execute(one,{...sale,ordemCompraCliente:'OC-999',itens:[{...sale.itens[0],qtd:5}]}).state;
+ const two=execute(one,{...sale,clienteId:'c2',ordemCompraCliente:'OC-999',itens:[{...sale.itens[0],qtd:5}]}).state;
  assert.equal(two.vendas[0].ordemCompraCliente,'000OC-128');assert.equal(two.vendas[0].itemOrdemCompraCliente,7);assert.equal(two.vendas[1].ordemCompraCliente,'OC-999');assert.equal(two.vendas[1].itemOrdemCompraCliente,null);
- assert.equal(two.cargas[0].numeroOS,initial.cargas[0].numeroOS);
+ const linked=execute(execute(two,{action:'SALE_LINK',cargaId:two.cargas[0].id,vendaId:two.vendas[0].grupoPedidoId}).state,{action:'SALE_LINK',cargaId:two.cargas[0].id,vendaId:two.vendas[1].grupoPedidoId}).state;
+ assert.equal(linked.cargas[0].numeroOS,initial.cargas[0].numeroOS);assert.equal(linked.vendas[0].ordemCompraCliente,'000OC-128');assert.equal(linked.vendas[1].ordemCompraCliente,'OC-999');
  assert.throws(()=>execute(initial,{...sale,ordemCompraCliente:'1234567890123456'}),/15 caracteres/);
  assert.throws(()=>execute(initial,{...sale,itens:[{...sale.itens[0],itemOrdemCompraCliente:'2'}]}),/ordem correspondente/);
  });
