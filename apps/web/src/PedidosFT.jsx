@@ -51,7 +51,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  {open&&!locked&&<div className="ow-preview" role="region" aria-label="Alterar motorista da carga">
  <label>Buscar motorista<input aria-label="Buscar motorista para esta carga" value={query} onChange={e=>setQuery(e.target.value)}/></label>
  <label>Novo motorista<select aria-label="Novo motorista da carga" value={id} onChange={e=>setId(e.target.value)}><option value="">Selecione...</option>{options.filter(o=>o.value!==carga.motoristaId&&(o.value===id||normalize(o.search||o.label).includes(normalize(query)))).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
- <p className="ft-hint">Mantém a mesma OS. O conjunto e a capacidade serão conferidos no servidor. A ordem deverá ser conferida novamente.</p>
+ <p className="ft-hint">Mantém a mesma OS. Motoristas com pendências liberadas podem ser previstos na carga; para expedição, confira documentos, veículo e capacidade. A ordem deverá ser conferida novamente.</p>
  {error&&<p role="alert">{error}</p>}
  <button type="button" className="ft-primary" disabled={busy||!id} onClick={async()=>{setError('');try{await onSave(carga,id);setOpen(false);}catch(e){setError(e.message||'Não foi possível alterar o motorista.');}}}>Salvar novo motorista</button>
  <button type="button" className="ft-outline" disabled={busy} onClick={()=>setOpen(false)}>Cancelar alteração</button>
