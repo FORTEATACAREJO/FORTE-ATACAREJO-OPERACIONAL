@@ -4,6 +4,7 @@ import {buildPedidosFTDossier} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
 import './pedidos-ft.css';
 import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
+import {InternalOrderPreview} from './OrderOperations';
 
 const number=n=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -91,6 +92,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <h4>Produtos comprados</h4>
    {items.map((item,i)=><div className="ft-line" key={item.produtoId||i}><span>{text(item.produto)}</span><b>{number(item.qtd)} sacos</b></div>)}
    {!items.length&&<p className="ft-hint">Nenhum produto na carga.</p>}
+   {order&&order.status!=='CANCELADO'&&c.status!=='CANCELADA'&&order.itens?.length>0&&<div className="ow-actions"><InternalOrderPreview order={order} recipient={data.settings?.pedidoPreviaInterna} primary/></div>}
   </Panel>
 
   <Panel title="2. Paletes da carga" aside={<Pill tone={needsPalletAttention?'warn':'good'}>{pallets.label}</Pill>}>
