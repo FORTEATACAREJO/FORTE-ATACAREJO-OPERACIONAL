@@ -88,9 +88,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <div><small>FORNECEDOR</small><strong>{text(supplier?.nome||c.fornecedor)}</strong></div>
    <div><small>PEDIDO OFICIAL DO FORNECEDOR</small><strong>{text(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||(draft?'Ainda não enviado':'Aguardando'))}</strong></div>
   </div>
-  <p className="ft-hint">Código interno da carga: {c.codigo||c.id} — não é o número da OS.</p>
   {draft&&<p className="ft-warning" role="status">Rascunho gravado. Pedido não enviado; carregamento não iniciado por este registro.</p>}
-  <div className="ft-protocol" aria-label="Protocolo do pedido"><span>PROTOCOLO DO PEDIDO</span><strong>{c.protocolo||order?.protocolo||"Aguardando identificação do motorista"}</strong><small>Primeiro nome do motorista + data do pedido (DDMMAA), tudo junto</small></div>
   <div className="ft-status">
    <Pill tone={draft?'warn':statusTone}>{draft?'Rascunho — não enviado':r.status==='CONCILIADA'?'Comercial conciliado':r.status==='DIVERGENTE'?'Quantidade divergente':'Comercial em aberto'}</Pill>
    <Pill tone="warn">Faturamento: conferir</Pill>
@@ -99,7 +97,6 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
 
   <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
    <Field label="Nossa OS" value={os||"Sem OS"}/>
-   <Field label="Protocolo PEDIDOS FT" value={c.protocolo||order?.protocolo||"Aguardando motorista"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
    <Field label="Expedição / retirada" value={c.localCarregamento||c.origem}/>
@@ -171,6 +168,6 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
   <Panel title="8. Histórico desta carga">
    {timeline.length?<ol className="ft-timeline">{timeline.map((event,i)=><li key={i}><time>{when(event.when)}</time><span>{event.label}</span></li>)}</ol>:<p className="ft-hint">Nenhum evento com data registrada para esta carga.</p>}
   </Panel>
-  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((c.codigo||c.id)+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>setLoadView('cargas')}>Painel de cargas</button></div>
+  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((os||c.codigo||c.id)+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>setLoadView('cargas')}>Painel de cargas</button></div>
  </section>;
 }
