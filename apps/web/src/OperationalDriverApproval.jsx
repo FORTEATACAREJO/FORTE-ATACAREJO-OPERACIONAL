@@ -30,7 +30,8 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
      confirmacaoResponsavel:responsible,referenciaConferencia:reference.trim().length>=5?reference.trim():approve?'Confirmação documental registrada pelo responsável autenticado no PEDIDOS FT.':reference.trim()
     }
    });
-   if(error||data?.error)throw Error(data?.error||error.message);
+   if(error){let detail;try{detail=await error.context?.json?.();}catch{}throw Error(detail?.error||data?.error||error.message);}
+   if(data?.error)throw Error(data.error);
    setFeedback(data?.warning||'Alteração confirmada.');
    await onSaved?.(data);
   }catch(e){setFeedback(e.message||'Não foi possível salvar a conferência.');}
