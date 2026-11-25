@@ -33,7 +33,7 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
   const sections=statuses.map(title=>({
    title,
    rows:filtered.filter(record=>record.status===title).map(({load,supplier,official,os})=>
-    [os&&'Nossa OS '+os,'Carga '+reference(load),supplier,official&&'Pedido '+official,load.fase].filter(Boolean).join(' • ')
+    [os&&'Nossa OS '+os,!os&&reference(load),supplier,official&&'Pedido '+official,load.fase].filter(Boolean).join(' • ')
    ),
   })).filter(section=>section.rows.length);
   reportPDF('RESUMO DE CARGAS — PEDIDOS FT',sections).save('PEDIDOS-FT-CARGAS.pdf');
@@ -52,14 +52,12 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
    {filtered.map(({load,supplier,official,protocol,os,status:current})=><li key={load.id}>
     <div>
      <b>{os||reference(load)}{supplier&&' · '+supplier}</b>
-     {os&&<small>Código interno da carga: {reference(load)}</small>}
      <span>{current}{load.fase&&' · '+load.fase}</span>
      {official&&<small>Pedido oficial {official}</small>}
-     {protocol&&<small>Protocolo {protocol}</small>}
     </div>
     {showReports
-     ?<button type="button" className="ft-outline" aria-label={'Baixar PDF da carga '+reference(load)} onClick={()=>loadReport(data,load).save(reference(load)+'-DOSSIE.pdf')}>Baixar PDF</button>
-     :<button type="button" className="ft-outline" aria-label={'Abrir carga '+reference(load)} onClick={()=>onOpen(load.id)}>Abrir dossiê</button>}
+     ?<button type="button" className="ft-outline" aria-label={'Baixar PDF da carga '+(os||reference(load))} onClick={()=>loadReport(data,load).save((os||reference(load))+'-DOSSIE.pdf')}>Baixar PDF</button>
+     :<button type="button" className="ft-outline" aria-label={'Abrir carga '+(os||reference(load))} onClick={()=>onOpen(load.id)}>Abrir dossiê</button>}
    </li>)}
   </ul>:<p>Nenhuma carga encontrada.</p>}
  </section>;
