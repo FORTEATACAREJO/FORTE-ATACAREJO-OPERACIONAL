@@ -1,7 +1,7 @@
 import {capacityCheck,supplierDispatchCapacity} from '../supabase/functions/orders-workflow/capacity.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {applyWorkflow,supplierProducts,documentStatus,isResaleProduct,supplierCost,supplierExpeditions} from '../supabase/functions/orders-workflow/domain.mjs';
+import {applyWorkflow,matchingSupplierInvoices,supplierProducts,documentStatus,isResaleProduct,supplierCost,supplierExpeditions} from '../supabase/functions/orders-workflow/domain.mjs';
 const p={user_id:'actor',empresa_id:'e',nome:'Admin',perfil:'MASTER',ativo:true,status_aprovacao:'APROVADO'};
 const base=()=>({settings:{},unidades:[{id:'u',nome:'Filial',cnpj:'11111111000191'}],fornecedores:[{id:'f',nome:'CSN',modalidadeFrete:'FOB',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'},{id:'g',nome:'CIPLAN',modalidadeFrete:'CIF',codigosPorCnpj:{'11111111000191':'COD-TESTE'},condicaoPagamento:'14 DIAS'}],produtos:[{id:'p',nome:'Cimento CSN',marca:'CSN',pesoKg:50,precoNegociado:22,palletQtd:50,precoTabela:34},{id:'q',nome:'Ciplan',marca:'CIPLAN',pesoKg:50,precoNegociado:22,palletQtd:50,precoTabela:34}],locais:[{id:'l',nome:'Arcos',ativo:true}],custosFornecedor:[{fornecedorId:'f',produtoId:'p',condicaoPagamento:'14 DIAS',custoUnitario:22}],motoristas:[{id:'m',nome:'Motorista',placa1:'ABC1D23',capacidadeMaximaKg:40000}],usuarios:[{id:'v',nome:'Vendedor'}],clientes:[{id:'c',nome:'Cliente',limiteCredito:100000}],cargas:[],vendas:[],documentos:[]});
 const supplier={action:'SUPPLIER_CREATE',fornecedorId:'f',unidadeId:'u',pagamento:'14 DIAS',motoristaId:'m',itens:[{produtoId:'p',qtd:800}],regraPallets:'Sem pallets',palletQuantidade:0,origem:'Arcos',destino:'Galpão',destinoTipo:'GALPÃO',modalidadeFrete:'FOB'};
@@ -213,3 +213,11 @@ test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir mot
  assert.throws(()=>execute(initial,{...sale,ordemCompraCliente:'1234567890123456'}),/15 caracteres/);
  assert.throws(()=>execute(initial,{...sale,itens:[{...sale.itens[0],itemOrdemCompraCliente:'2'}]}),/ordem correspondente/);
  });
+
+test('vínculo automático exige XML autorizado, CNPJs e referência inequívoca',()=>{
+ const s={fornecedores:[{id:'f',cnpj:'11111111000191'}],unidades:[{id:'u',cnpj:'22222222000191'}],cargas:[{id:'c',fornecedorId:'f',unidadeId:'u',numeroOS:'OS-000001'}]};
+ const src={id:'x',kind:'XML_NFE',allowed:true,dossier_id:'d',metadata:{key:'1'.repeat(44),issuer_cnpj:'11111111000191',recipient_cnpj:'22222222000191',order_references:['OS-000001'],protocol:{status:'100'}}};
+ assert.equal(matchingSupplierInvoices(s,'c',[src]).length,1);
+ assert.equal(matchingSupplierInvoices(s,'c',[{...src,metadata:{...src.metadata,recipient_cnpj:'33333333000191'}}]).length,0);
+ assert.equal(matchingSupplierInvoices({...s,cargas:[...s.cargas,{...s.cargas[0],id:'other'}]},'c',[src]).length,0);
+});
