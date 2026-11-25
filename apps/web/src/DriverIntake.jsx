@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {supabase} from './supabase.js';
-import {fields,documents} from '../../../supabase/functions/driver-cadastro/validation.mjs';
+import {fields,documents,suggestedFields} from '../../../supabase/functions/driver-cadastro/validation.mjs';
 async function invoke(action,body){
  if(!supabase)throw Error('Conexão indisponível.');
  const r=await supabase.functions.invoke('driver-cadastro',{body,headers:{'x-cadastro-action':action}});
@@ -9,13 +9,19 @@ async function invoke(action,body){
 }
 export default function DriverIntake({driver}){
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[link,setLink]=useState(''),[result,setResult]=useState(null);
+ const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>suggestedFields(driver)),[requestedDocs,setRequestedDocs]=useState([]),[linkRequest,setLinkRequest]=useState(null);
+ const toggle=(set,key,checked)=>set(old=>checked?[...new Set([...old,key])]:old.filter(k=>k!==key));
  const reload=async()=>setResult(await invoke('LIST',{motoristaId:driver.id}));
  const run=async(fn)=>{setBusy(true);setNotice('');try{await fn();}catch(e){setNotice(e.message);}finally{setBusy(false);}};
  return <div><button type="button" className="secondary" disabled={busy} onClick={()=>{setOpen(v=>!v);if(!open)run(reload);}}>Link e documentos do motorista</button>
  {open&&<section aria-label="Atualização cadastral por link">
  <p>O link permite somente enviar dados deste cadastro. Não concede acesso ao sistema.</p>
- <button type="button" disabled={busy} onClick={()=>run(async()=>{const r=await invoke('CREATE',{motoristaId:driver.id});setLink(r.link);await reload();})}>Gerar link individual (7 dias)</button>
- {link&&<><label>Link individual<input readOnly value={link} onFocus={e=>e.target.select()}/></label><button type="button" onClick={()=>run(async()=>{await navigator.clipboard.writeText('Olá! Atualize seu cadastro na FORTE pelo link individual: '+link);setNotice('Mensagem copiada. Envie ao motorista pelo WhatsApp privado.');})}>Copiar mensagem para WhatsApp</button></>}
+ <label>Tipo de solicitação<select value={mode} onChange={e=>setMode(e.target.value)}><option value="pendencias">Somente pendências selecionadas</option><option value="completo">Cadastro completo</option></select></label>
+ {mode==='pendencias'&&<><p>Campos ausentes do cadastro operacional vêm sugeridos. Confira antes de gerar o link; marque documentos somente quando estiverem faltando ou precisarem de renovação.</p>
+ <b>Dados a solicitar</b>{Object.entries(fields).map(([k,v])=><label key={k}><input type="checkbox" checked={requestedFields.includes(k)} onChange={e=>toggle(setRequestedFields,k,e.target.checked)}/>{v}</label>)}
+ <b>Documentos a solicitar</b>{Object.entries(documents).map(([k,v])=><label key={k}><input type="checkbox" checked={requestedDocs.includes(k)} onChange={e=>toggle(setRequestedDocs,k,e.target.checked)}/>{v}</label>)}</>}
+ <button type="button" disabled={busy||mode==='pendencias'&&!requestedFields.length&&!requestedDocs.length} onClick={()=>run(async()=>{const r=await invoke('CREATE',{motoristaId:driver.id,solicitacao:mode==='pendencias'?{fields:requestedFields,documents:requestedDocs}:null});setLink(r.link);setLinkRequest(r.solicitacao);await reload();})}>Gerar link individual (7 dias)</button>
+ {link&&<><label>Link individual<input readOnly value={link} onFocus={e=>e.target.select()}/></label><button type="button" onClick={()=>run(async()=>{await navigator.clipboard.writeText('Olá! '+(linkRequest?'Envie somente estas pendências do seu cadastro na FORTE: '+[...linkRequest.fields.map(k=>fields[k]),...linkRequest.documents.map(k=>documents[k])].join(', ')+'.':'Atualize seu cadastro na FORTE.')+' Acesse o link individual: '+link);setNotice('Mensagem copiada. Envie ao motorista pelo WhatsApp privado.');})}>Copiar mensagem para WhatsApp</button></>}
  <button type="button" disabled={busy} onClick={()=>run(reload)}>Atualizar recebimentos</button>
  {notice&&<p role="status">{notice}</p>}
  {result?.links.map(l=><p key={l.id}>Link criado em {new Date(l.criado_em).toLocaleString('pt-BR')} — {l.revogado_em?'Revogado':Date.parse(l.expira_em)<=Date.now()?'Expirado':'Válido'} {!l.revogado_em&&Date.parse(l.expira_em)>Date.now()&&<button type="button" disabled={busy} onClick={()=>{if(confirm('Revogar este link?'))run(async()=>{await invoke('REVOKE',{id:l.id});setLink('');await reload();});}}>Revogar</button>}</p>)}
