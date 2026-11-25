@@ -14,7 +14,7 @@ import {assignOrderProtocol} from './order-protocol.mjs';
 import {requireSupplierFreightMode,assertFreightSnapshot} from './supplier-freight-mode.mjs';
 export const norm = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
 export const PALLETS = ['Com pallets', 'Sem pallets', 'Leva pallets', 'Solicitar pallets com liberação do vendedor'];
-export const DOCUMENTS = ['XML NF', 'PDF NF', 'BOLETO FORNECEDOR', 'NF PALLETS', 'COMPROVANTE FRETE', 'COMPROVANTE PAGAMENTO CLIENTE', 'COMPROVANTE ENVIO FORNECEDOR', 'COMPROVANTE ENVIO MOTORISTA', 'COMPROVANTE ENTREGA', 'ANEXO DA VENDA'];
+export const DOCUMENTS = ['XML NF', 'PDF NF', 'BOLETO FORNECEDOR', 'BOLETO CLIENTE', 'NF PALLETS', 'COMPROVANTE FRETE', 'COMPROVANTE PAGAMENTO CLIENTE', 'COMPROVANTE ENVIO FORNECEDOR', 'COMPROVANTE ENVIO MOTORISTA', 'COMPROVANTE ENTREGA', 'ANEXO DA VENDA'];
 const active = x => x.ativo !== false;
 const arr = (s,k) => s[k] || [];
 const cents = n => Math.round(Number(n) * 100) / 100;
@@ -305,7 +305,7 @@ export function applyWorkflow(original,b,p,{id,at}){
  }else if(b.action==='SALE_LINK'){
   const c=load(),rows=linkSales(s,c,[b.vendaId]);if(c.ordemRevisadaEm)queueCustomer(s,rows,'CARREGAMENTO',c.ordemRevisadaEm,at);result={cargaId:c.id};
  }else if(b.action==='DOCUMENT_ADD'){
-  const c=b.cargaId?load():null,o=b.compraFornecedorId?arr(s,'comprasFornecedor').find(x=>x.id===b.compraFornecedorId):null;const sales=b.vendaId?arr(s,'vendas').filter(v=>v.id===b.vendaId||v.grupoPedidoId===b.vendaId):[];if(!c&&!o&&!sales.length)fail('Selecione a venda, pedido ou carga.');if(b.categoria==='COMPROVANTE FRETE'&&c?.modalidadeFrete==='CIF')fail('CIF não possui comprovante de frete separado.');if(!DOCUMENTS.includes(b.categoria))fail('Categoria inválida.');const path=text(b.path,'arquivo'),hash=text(b.hash,'hash do arquivo');if(!path.startsWith(p.empresa_id+'/')||!/^[a-f0-9]{64}$/.test(hash))fail('Arquivo inválido ou de outra empresa.');const existing=arr(s,'documentos').find(d=>d.cargaId===(c?.id||'')&&d.compraFornecedorId===(o?.id||'')&&d.vendaId===(b.vendaId||'')&&d.categoria===b.categoria&&d.hash===hash);if(existing)result={id:existing.id};else{const d={id,vendaId:b.vendaId||'',cargaId:c?.id||sales[0]?.cargaId||'',compraFornecedorId:o?.id||'',categoria:b.categoria,tipo:b.categoria,filename:text(b.filename,'nome do arquivo'),storageBucket:'forte-vendas-dossies',storagePath:path,hash,validationStatus:'RECEBIDO',identificacaoConfirmada:false,origem:'ANEXO MANUAL',receivedAt:at,usuario:p.nome};s.documentos=[...arr(s,'documentos'),d];result={id};}
+  const c=b.cargaId?load():null,o=b.compraFornecedorId?arr(s,'comprasFornecedor').find(x=>x.id===b.compraFornecedorId):null;const sales=b.vendaId?arr(s,'vendas').filter(v=>v.id===b.vendaId||v.grupoPedidoId===b.vendaId):[];if(!c&&!o&&!sales.length)fail('Selecione a venda, pedido ou carga.');if(b.categoria==='BOLETO CLIENTE'){if(!c||c.finalizadaEm||!sales.length||sales.some(v=>v.status==='CANCELADA'||!(v.cargaId===c.id||!v.cargaId&&(c.vendaIds||[]).includes(v.id))||!v.clienteId||v.clienteId!==sales[0].clienteId))fail('Boleto deve pertencer a uma venda ativa do mesmo cliente e da mesma carga.');if(!privileged(p)&&p.permissoes?.faturamento!==true)fail('Sem autorização para anexar boletos de clientes.');}if(b.categoria==='COMPROVANTE FRETE'&&c?.modalidadeFrete==='CIF')fail('CIF não possui comprovante de frete separado.');if(!DOCUMENTS.includes(b.categoria))fail('Categoria inválida.');const path=text(b.path,'arquivo'),hash=text(b.hash,'hash do arquivo');if(!path.startsWith(p.empresa_id+'/')||!/^[a-f0-9]{64}$/.test(hash))fail('Arquivo inválido ou de outra empresa.');const existing=arr(s,'documentos').find(d=>d.cargaId===(c?.id||'')&&d.compraFornecedorId===(o?.id||'')&&d.vendaId===(b.vendaId||'')&&d.categoria===b.categoria&&d.hash===hash);if(existing)result={id:existing.id};else{const d={id,vendaId:b.vendaId||'',...(b.categoria==='BOLETO CLIENTE'?{clienteId:sales[0].clienteId}:{}),cargaId:c?.id||sales[0]?.cargaId||'',compraFornecedorId:o?.id||'',categoria:b.categoria,tipo:b.categoria,filename:text(b.filename,'nome do arquivo'),storageBucket:'forte-vendas-dossies',storagePath:path,hash,validationStatus:'RECEBIDO',identificacaoConfirmada:false,origem:'ANEXO MANUAL',receivedAt:at,usuario:p.nome};s.documentos=[...arr(s,'documentos'),d];result={id};}
  }else if(b.action==='PAYMENT_SYNC_RESULT'){
   result=receiptSyncResult(s,b,{at});
  }else if(b.action==='DOCUMENT_VALIDATE'){
@@ -322,4 +322,21 @@ export function applyWorkflow(original,b,p,{id,at}){
  // Delivery is recomputed only from a real finalization, delivery receipt and actual billing receipts.
  s.vendas=arr(s,'vendas').map(v=>{const c=arr(s,'cargas').find(c=>c.id===v.cargaId);if(v.status==='CANCELADA'||!c?.finalizadaEm||documentStatus(s,c,'COMPROVANTE ENTREGA')!=='VALIDADO')return v;const group=arr(s,'vendas').filter(x=>(x.grupoPedidoId||x.id)===(v.grupoPedidoId||v.id));const ids=group.map(x=>x.id);const total=group.reduce((a,x)=>a+Number(x.totalGeral||x.totalVenda||Number(x.qtd)*Number(x.precoUnitario)),0);const issued=arr(s,'boletosClientes').filter(t=>(ids.includes(t.vendaId)||t.vendaId===v.grupoPedidoId)&&(t.nossoNumero||t.idCobranca)&&['EMITIDO','REGISTRADO','LIQUIDADO','PAGO'].includes(norm(t.status)));const billing=v.formaPagamento!=='BOLETO'||(issued.length>0&&cents(issued.reduce((a,t)=>a+Number(t.valor||0),0))>=cents(total));return billing?{...v,status:'ENTREGUE',entregueEm:v.entregueEm||at}:v;});
  s.auditoria=[...arr(s,'auditoria'),{id:id+'-aud',acao:requestedAction,detalhe:JSON.stringify(result),usuario:p.nome,userId:p.user_id,dataHora:at}];s.workflowEvents=[...arr(s,'workflowEvents'),{requestId:key,request,actor:p.user_id,action:requestedAction,result,at}];return {state:s,result};
+}
+
+export function matchingSupplierInvoices(state,cargaId,xmlSources){
+ const digits=v=>String(v||'').replace(/\D/g,'');
+ const ref=v=>String(v||'').trim().toUpperCase();
+ const purchases=arr(state,'comprasFornecedor');
+ const all=arr(state,'cargas').filter(c=>c.status!=='CANCELADA').map(c=>{
+  const o=purchases.find(o=>o.id===c.compraFornecedorId||o.cargaId===c.id);
+  const supplier=arr(state,'fornecedores').find(f=>f.id===(c.fornecedorId||o?.fornecedorId));
+  return {id:c.id,issuer:digits(o?.fornecedorSnapshot?.cnpj||c.fornecedorSnapshot?.cnpj||supplier?.cnpj),buyer:digits(o?.cnpjComprador||c.cnpjComprador||arr(state,'unidades').find(u=>u.id===c.unidadeId)?.cnpj),refs:[o?.numero,c.numeroOS,o?.numeroPedidoFornecedor,c.numeroPedidoFornecedor].map(ref).filter(Boolean)};
+ });
+ return xmlSources.filter(src=>{
+  const m=src.metadata||{},refs=[...new Set((m.order_references||[]).map(ref).filter(Boolean))];
+  if(src.kind!=='XML_NFE'||src.allowed!==true||!src.dossier_id||!/^[0-9]{44}$/.test(m.key||'')||refs.length!==1||m.protocol?.status!=='100')return false;
+  const matches=all.filter(c=>c.issuer.length===14&&c.buyer.length===14&&c.issuer===digits(m.issuer_cnpj)&&c.buyer===digits(m.recipient_cnpj)&&c.refs.includes(refs[0]));
+  return matches.length===1&&matches[0].id===cargaId;
+ });
 }
