@@ -32,7 +32,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const [selected,setSelected]=useState(null),[form,setForm]=useState(EMPTY),[editor,setEditor]=useState(false);
  const editorRef=useRef(null);
  useEffect(()=>{if(editor&&editorRef.current)editorRef.current.scrollIntoView({block:'start',behavior:'instant'});},[editor,selected]);
- const selectable=forForm==='fornecedor'?isDriverDraftSelectable:isDriverSelectable;
+ const selectable=(forForm==='fornecedor'||forForm==='ordem')?isDriverDraftSelectable:isDriverSelectable;
  const operational=(data?.motoristas||[]).filter((m,i,all)=>!m.freteMotoristaId||all.findIndex(d=>d.freteMotoristaId===m.freteMotoristaId)===i);
  const rows=useMemo(()=>[...operational,...(existing||[]).filter(e=>!operational.some(m=>m.id===e.id||m.freteMotoristaId===e.id))]
   .filter(m=>(isAdmin||m.ativo!==false)&&[m.nome,m.cpf,m.cnh,m.cnhNumero].join(' ').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),[existing,data,query,isAdmin]);
