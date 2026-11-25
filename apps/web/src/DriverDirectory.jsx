@@ -4,6 +4,7 @@ import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable,isDriverDraftSelectable,driverRegistrationWarnings} from './pedidos-ft-drivers.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
 import OperationalDriverApproval from './OperationalDriverApproval.jsx';
+import DriverIntake from './DriverIntake.jsx';
 import './driver-directory-mobile.css';
 
 const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
@@ -174,6 +175,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   <span className="ft-driver-status">{isDriverSelectable(m)?'APTO PARA EXPEDIÇÃO':m.cadastroAdministrativoLiberado?'CADASTRO ATIVO · DOCUMENTOS A CONFERIR':m.preAprovadoCadastro||((data?.motoristas||[]).find(d=>d.id===m.id)?.preAprovadoCadastro)?'PRÉ-APROVADO CADASTRAL · DOCUMENTOS A CONFERIR':'INATIVO — NECESSITA APROVAÇÃO'}</span>
   {driverRegistrationWarnings(m).length>0&&<p className="ft-driver-status" role="status">Avisos: {driverRegistrationWarnings(m).join(' • ')}</p>}
   {isAdmin&&(data?.motoristas||[]).some(d=>d.id===m.id)&&<button type="button" className="ft-driver-approve-button" disabled={busy} onClick={()=>setReviewId(old=>old===m.id?'':m.id)}>{reviewId===m.id?'FECHAR CONFERÊNCIA':isDriverSelectable((data?.motoristas||[]).find(d=>d.id===m.id))?'REVISAR DOCUMENTOS':'CONFERIR / LIBERAR MOTORISTA'}</button>}
+  {isAdmin&&(data?.motoristas||[]).some(d=>d.id===m.id)&&<DriverIntake driver={m}/>}
   {reviewId===m.id&&<OperationalDriverApproval driver={(data?.motoristas||[]).find(d=>d.id===m.id)||m} onCancel={()=>setReviewId('')} onSaved={async result=>{setMessage(result?.warning||'Conferência gravada.');if(onDataRefresh)await onDataRefresh();setReviewId('');}}/>}
   {onPick&&(selectable((data?.motoristas||[]).find(d=>d.id===m.id))
     ?<button type="button" disabled={busy} onClick={()=>onPick(m.id)}>SELECIONAR PARA O PEDIDO</button>
