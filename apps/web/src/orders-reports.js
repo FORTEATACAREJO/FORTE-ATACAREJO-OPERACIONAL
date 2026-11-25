@@ -21,7 +21,7 @@ export function loadReport(data,c){
  const os=(data.comprasFornecedor||[]).find(o=>o.id===c.compraFornecedorId||o.cargaId===c.id)?.numero||c.numeroOS||'OS não vinculada';
  return reportPDF('DOSSIÊ DA CARGA • '+os,[
  {title:'Carga e pedido',rows:['Nossa OS: '+os+' • '+c.fase,'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Pagamento: '+(c.condicaoFornecedor||'Não registrado'),'Vencimentos previstos: '+(paymentScheduleText(c)||'Não registrados'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
- {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto)},
+ {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto+(v.ordemCompraCliente?' • OC: '+v.ordemCompraCliente+(v.itemOrdemCompraCliente!=null?' item '+v.itemOrdemCompraCliente:''):''))},
  {title:'Resumo financeiro da carga',rows:f?[
   'Modalidade de frete: '+f.modalidadeFrete,
   'Vendas de mercadorias: '+amount(f.receitaVendas),
