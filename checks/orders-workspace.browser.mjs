@@ -31,6 +31,12 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
  assert.equal(await page.getByText('Frete pendente de registro',{exact:true}).count(),1);
  assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
+ await page.getByRole('button',{name:'Enviar para Pedro',exact:true}).click();
+ const closing=page.getByRole('region',{name:'Enviar dossiê ao Pedro'});await closing.waitFor();
+ assert.match(await closing.getByRole('link',{name:'Abrir WhatsApp de Pedro'}).getAttribute('href'),/wa\.me\/5500000000000/);
+ await closing.getByRole('button',{name:'Fechar envio'}).click();
+ await page.getByRole('button',{name:'Alterar motorista',exact:true}).click();
+ const change=page.getByRole('region',{name:'Alterar motorista da carga'});await change.waitFor();assert(await change.getByRole('button',{name:'Salvar novo motorista'}).isDisabled());await change.getByRole('button',{name:'Cancelar alteração'}).click();
  await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');
  assert.equal(await page.getByRole('navigation',{name:'Navegação do Pedidos FT'}).count(),1);await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
