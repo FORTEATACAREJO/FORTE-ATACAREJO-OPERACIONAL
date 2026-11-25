@@ -25,7 +25,7 @@ export function internalPreviewLink(order,recipient){
  const lines=['FORTE ATACAREJO — PRÉVIA INTERNA','Olá, '+(recipient.nome||'')+'! Confira este pedido antes do envio ao fornecedor.', 'Nossa OS: '+order.numero, 'Fornecedor: '+order.fornecedor,'Expedição: '+(order.localCarregamento||order.origem||'A definir'),'Destino: '+(order.destino||'A definir'),...(order.itens||[]).map(i=>i.qtd+' × '+i.produto+' • '+money(i.custoUnitario)+' • Total '+money(i.total)), 'Total: '+money((order.itens||[]).reduce((s,i)=>s+Number(i.total||0),0)), 'Pagamento: '+(order.pagamento||'A definir'),'Frete: '+(order.modalidadeFrete||'A definir'),'Pallets: '+(order.regraPallets||'A definir'),'Motorista previsto: '+(order.motorista||'A definir'),'Placas: '+((order.placas||[]).join(' / ')||'A definir'),'PRÉVIA PARA CONFERÊNCIA — não é pedido oficial nem autorização de carregamento.'];
  return 'https://wa.me/'+phone+'?text='+encodeURIComponent(lines.join('\n'));
 }
-function InternalOrderPreview({order,recipient,busy}){
+export function InternalOrderPreview({order,recipient,busy}){
  const [open,setOpen]=useState(false);
  const url=internalPreviewLink(order,recipient);
  if(!url)return null;
