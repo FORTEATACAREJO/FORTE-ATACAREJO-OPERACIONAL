@@ -48,7 +48,7 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
   <p className="ft-hint">{filtered.length} de {records.length} cargas</p>
   {showReports&&<button type="button" className="ft-primary" disabled={!filtered.length} onClick={downloadSummary}>Baixar resumo das cargas em PDF</button>}
   {filtered.length?<ul className="ft-doc-list ft-load-list">
-   {filtered.map(({load,supplier,official,protocol,status:current})=><li key={load.id}>
+   {filtered.map(({load,supplier,official,os,status:current})=><li key={load.id}>
     <div>
      <b>{os}{supplier&&' · '+supplier}</b>
      <span>{current}{load.fase&&' · '+load.fase}</span>
