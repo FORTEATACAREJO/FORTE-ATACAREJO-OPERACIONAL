@@ -20,6 +20,12 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('link',{name:'Abrir Pedidos FT',exact:true}).getAttribute('href'),'/pedidos-ft.html');
  await page.evaluate(()=>window.openStandalone());
  await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
+ await page.getByRole('button',{name:'Enviar prévia para Conferente',exact:true}).click();
+ const dossierPreview=page.getByRole('region',{name:'Prévia interna',exact:true});await dossierPreview.waitFor();
+ await page.evaluate(()=>{window.open=(url)=>{window.dossierPreviewUrl=url;};});
+ await dossierPreview.getByRole('button',{name:'Abrir WhatsApp de Conferente',exact:true}).click();
+ const dossierPreviewUrl=new URL(await page.evaluate(()=>window.dossierPreviewUrl));assert.equal(dossierPreviewUrl.pathname,'/5500000000000');assert.match(dossierPreviewUrl.searchParams.get('text'),/OS-000001/);assert.equal(await page.evaluate(()=>window.fixtureState.comunicacoes?.length||0),0);
+ await dossierPreview.getByRole('button',{name:'Fechar prévia',exact:true}).click();
  assert.equal(await page.locator('.ow-tabs').count(),0);
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').count(),1);
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').first().innerText(),'OS-000001');
