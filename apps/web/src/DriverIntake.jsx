@@ -1,7 +1,7 @@
 import {useState} from 'react';
-import {supabase} from './supabase.js';
 import {fields,documents,suggestedFields} from '../../../supabase/functions/driver-cadastro/validation.mjs';
 async function invoke(action,body){
+ const {supabase}=await import('./supabase.js');
  if(!supabase)throw Error('Conexão indisponível.');
  const r=await supabase.functions.invoke('driver-cadastro',{body,headers:{'x-cadastro-action':action}});
  if(r.error){let detail;try{detail=await r.error.context?.json?.();}catch{}throw Error(detail?.error||r.error.message);}
@@ -10,6 +10,9 @@ async function invoke(action,body){
 export default function DriverIntake({driver}){
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[link,setLink]=useState(''),[result,setResult]=useState(null);
  const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>suggestedFields(driver)),[requestedDocs,setRequestedDocs]=useState([]),[linkRequest,setLinkRequest]=useState(null);
+ const whatsapp=String(driver.whatsapp||driver.telefone||'').replace(/\D/g,'');
+ const to=whatsapp.length===11?'55'+whatsapp:whatsapp;
+ const message='Olá! '+(linkRequest?'Envie somente as pendências do seu cadastro na FORTE: '+[...linkRequest.fields.map(k=>fields[k]),...linkRequest.documents.map(k=>documents[k])].join(', ')+'.':'Atualize seu cadastro na FORTE.')+' Acesse: '+link;
  const toggle=(set,key,checked)=>set(old=>checked?[...new Set([...old,key])]:old.filter(k=>k!==key));
  const reload=async()=>setResult(await invoke('LIST',{motoristaId:driver.id}));
  const run=async(fn)=>{setBusy(true);setNotice('');try{await fn();}catch(e){setNotice(e.message);}finally{setBusy(false);}};
@@ -20,8 +23,8 @@ export default function DriverIntake({driver}){
  {mode==='pendencias'&&<><p>Campos ausentes do cadastro operacional vêm sugeridos. Confira antes de gerar o link; marque documentos somente quando estiverem faltando ou precisarem de renovação.</p>
  <b>Dados a solicitar</b>{Object.entries(fields).map(([k,v])=><label key={k}><input type="checkbox" checked={requestedFields.includes(k)} onChange={e=>toggle(setRequestedFields,k,e.target.checked)}/>{v}</label>)}
  <b>Documentos a solicitar</b>{Object.entries(documents).map(([k,v])=><label key={k}><input type="checkbox" checked={requestedDocs.includes(k)} onChange={e=>toggle(setRequestedDocs,k,e.target.checked)}/>{v}</label>)}</>}
- <button type="button" disabled={busy||mode==='pendencias'&&!requestedFields.length&&!requestedDocs.length} onClick={()=>run(async()=>{const r=await invoke('CREATE',{motoristaId:driver.id,solicitacao:mode==='pendencias'?{fields:requestedFields,documents:requestedDocs}:null});setLink(r.link);setLinkRequest(r.solicitacao);await reload();})}>Gerar link individual (7 dias)</button>
- {link&&<><label>Link individual<input readOnly value={link} onFocus={e=>e.target.select()}/></label><button type="button" onClick={()=>run(async()=>{await navigator.clipboard.writeText('Olá! '+(linkRequest?'Envie somente estas pendências do seu cadastro na FORTE: '+[...linkRequest.fields.map(k=>fields[k]),...linkRequest.documents.map(k=>documents[k])].join(', ')+'.':'Atualize seu cadastro na FORTE.')+' Acesse o link individual: '+link);setNotice('Mensagem copiada. Envie ao motorista pelo WhatsApp privado.');})}>Copiar mensagem para WhatsApp</button></>}
+ <button type="button" disabled={busy||mode==='pendencias'&&!requestedFields.length&&!requestedDocs.length} onClick={()=>run(async()=>{const r=await invoke('CREATE',{motoristaId:driver.id,solicitacao:mode==='pendencias'?{fields:requestedFields,documents:requestedDocs}:null});if(!r.link||!r.link.startsWith('https://pedidos-ft.onrender.com/cadastro-motorista.html#'))throw Error('O servidor não retornou um link válido.');setLink(r.link);setLinkRequest(r.solicitacao);setNotice('Link gerado. Abra para testar ou envie pelo WhatsApp.');await reload();})}>Gerar link individual (7 dias)</button>
+ {link&&<><label>Link individual<input readOnly value={link} onFocus={e=>e.target.select()}/></label><a className="ft-outline" href={link} target="_blank" rel="noopener noreferrer">Testar link do motorista</a><a className="ft-outline" href={'https://wa.me/'+(/^55\d{11}$/.test(to)?to:'')+'?text='+encodeURIComponent(message)} target="_blank" rel="noopener noreferrer">Enviar link pelo WhatsApp</a><button type="button" onClick={()=>run(async()=>{if(!navigator.clipboard)throw Error("Selecione e copie o endereço acima.");await navigator.clipboard.writeText(message);setNotice("Mensagem copiada.");})}>Copiar mensagem para WhatsApp</button></>}
  <button type="button" disabled={busy} onClick={()=>run(reload)}>Atualizar recebimentos</button>
  {notice&&<p role="status">{notice}</p>}
  {result?.links.map(l=><p key={l.id}>Link criado em {new Date(l.criado_em).toLocaleString('pt-BR')} — {l.revogado_em?'Revogado':Date.parse(l.expira_em)<=Date.now()?'Expirado':'Válido'} {!l.revogado_em&&Date.parse(l.expira_em)>Date.now()&&<button type="button" disabled={busy} onClick={()=>{if(confirm('Revogar este link?'))run(async()=>{await invoke('REVOKE',{id:l.id});setLink('');await reload();});}}>Revogar</button>}</p>)}

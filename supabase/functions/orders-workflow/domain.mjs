@@ -254,6 +254,20 @@ export function applyWorkflow(original,b,p,{id,at}){
   const f=byId(s,'fornecedores',b.fornecedorId,'Fornecedor'),o=arr(s,'comprasFornecedor').find(o=>o.id===c.compraFornecedorId);
   if(c.fornecedorId&&c.fornecedorId!==f.id)fail('Fornecedor diferente do pedido: revise a compra antes de alterar.');
   if(o&&supplierWasSent(s,o))fail('Pedido já enviado ao fornecedor: confirme a revisão antes de alterar motorista e condições.');
+  if(b.prepararCadastro===true){
+   const m=arr(s,'motoristas').find(x=>x.id===b.motoristaId);
+   if(!m?.cadastroAdministrativoLiberado||m.documentosConferidos===true||m.bloqueadoGestor===true||/INATIVO|BLOQUEAD|RECUSAD|REPROVADO/.test(norm(m.statusCadastro)))fail('Motorista indisponível para preparação cadastral.');
+   if(arr(s,'comunicacoes').some(j=>(j.cargaId===c.id||o&&j.compraFornecedorId===o.id)&&['SENDING','UNCERTAIN'].includes(j.state)))fail('Confira o envio em andamento antes de alterar motorista.');
+   if(arr(s,'documentos').some(d=>d.cargaId===c.id&&d.validationStatus==='VALIDADO'&&['XML NF','PDF NF','COMPROVANTE FRETE'].includes(d.categoria)))fail('Carga com documento fiscal ou frete validado: revise antes de trocar o motorista.');
+   const before={motoristaId:c.motoristaId,motorista:c.motorista,placas:c.placas,veiculoId:c.veiculoId};
+   const history=[...(c.protocoloHistorico||[])];if(c.protocolo)history.push({valor:c.protocolo,motoristaId:c.protocoloMotoristaId,substituidoEm:at});
+   const fields={motoristaId:m.id,motorista:m.nome,motoristaSnapshot:driverSnapshot({id:m.id,nome:m.nome,cpf:m.cpf,telefone:m.telefone}),veiculoId:'',vinculoFrotaId:'',transportadoraNome:'',placas:[],placa:'',proprietario:'',confirmacaoCapacidade:null,protocolo:'',protocoloMotoristaId:'',protocoloDataReferencia:'',protocoloGeradoEm:'',protocoloHistorico:history};
+   Object.assign(c,fields,{ordemRevisadaEm:null,ordemRevisadaPor:null,fase:'MOTORISTA PREVISTO — DOCUMENTOS A CONFERIR'});
+   c.historicoOperacao=[...(c.historicoOperacao||[]),{id,at,actor:p.user_id,antes:before,depois:{motoristaId:m.id,preparacaoCadastral:true}}];
+   if(o){Object.assign(o,structuredClone(fields),{espelhoConferido:null,revisao:(o.revisao||0)+1});o.historico=[...(o.historico||[]),{id,at,actor:p.user_id,acao:'MOTORISTA PREVISTO — DOCUMENTOS A CONFERIR'}];}
+   for(const j of arr(s,'comunicacoes').filter(j=>(j.cargaId===c.id||o&&j.compraFornecedorId===o.id)&&['QUEUED','BLOCKED','FAILED'].includes(j.state)&&['FORNECEDOR','MOTORISTA'].includes(j.audience)))Object.assign(j,{state:'CANCELLED',reason:'MOTORISTA ATUALIZADO'});
+   result={cargaId:c.id,warning:'Motorista previsto salvo. Confira os documentos e o veículo antes de emitir a ordem.'};
+  }else{
   const cargoFreight=o?.modalidadeFrete||c.modalidadeFrete||requireSupplierFreightMode(f);
   assertFreightSnapshot(b.modalidadeFrete,cargoFreight);
   const origin=text(b.origem,'local de carregamento');if(norm(origin)!==norm(c.localCarregamento||c.origem))assertSupplierExpedition(s,f.id,origin);if(norm(origin)!==norm(c.localCarregamento||c.origem)&&(c.itens||[]).some(i=>supplierLocationPrices(s,f.id,i.produtoId).length))fail('A expedição altera o custo: revise o pedido ao fornecedor antes de alterar o local da carga.');const destination=text(b.destino||c.destino,'destino'),m=operationDriver(b.motoristaId,c.pesoKg);
@@ -270,6 +284,7 @@ export function applyWorkflow(original,b,p,{id,at}){
   c.ordemRevisadaEm=null;c.ordemRevisadaPor=null;c.fase='MOTORISTA E CONDIÇÕES DEFINIDOS — CONFERIR ORDEM';c.historicoOperacao=[...(c.historicoOperacao||[]),{id,at,actor:p.user_id,antes:before,depois:{motoristaId:m.id,modalidadeFrete:c.modalidadeFrete,origem:origin,regraPallets:c.regraPallets,palletQuantidade:c.palletQuantidade}}];
   if(o){Object.assign(o,fields,{espelhoConferido:null,revisao:(o.revisao||0)+1});o.historico=[...(o.historico||[]),{id,at,actor:p.user_id,acao:'MOTORISTA E CONDIÇÕES DEFINIDOS'}];for(const j of arr(s,'comunicacoes').filter(j=>j.compraFornecedorId===o.id&&['QUEUED','BLOCKED','FAILED'].includes(j.state)))Object.assign(j,{state:'CANCELLED',reason:'MOTORISTA OU CONDIÇÕES ATUALIZADOS'});}
   assignOrderProtocol(s,o,c,m,at);result={cargaId:c.id,codigoFornecedor:code,protocolo:c.protocolo};
+  }
  }else if(b.action==='LOADING_SAVE'){
   const f=byId(s,'fornecedores',b.fornecedorId,'Fornecedor'),n=text(b.numeroPedidoFornecedor,'número oficial');const existing=arr(s,'cargas').filter(c=>c.status!=='CANCELADA'&&c.fornecedorId===f.id&&(b.cargaId?c.id===b.cargaId&&(!c.numeroPedidoFornecedor||norm(c.numeroPedidoFornecedor)===norm(n)):norm(c.numeroPedidoFornecedor)===norm(n)));if(existing.length>1)fail('Há múltiplas cargas para este número. Solicite conferência.');let c=existing[0];if(b.cargaId&&c?.id!==b.cargaId)fail('Pedido não corresponde à carga selecionada.');if(c?.finalizadaEm)fail('Carga já finalizada.');if(c&&(c.fretePublicadaId||c.ordemEnviadaEm)&&b.motoristaId!==c.motoristaId)fail('Ordem já enviada: revise o vínculo antes de alterar o motorista.');
   assertFreightSnapshot(b.modalidadeFrete,c?.modalidadeFrete||requireSupplierFreightMode(f));

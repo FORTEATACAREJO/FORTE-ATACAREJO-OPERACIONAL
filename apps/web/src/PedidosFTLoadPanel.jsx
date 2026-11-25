@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {buildPedidosFTDossier,dossierPending,pendingTypes} from './pedidos-ft-model.mjs';
 import {loadReport,reportPDF} from './orders-reports';
 
 const statuses=['Em andamento','Finalizadas','Canceladas'];
@@ -6,7 +7,7 @@ const searchKey=value=>String(value??'').normalize('NFD').replace(/\p{Diacritic}
 const loadStatus=load=>load.status==='CANCELADA'?statuses[2]:load.finalizadaEm?statuses[1]:statuses[0];
 const reference=(load,order)=>order?.numero||load.numeroOS||'OS não vinculada';
 
-export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
+export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen,pendingFilter=''}){
  const [query,setQuery]=useState('');
  const [status,setStatus]=useState('');
  const suppliers=new Map((data.fornecedores||[]).map(supplier=>[supplier.id,supplier.nome]));
@@ -25,6 +26,7 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
  });
  const term=searchKey(query);
  const filtered=records.filter(({load,supplier,official,os,status:current})=>
+  (!pendingFilter||dossierPending(buildPedidosFTDossier(data,load.id)).includes(pendingFilter))&&
   (!status||status===current)&&
   searchKey([os,supplier,official,load.motorista].join(' ')).includes(term)
  );
@@ -38,6 +40,7 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen}){
   reportPDF('RESUMO DE CARGAS — PEDIDOS FT',sections).save('PEDIDOS-FT-CARGAS.pdf');
  }
  return <section className="ft-card" aria-label={showReports?'Relatórios':'Todas as cargas'}>
+  {pendingFilter&&<p><b>{pendingTypes.find(t=>t[0]===pendingFilter)?.[1]}</b></p>}
   <div className="ft-load-filters">
    <label>Buscar carga<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="OS, fornecedor, pedido ou motorista"/></label>
    <label>Situação<select value={status} onChange={e=>setStatus(e.target.value)}>

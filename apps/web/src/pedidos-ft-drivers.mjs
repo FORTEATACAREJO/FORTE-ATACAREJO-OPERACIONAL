@@ -1,14 +1,14 @@
 // A seleção no PEDIDOS FT nunca ativa cadastros ou ignora aprovação no servidor.
 // O vínculo operacional definitivo também é conferido pelo orders-workflow.
 const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
-const blocked=/PENDENTE|ANALISE|RECUSAD|CONFEREN|AGUARDANDO|INATIVO|LEGADO|BLOQUEAD/;
+const blocked=/PENDENTE|ANALISE|RECUSAD|CONFEREN|AGUARDANDO|INATIVO|LEGADO|BLOQUEAD|REPROVADO/;
 
 export function isDriverSelectable(m){
  if(!m||m.ativo!==true||!m.id)return false;
  return !blocked.test(normalize([m.statusCadastro,m.status_ia].filter(Boolean).join(' ')));
 }
 export function isDriverDraftSelectable(m){
- return isDriverSelectable(m)||!!(m?.id&&m.cadastroAdministrativoLiberado===true&&m.documentosConferidos!==true&&m.bloqueadoGestor!==true&&!/INATIVO|BLOQUEAD|RECUSAD/.test(normalize([m.statusCadastro,m.status_ia].filter(Boolean).join(' '))));
+ return isDriverSelectable(m)||!!(m?.id&&m.cadastroAdministrativoLiberado===true&&m.documentosConferidos!==true&&m.bloqueadoGestor!==true&&!/INATIVO|BLOQUEAD|RECUSAD|REPROVADO/.test(normalize([m.statusCadastro,m.status_ia].filter(Boolean).join(' '))));
 }
 export function driverOptionsFrom(drivers=[],{draft=false}={}){
  const seen=new Set();
@@ -33,7 +33,6 @@ export function driverRegistrationWarnings(m={},today=new Date().toISOString().s
  if(validity&&/^\d{4}-\d{2}-\d{2}$/.test(validity)&&validity<today)notices.push('CNH com data de validade vencida — conferir situação antes de dirigir');
  if(digits(m.telefone||m.whatsapp).length<10)notices.push('Telefone não informado ou incompleto');
  if(m.enderecoInformado===false)notices.push('Endereço não informado');
- if(m.comprovanteEnderecoInformado===false)notices.push('Comprovante de endereço não informado');
  if(m.documentosConferidos!==true)notices.push('Documentação pessoal a conferir');
  return notices;
 }
