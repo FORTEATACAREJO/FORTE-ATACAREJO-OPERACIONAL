@@ -170,7 +170,7 @@ test('expedições vinculadas: fornecedor geral mantém o preço, local alheio b
 test('motorista administrativamente liberado permite rascunho e envio comercial, mas não expedição',()=>{
  const s=base();Object.assign(s.motoristas[0],{ativo:false,statusCadastro:'PENDENTE_DOCUMENTOS',cadastroAdministrativoLiberado:true,documentosConferidos:false});
  const saved=execute(s,supplier).state;const order=saved.comprasFornecedor[0];
- assert.equal(order.motoristaId,'m');assert.equal(order.protocolo,'');assert.deepEqual(order.placas,[]);
+ assert.equal(order.motoristaId,'m');assert.equal(order.codigoCarga,order.numero);assert.equal(saved.cargas[0].codigo,order.numero);assert.equal(order.protocolo,'');assert.deepEqual(order.placas,[]);
  assert.throws(()=>execute(saved,{action:'SUPPLIER_SEND',id:order.id,canal:'EMAIL'}),/espelho/);
  saved.fornecedores[0].emailPedidos='teste@example.invalid';
  const reviewed=execute(saved,{action:'SUPPLIER_PREVIEW',id:order.id}).state;
