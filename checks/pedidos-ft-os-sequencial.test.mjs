@@ -27,7 +27,8 @@ test('primeiro pedido recebe OS-000001, novos pedidos seguem sem reiniciar por a
  assert.equal(a.result.numero,'OS-000001');
  assert.equal(s.comprasFornecedor[0].numero,'OS-000001');
  assert.equal(s.cargas[0].numeroOS,'OS-000001');
- assert.match(s.cargas[0].codigo,/^FC-000001$/);
+ assert.equal(s.cargas[0].codigo,'OS-000001');
+ assert.equal(s.settings.nextCargaSeq,undefined);
  const b=commit(s,purchase,'2026-12-31T23:50:00.000Z');s=b.state;
  assert.equal(b.result.numero,'OS-000002');
  const c=commit(s,purchase,'2027-01-01T00:01:00.000Z');s=c.state;
@@ -53,12 +54,13 @@ test('editar a OS não gera outra sequência; cancelar mantém o número ocupado
 test('registros COMP antigos mantêm referência; importação OS existente respeita maior número',()=>{
  const s=state();
  s.comprasFornecedor=[{id:'antigo',numero:'COMP-2026-000041',status:'CANCELADO'},{id:'importado',numero:'OS-000012',status:'CANCELADO'}];
+ s.cargas=[{id:'externa',codigo:'OS-000015',numeroOS:'OS-000015',status:'CANCELADA'}];
  s.settings.nextOsSeq=2;
  const a=commit(s,purchase);
- assert.equal(a.result.numero,'OS-000013');
+ assert.equal(a.result.numero,'OS-000016');
  assert.equal(a.state.comprasFornecedor[0].numero,'COMP-2026-000041');
  assert.equal(a.state.comprasFornecedor[1].numero,'OS-000012');
- assert.equal(a.state.settings.nextOsSeq,14);
+ assert.equal(a.state.settings.nextOsSeq,17);assert.equal(a.state.cargas[0].codigo,'OS-000015');
 });
 test('PDF e interface mostram NOSSA OS separada do número confirmado da indústria',()=>{
  const document=readFileSync(new URL('../supabase/functions/order-communications/order-document.mjs',import.meta.url),'utf8');
