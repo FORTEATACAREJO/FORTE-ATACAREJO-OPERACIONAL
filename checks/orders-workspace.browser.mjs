@@ -20,11 +20,12 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('link',{name:'Abrir Pedidos FT',exact:true}).getAttribute('href'),'/pedidos-ft.html');
  await page.evaluate(()=>window.openStandalone());
  await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
+ const beforeDossierPreview=await page.evaluate(()=>JSON.stringify(window.fixtureState.comunicacoes||[]));
  await page.getByRole('button',{name:'Enviar prévia para Conferente',exact:true}).click();
  const dossierPreview=page.getByRole('region',{name:'Prévia interna',exact:true});await dossierPreview.waitFor();
  await page.evaluate(()=>{window.open=(url)=>{window.dossierPreviewUrl=url;};});
  await dossierPreview.getByRole('button',{name:'Abrir WhatsApp de Conferente',exact:true}).click();
- const dossierPreviewUrl=new URL(await page.evaluate(()=>window.dossierPreviewUrl));assert.equal(dossierPreviewUrl.pathname,'/5500000000000');assert.match(dossierPreviewUrl.searchParams.get('text'),/OS-000001/);assert.equal(await page.evaluate(()=>window.fixtureState.comunicacoes?.length||0),0);
+ const dossierPreviewUrl=new URL(await page.evaluate(()=>window.dossierPreviewUrl));assert.equal(dossierPreviewUrl.pathname,'/5500000000000');assert.match(dossierPreviewUrl.searchParams.get('text'),/OS-000001/);assert.equal(await page.evaluate(()=>JSON.stringify(window.fixtureState.comunicacoes||[])),beforeDossierPreview);
  await dossierPreview.getByRole('button',{name:'Fechar prévia',exact:true}).click();
  assert.equal(await page.locator('.ow-tabs').count(),0);
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT',{exact:true}).locator('option').count(),1);
@@ -37,6 +38,14 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
  assert.equal(await page.getByText('Frete pendente de registro',{exact:true}).count(),1);
  assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
+ await page.getByRole('button',{name:'Alterar motorista',exact:true}).click();
+ const driverChange=page.getByRole('region',{name:'Alterar motorista da carga'});await driverChange.waitFor();
+ assert(await driverChange.getByRole('button',{name:'Salvar novo motorista',exact:true}).isDisabled());
+ await driverChange.getByLabel('Buscar motorista para esta carga').fill('não localizado');
+ assert.equal(await driverChange.getByLabel('Novo motorista da carga').locator('option').count(),1);
+ await driverChange.getByRole('button',{name:'Cancelar alteração',exact:true}).click();
+ assert.equal(await driverChange.count(),0);
+ assert.equal(await page.evaluate(()=>window.fixtureState.comprasFornecedor[0].numero),'OS-000001');
  await page.getByRole('button',{name:'Abrir ordem',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Salvar motorista e condições da carga',exact:true}).count(),1,'a ordem deve abrir vinculada a mesma carga do dossiê');
  assert.equal(await page.getByRole('navigation',{name:'Navegação do Pedidos FT'}).count(),1);await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
