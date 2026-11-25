@@ -23,6 +23,9 @@ export function capacityMessage(check) {
 // Pedido comercial pode ser comunicado antes de definir um conjunto operacional.
 // Não concede habilitação, não cria protocolo nem libera ordem de carregamento.
 export function isProvisionalCommercialOrder(state,order){
+ if(!order||order.protocolo||order.veiculoId||!Array.isArray(order.placas)||order.placas.length!==0)return false;
+ // Compra comercial sem motorista escolhido: expedição permanece sujeita às validações próprias.
+ if(!order.motoristaId&&!order.motorista&&!order.motoristaSnapshot)return true;
  const driver=(state.motoristas||[]).find(m=>m.id===order?.motoristaId);
  const status=String(driver?.statusCadastro||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
  return !!(driver?.cadastroAdministrativoLiberado===true&&driver.documentosConferidos!==true&&driver.bloqueadoGestor!==true&&!/INATIVO|BLOQUEAD|RECUSAD|REPROVADO/.test(status)&&!order.protocolo&&!order.veiculoId&&Array.isArray(order.placas)&&order.placas.length===0);
