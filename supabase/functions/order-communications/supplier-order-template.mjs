@@ -11,7 +11,7 @@ const itemQty=i=>Number(i.qtd)||0;
 const hasPrice=i=>Number.isFinite(Number(i.custoUnitario))&&Number(i.custoUnitario)>0;
 const asSacks=s=>/CIMENTO|ARGAMASSA|REJUNTE|CAL\b|SACO|\bKG\b/i.test(safe(s));
 const carrierText=o=>!(o.placas||[]).length?([o.motorista?'Previsto: '+o.motorista:'Motorista a definir','Placas a definir — não autoriza carregamento'].join(' • ')):([o.motorista,...o.placas].filter(Boolean).join(' • '));
-const stateBadge=o=>/ENVIADO|ENTREGUE|CONFIRMADO/.test(safe(o.status).toUpperCase())?'PEDIDO REGISTRADO • ENVIO CONFERIR':
+const stateBadge=o=>o.previaInterna===true?'PRÉVIA INTERNA — SEM VALIDADE COMO PEDIDO OFICIAL':/ENVIADO|ENTREGUE|CONFIRMADO/.test(safe(o.status).toUpperCase())?'PEDIDO REGISTRADO • ENVIO CONFERIR':
  /RASCUNHO|PENDENTE|CONFERÊNCIA|CONFERENCIA/.test(safe(o.status).toUpperCase())?'PEDIDO GRAVADO • ENVIO PENDENTE':'PEDIDO DE COMPRA • CONFERIR ANTES DO ENVIO';
 const terms=o=>missing(o.pagamento||o.condicaoFornecedor);
 const mode=o=>missing(o.modalidadeFrete);
@@ -44,14 +44,14 @@ export function supplierOrderDocument(jsPDF,order){
   rect(0,0,width,32,copy.navy);rect(12,0,1.3,32,copy.red);
   rect(16,6,18,18,copy.red,3);txt('F',25,19,{size:23,bold:true,color:[255,255,255],align:'center'});
   txt('FORTE ATACAREJO',39,14,{size:17,bold:true,color:[255,255,255]});
-  txt('PEDIDO DE COMPRA AO FORNECEDOR',39,23,{size:9.7,bold:true,color:[236,242,248]});
+  txt(order.previaInterna===true?'PRÉVIA INTERNA • NÃO ENVIAR AO FORNECEDOR':'PEDIDO DE COMPRA AO FORNECEDOR',39,23,{size:9.7,bold:true,color:[236,242,248]});
  };
  const footer=()=>{
   const n=doc.getNumberOfPages();
   for(let i=1;i<=n;i++){
    doc.setPage(i);doc.setDrawColor(...copy.line);doc.line(margin,283,maxX,283);
    txt('FORTE ATACAREJO  •  PEDIDOS FT',margin,289,{size:7.4,bold:true});
-   txt('Pedido ao fornecedor  •  '+i+'/'+n,maxX,289,{size:7.2,align:'right',color:copy.slate});
+   txt((order.previaInterna===true?'Prévia interna':'Pedido ao fornecedor')+'  •  '+i+'/'+n,maxX,289,{size:7.2,align:'right',color:copy.slate});
   }
  };
  const section=(name,y)=>{
