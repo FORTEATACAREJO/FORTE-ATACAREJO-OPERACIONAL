@@ -5,6 +5,7 @@ import {loadReport} from './orders-reports';
 import './pedidos-ft.css';
 import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
 import DriverIntake from './DriverIntake.jsx';
+import {useForteLayer} from './use-forte-navigation.js';
 
 const number=n=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -71,6 +72,7 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
+ useForteLayer('pedidos-ft-lista-cargas',loadView,setLoadView);
  const [pendingFilter,setPendingFilter]=useState('');
  const pendingLoads=useMemo(()=>cargas.map(c=>({id:c.id,keys:dossierPending(buildPedidosFTDossier(data,c.id))})),[data,cargas]);
  const [scrollField,setScrollField]=useState(returnField||null);
