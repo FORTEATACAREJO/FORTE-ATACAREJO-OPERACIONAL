@@ -51,7 +51,7 @@ export function buildPedidosFTDossier(state,cargaId){
   const id=String(v.clienteId||v.cliente||v.id);
   const match=rows(state,'clientes').find(x=>x.id===v.clienteId);
   if(!clients.has(id))clients.set(id,{id,nome:match?.nomeFantasia||match?.fantasia||match?.nome||v.cliente||'Cliente',cidade:match?.cidade||'',uf:match?.uf||'',items:[],documents:[]});
-  clients.get(id).items.push({id:v.id,produto:v.produto,produtoId:v.produtoId,qtd:numeric(v.qtd),precoUnitario:v.precoUnitario,condicaoPagamento:v.condicaoPagamento||v.formaPagamento||'',numeroVenda:v.numeroVenda});
+  clients.get(id).items.push({id:v.id,produto:v.produto,produtoId:v.produtoId,qtd:numeric(v.qtd),precoUnitario:v.precoUnitario,condicaoPagamento:v.condicaoPagamento||v.formaPagamento||'',numeroVenda:v.numeroVenda,ordemCompraCliente:v.ordemCompraCliente||'',itemOrdemCompraCliente:v.itemOrdemCompraCliente??null});
  }
  for(const d of docs){
   const client=clients.get(String(d.clienteId||''));
