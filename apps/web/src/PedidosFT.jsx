@@ -4,6 +4,7 @@ import {buildPedidosFTDossier} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
 import './pedidos-ft.css';
 import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
+import {InternalOrderPreview} from './OrderOperations.jsx';
 
 const number=n=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -162,6 +163,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
    <DocList docs={supplierDocs} onOpenDocument={onOpenDocument}/>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
+   {order&&<InternalOrderPreview key={order.id} order={{...order,motorista:c.motorista||order.motorista,placas:c.placas||order.placas}} recipient={data.settings?.pedidoPreviaInterna} busy={false}/>}
+   {order&&data.settings?.pedidoPreviaInterna&&<p className="ft-hint">Prévia do pedido para Pedro, sem registrar fechamento. O relatório completo da carga pode ser baixado abaixo e anexado manualmente.</p>}
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
   </Panel>
 
