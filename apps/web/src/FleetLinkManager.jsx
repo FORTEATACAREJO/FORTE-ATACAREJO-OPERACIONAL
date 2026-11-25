@@ -120,13 +120,13 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
 <h3>Vincular motorista a um veículo</h3>
   <p>O vínculo permanece ativo até você clicar em <strong>Desvincular</strong>. Nos pedidos, ao escolher o motorista, a placa deste vínculo será preenchida automaticamente. Desvincular não apaga cadastros nem o histórico.</p>
   {isAdmin&&<form className="ft-fleet-form" onSubmit={linkDriver} aria-label="Vincular motorista a veículo">
-   <label>Motorista<select required disabled={!!initialDriverId} value={choice.motorista_operacional_id} onChange={e=>setChoice(v=>({...v,motorista_operacional_id:e.target.value}))}>
+   <label>Motorista<select aria-label="Motorista" required disabled={!!initialDriverId} value={choice.motorista_operacional_id} onChange={e=>setChoice(v=>({...v,motorista_operacional_id:e.target.value}))}>
     <option value="">Selecione motorista cadastrado</option>
     {allDrivers.map(d=><option key={d.id} value={d.id}>{d.nome}{d.ativo===false?' · pré-cadastro/inativo':''}</option>)}
    </select></label>
    {selectedBinding&&<p role="status" className="ft-fleet-linked">Motorista já vinculado: <strong>{selectedBinding.vehicle.placa}</strong>. Esse vínculo permanece até a desvinculação manual.</p>}
    {initialDriverId&&!selectedBinding&&<label>Buscar veículo pela placa<input type="search" value={vehicleQuery} onChange={e=>setVehicleQuery(e.target.value)} placeholder="Digite a placa"/></label>}
-   <label>Veículo<select required disabled={!!selectedBinding||loading} value={selectedBinding?.vehicle.id||choice.veiculo_id} onChange={e=>setChoice(v=>({...v,veiculo_id:e.target.value}))}>
+   <label>Veículo<select aria-label="Veículo" required disabled={!!selectedBinding||loading} value={selectedBinding?.vehicle.id||choice.veiculo_id} onChange={e=>setChoice(v=>({...v,veiculo_id:e.target.value}))}>
     <option value="">Selecione uma placa</option>
     {vehicles.filter(v=>v.ativo!==false&&(v.id===choice.veiculo_id||v.id===selectedBinding?.vehicle.id||plateKey(v.placa).includes(plateKey(vehicleQuery)))).map(v=><option key={v.id} value={v.id}>{v.placa} · {v.tipo}{current.some(l=>l.veiculo_id===v.id)?' · já vinculado':''}</option>)}
    </select></label>
