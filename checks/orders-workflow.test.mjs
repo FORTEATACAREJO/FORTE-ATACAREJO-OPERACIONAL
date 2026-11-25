@@ -221,3 +221,15 @@ test('vínculo automático exige XML autorizado, CNPJs e referência inequívoca
  assert.equal(matchingSupplierInvoices(s,'c',[{...src,metadata:{...src.metadata,recipient_cnpj:'33333333000191'}}]).length,0);
  assert.equal(matchingSupplierInvoices({...s,cargas:[...s.cargas,{...s.cargas[0],id:'other'}]},'c',[src]).length,0);
 });
+
+test('anexar vários boletos do cliente preserva venda e rejeita venda de outra carga',()=>{
+ let s=confirmed();s=execute(s,sale).state;
+ const c=s.cargas[0].id,v=s.vendas[0].grupoPedidoId;
+ const body={action:'DOCUMENT_ADD',cargaId:c,vendaId:v,categoria:'BOLETO CLIENTE',path:'e/1.pdf',hash:'a'.repeat(64),filename:'1.pdf'};
+ assert.throws(()=>execute(s,body),/mesmo cliente e da mesma carga/);
+ s=execute(s,{action:'SALE_LINK',cargaId:c,vendaId:v}).state;
+ s=execute(s,body).state;
+ s=execute(s,{...body,path:'e/2.pdf',hash:'b'.repeat(64),filename:'2.pdf'}).state;
+ assert.equal(s.documentos.filter(x=>x.categoria==='BOLETO CLIENTE').length,2);
+ assert(s.documentos.every(x=>x.clienteId==='c'&&x.cargaId===c&&x.vendaId===v&&x.validationStatus==='RECEBIDO'));
+});
