@@ -21,8 +21,8 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
    if(!form.cpf||!form.cnhNumero||!form.cnhCategoria ) {
     if(approve)throw Error('Complete CPF, CNH e categoria para aprovar.');
    }
-   if(approve&&(!checked||!responsible||reference.trim().length<5))
-    throw Error('É obrigatório conferir os documentos e informar uma referência antes de habilitar.');
+   if(approve&&(!checked||!responsible))
+    throw Error('Confirme a conferência dos documentos e sua responsabilidade antes de habilitar.');
    const {data,error}=await supabase.functions.invoke('orders-workflow',{
     body:{
      action:'DRIVER_REVIEW',requestId:crypto.randomUUID(),motoristaId:driver.id,
@@ -30,7 +30,7 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
      confirmacaoResponsavel:responsible,referenciaConferencia:reference.trim()
     }
    });
-   if(error||data?.error)throw Error(data?.error||error.message);
+   if(error){let detail;try{detail=await error.context?.json?.();}catch{}throw Error(detail?.error||data?.error||error.message);}if(data?.error)throw Error(data.error);
    setFeedback(data?.warning||'Alteração confirmada.');
    await onSaved?.(data);
   }catch(e){setFeedback(e.message||'Não foi possível salvar a conferência.');}
@@ -51,7 +51,7 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
      onChange={e=>patch(name,e.target.value)} disabled={busy}/>
    </label>)}
   </div>
-  <label>Referência da conferência documental
+  <label>Observação da conferência (opcional)
    <textarea aria-label="Referência da conferência documental" rows={2} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Ex.: CNH original conferida presencialmente em 23/11/2026" disabled={busy}/>
   </label>
   <label className="ft-driver-review-check"><input type="checkbox" checked={checked} disabled={busy}
@@ -62,7 +62,7 @@ export default function OperationalDriverApproval({driver,onCancel,onSaved}){
   {feedback&&<p role="alert" className="ft-driver-review-feedback">{feedback}</p>}
   <div className="ft-driver-review-actions">
    <button type="button" disabled={busy} onClick={()=>submit(false)}>SALVAR DADOS CADASTRAIS</button>
-   <button type="button" disabled={busy||!checked||!responsible||reference.trim().length<5} onClick={()=>submit(true)}>CONFIRMAR E HABILITAR MOTORISTA</button>
+   <button type="button" disabled={busy||!checked||!responsible} onClick={()=>submit(true)}>CONFIRMAR E HABILITAR MOTORISTA</button>
    <button type="button" disabled={busy} onClick={onCancel}>VOLTAR AOS MOTORISTAS</button>
   </div>
  </section>;
