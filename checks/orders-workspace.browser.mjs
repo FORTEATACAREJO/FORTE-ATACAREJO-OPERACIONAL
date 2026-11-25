@@ -28,7 +28,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('heading',{name:'1. Compra, fornecedor e paletes',exact:true}).count(),1);
  assert.equal(await page.locator('#ft-campo-1').getByRole('heading',{name:'Paletes da carga',exact:true}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'2. Motorista e carregamento',exact:true}).count(),1);
- assert.equal(await page.getByRole('navigation',{name:'Etapas da OS'}).getByRole('button').count(),7);
+ assert.equal(await page.getByRole('navigation',{name:'Etapas da OS'}).getByRole('button').count(),6);
  await page.getByRole('button',{name:'Abrir compra',exact:true}).click();
  await page.getByRole('heading',{name:'Compra desta OS',exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Gravar pedido',exact:true}).count(),0);
@@ -44,8 +44,11 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.goBack();await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
  assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT').locator('option:checked').innerText(),'OS-000001');
 
- assert.equal(await page.getByRole('heading',{name:'5. Faturamento — Juliana'}).count(),1);
- assert.equal(await page.getByRole('heading',{name:'6. Fechamento — Pedro'}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'4. Conciliação e faturamento — Juliana',exact:true}).count(),1);
+ assert.equal(await page.locator('#ft-campo-4').getByRole('heading',{name:'Conciliação por produto',exact:true}).count(),1);
+ assert.equal(await page.locator('#ft-campo-4').getByRole('heading',{name:'Faturamento — Juliana',exact:true}).count(),1);
+ assert.equal(await page.locator('#ft-campo-4').getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
+ assert.equal(await page.getByRole('heading',{name:'5. Fechamento — Pedro'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
  assert.equal(await page.getByText('Frete pendente de registro',{exact:true}).count(),1);
  assert.equal(await page.getByText('ACESSO EM PREPARAÇÃO').count(),2);
