@@ -85,7 +85,7 @@ export default function PedidosFTQuickRegistry({request,data,onSave,onClose,onSy
    onClose();
   }catch(err){setError(err.message||'Não foi possível salvar o cadastro.');}finally{setBusy(false);}
  }
- if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory forForm={request.forForm} data={data} onClose={onClose} onSync={onSyncDrivers} onPick={id=>onPickDriver?.(id,request.forForm)} onDataRefresh={onDataRefresh} isAdmin/></Suspense>;
+ if(kind==='motoristas')return <Suspense fallback={<div role="status">Abrindo cadastro de motoristas…</div>}><DriverDirectory initialView={mode==='link-vehicle'?'veiculos':'motoristas'} initialDriverId={mode==='link-vehicle'?id:''} forForm={request.forForm} data={data} onClose={onClose} onSync={onSyncDrivers} onPick={mode==='link-vehicle'?undefined:id=>onPickDriver?.(id,request.forForm)} onDataRefresh={onDataRefresh} isAdmin/></Suspense>;
  if(kind==='usuarios')return <div className="ft-quick-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
   <section className="ft-quick-modal" role="dialog" aria-modal="true" aria-label="Atalhos de usuários">
    <header><h2>Usuários e permissões</h2><button type="button" onClick={onClose}>← Voltar ao pedido</button></header>
