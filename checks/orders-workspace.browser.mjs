@@ -26,6 +26,22 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.locator('.ft-summary,.ft-protocol,.ft-status').count(),0);
  assert.equal(await page.getByLabel('Protocolo do pedido',{exact:true}).count(),0);
  assert.equal(await page.getByRole('heading',{name:'2. Paletes da carga'}).count(),1);
+ assert.equal(await page.getByRole('navigation',{name:'Etapas da OS'}).getByRole('button').count(),8);
+ await page.getByRole('button',{name:'Abrir compra',exact:true}).click();
+ await page.getByRole('heading',{name:'Compra desta OS',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Gravar pedido',exact:true}).count(),0);
+ assert.equal(await page.getByRole('button',{name:'Editar pedido',exact:true}).count(),1);
+ assert.equal(await page.locator('.ow-context-os').innerText(),'OS-000001');
+ await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
+ await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
+ assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT').locator('option:checked').innerText(),'OS-000001');
+ assert.equal(await page.getByRole('combobox',{name:'Vincular venda à OS',exact:true}).locator('option').count(),2);
+ assert.equal(await page.getByRole('button',{name:'Vincular venda selecionada',exact:true}).isDisabled(),true);
+ await page.getByRole('button',{name:'Abrir compra',exact:true}).click();
+ await page.getByRole('heading',{name:'Compra desta OS',exact:true}).waitFor();
+ await page.goBack();await page.getByRole('region',{name:'PEDIDOS FT'}).waitFor();
+ assert.equal(await page.getByLabel('Selecionar carga do PEDIDOS FT').locator('option:checked').innerText(),'OS-000001');
+
  assert.equal(await page.getByRole('heading',{name:'6. Faturamento — Juliana'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'7. Fechamento — Pedro'}).count(),1);
  assert.equal(await page.getByRole('heading',{name:'Resumo financeiro da carga',exact:true}).count(),1);
