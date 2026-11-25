@@ -15,7 +15,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
  const [vehicle,setVehicle]=useState(emptyVehicle),[editingVehicleId,setEditingVehicleId]=useState('');
  const [choice,setChoice]=useState(()=>({...emptyLink,motorista_operacional_id:initialDriverId}));
  const [vehicleQuery,setVehicleQuery]=useState(''),[driverQuery,setDriverQuery]=useState('');
- const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
+ const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[loaded,setLoaded]=useState(false);
  const allDrivers=useMemo(()=>[...new Map([...drivers,...registeredDrivers].map(d=>[d.id,d])).values()],[drivers,registeredDrivers]);
  const vehicleById=useMemo(()=>new Map(vehicles.map(v=>[v.id,v])),[vehicles]);
  const ordered=useMemo(()=>[...links].sort((a,b)=>String(b.inicio_em).localeCompare(String(a.inicio_em))),[links]);
@@ -39,7 +39,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    supabase.from('fc_motoristas').select('id,nome,ativo').order('nome').limit(500)
   ]);
   for(const item of [vr,lr,dr])if(item.error)throw Error('Falha ao consultar veículos e vínculos: '+item.error.message);
-  setVehicles(vr.data||[]);setLinks(lr.data||[]);setRegisteredDrivers(dr.data||[]);setLoading(false);
+  setVehicles(vr.data||[]);setLinks(lr.data||[]);setRegisteredDrivers(dr.data||[]);setLoaded(true);setLoading(false);
  }
  useEffect(()=>{let live=true;load().catch(e=>{if(live){setMessage(e.message);setLoading(false);}});return()=>{live=false;};},[]);
  async function admin(){
@@ -55,7 +55,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   return {userId:user.data.user.id,empresaId:profile.data.empresa_id};
  }
  async function transact(task){
-  setBusy(true);setMessage('');
+  setBusy(true);setLoaded(false);setMessage('');
   try{const status=await task();await load();if(status)setMessage(status);}
   catch(e){setMessage(e.message||'Não foi possível concluir a operação.');}
   finally{setBusy(false);}
@@ -110,7 +110,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
     vinculado_por:userId,observacao:choice.observacao.trim()||null
    }).select('id').single();
    if(result.error)throw Error(result.error.code==='23505'?'O veículo já possui motorista vinculado. Atualize e confira o histórico.':result.error.message);
-   setChoice({...emptyLink,motorista_operacional_id:initialDriverId});
+   setChoice(v=>({...emptyLink,motorista_operacional_id:v.motorista_operacional_id}));
    return 'Motorista vinculado ao veículo. A transportadora é a cadastrada na ficha do veículo. A liberação para transporte segue separada.';
   });
  }
@@ -143,7 +143,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
     </section>
     <div className="ft-fleet-pair-center">
      <span className="ft-fleet-connector" aria-hidden="true">↔</span>
-     {driverLink?<><span className="ft-fleet-pair-status">VINCULADO</span>{isAdmin&&<button type="button" className="ft-fleet-unlink" disabled={busy||loading} onClick={()=>unlinkDriver(driverLink.id)}>Desvincular</button>}</>:<button type="submit" className="ft-fleet-connect" aria-label="VINCULAR MOTORISTA" disabled={!isAdmin||busy||loading||!check.ok}>Vincular</button>}
+     {driverLink?<><span className="ft-fleet-pair-status">VINCULADO</span>{isAdmin&&<button type="button" className="ft-fleet-unlink" disabled={busy||loading||!loaded} onClick={()=>unlinkDriver(driverLink.id)}>Desvincular</button>}</>:<button type="submit" className="ft-fleet-connect" aria-label="VINCULAR MOTORISTA" disabled={!isAdmin||busy||loading||!loaded||!check.ok}>Vincular</button>}
     </div>
     <section className="ft-fleet-column" aria-label="Veículos">
      <h4>Veículos ({vehicles.length})</h4>
@@ -168,6 +168,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
  return <section className="ft-fleet-manager" aria-label="Veículos e vínculo de motoristas">
   <p role="status" aria-live="polite">{message}</p>
   {loading&&<p>Consultando veículos…</p>}
+  {!loading&&!loaded&&<button type="button" disabled={busy} onClick={()=>transact(async()=>null)}>Atualizar veículos e vínculos</button>}
   {initialDriverId&&<p className="ft-fleet-linked">Motorista da carga: <strong>{driverName(allDrivers,initialDriverId)}</strong>. Vincule uma placa existente ou cadastre um veículo abaixo. O vínculo não altera automaticamente uma ordem já gravada; volte à carga para conferir e salvar a ordem.</p>}
   {linkForm}
   <details><summary>Cadastro e consulta de veículos</summary>
@@ -204,7 +205,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    <b>{driverName(allDrivers,l.motorista_operacional_id)}</b>
    <span>{vehicleById.get(l.veiculo_id)?.placa||'Veículo não encontrado'} · {carrierLabel(vehicleById.get(l.veiculo_id),l)}</span>
    <small>Vinculado em {pretty(l.inicio_em)}. Vínculo não autoriza expedição.</small>
-   {isAdmin&&<button type="button" disabled={busy} onClick={()=>unlinkDriver(l.id)}>DESVINCULAR E MANTER HISTÓRICO</button>}
+   {isAdmin&&<button type="button" disabled={busy||!loaded} onClick={()=>unlinkDriver(l.id)}>DESVINCULAR E MANTER HISTÓRICO</button>}
   </article>)}</div>
   {current.length===0&&<p>Nenhum motorista vinculado. Não haverá associação automática pela placa.</p>}
   <h3>Histórico de vínculos ({history.length})</h3>
