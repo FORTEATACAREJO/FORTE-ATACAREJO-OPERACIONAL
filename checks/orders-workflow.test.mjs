@@ -201,5 +201,9 @@ test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir mot
  const warnings=driverRegistrationWarnings(m,'2026-11-24');
  assert(warnings.some(w=>w.includes('vencida')));assert(warnings.some(w=>w.includes('Telefone')));
  assert(isDriverDraftSelectable(m));
+ const withoutProof={...m,comprovanteEnderecoInformado:false,enderecoInformado:false};
+ assert(isDriverDraftSelectable(withoutProof));
+ assert(driverRegistrationWarnings(withoutProof,'2026-11-24').includes('Endereço não informado'));
+ assert(!driverRegistrationWarnings(withoutProof,'2026-11-24').some(w=>/comprovante/i.test(w)));
  assert(!driverRegistrationWarnings({...m,cnhValidade:''},'2026-11-24').some(w=>w.includes('validade')));
 });
