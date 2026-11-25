@@ -70,6 +70,9 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  </section>;
  if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
+ const draft=String(order?.status||'').startsWith('RASCUNHO');
+ const os=order?.numero||c.numeroOS;
+ const orderFor=x=>(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);
  const supplierDocs=documents.filter(doc=>!doc.clienteId&&!doc.vendaId);
  const customerDocs=documents.filter(doc=>doc.clienteId||doc.vendaId);
  const statusTone=r.status==='CONCILIADA'?'good':r.status==='DIVERGENTE'?'bad':'warn';
@@ -79,21 +82,23 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
    <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={setLoadView}/></div>
   </header>
-  <div className="ft-picker"><label htmlFor="ft-carga">Selecionar carga</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>setSelection(e.target.value)}>{cargas.map(x=><option key={x.id} value={x.id}>{x.codigo||x.id} • {x.fornecedor||'Fornecedor a definir'}</option>)}</select></div>
+  <div className="ft-picker"><label htmlFor="ft-carga">Selecionar pedido / carga</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>setSelection(e.target.value)}>{cargas.map(x=>{const purchase=orderFor(x);const osNumber=purchase?.numero||x.numeroOS;return <option key={x.id} value={x.id}>{osNumber||x.codigo||x.id} • {x.fornecedor||'Fornecedor a definir'}{String(purchase?.status||'').startsWith('RASCUNHO')?' • Rascunho':''}</option>;})}</select></div>
   <div className="ft-summary">
-   <div><small>CARGA</small><strong>{text(c.codigo||c.id)}</strong></div>
+   <div><small>NOSSA OS</small><strong>{text(os||"Sem OS")}</strong></div>
    <div><small>FORNECEDOR</small><strong>{text(supplier?.nome||c.fornecedor)}</strong></div>
-   <div><small>PEDIDO OFICIAL</small><strong>{text(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||'Aguardando')}</strong></div>
+   <div><small>PEDIDO OFICIAL DO FORNECEDOR</small><strong>{text(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||(draft?'Ainda não enviado':'Aguardando'))}</strong></div>
   </div>
+  <p className="ft-hint">Código interno da carga: {c.codigo||c.id} — não é o número da OS.</p>
+  {draft&&<p className="ft-warning" role="status">Rascunho gravado. Pedido não enviado; carregamento não iniciado por este registro.</p>}
   <div className="ft-protocol" aria-label="Protocolo do pedido"><span>PROTOCOLO DO PEDIDO</span><strong>{c.protocolo||order?.protocolo||"Aguardando identificação do motorista"}</strong><small>Primeiro nome do motorista + data do pedido (DDMMAA), tudo junto</small></div>
   <div className="ft-status">
-   <Pill tone={statusTone}>{r.status==='CONCILIADA'?'Comercial conciliado':r.status==='DIVERGENTE'?'Quantidade divergente':'Comercial em aberto'}</Pill>
+   <Pill tone={draft?'warn':statusTone}>{draft?'Rascunho — não enviado':r.status==='CONCILIADA'?'Comercial conciliado':r.status==='DIVERGENTE'?'Quantidade divergente':'Comercial em aberto'}</Pill>
    <Pill tone="warn">Faturamento: conferir</Pill>
    <Pill tone="neutral">Fechamento: conferir</Pill>
   </div>
 
   <Panel title="1. Compra e fornecedor" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor')}>Abrir compra</button>}>
-   <Field label="Número interno" value={order?.numero||c.codigo}/>
+   <Field label="Nossa OS" value={os||"Sem OS"}/>
    <Field label="Protocolo PEDIDOS FT" value={c.protocolo||order?.protocolo||"Aguardando motorista"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
