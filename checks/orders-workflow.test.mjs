@@ -200,3 +200,13 @@ test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir mot
  assert(isDriverDraftSelectable(m));
  assert(!driverRegistrationWarnings({...m,cnhValidade:''},'2026-11-24').some(w=>w.includes('validade')));
 });
+
+ test('ordem de compra externa fica por venda e item sem substituir a OS da carga',()=>{
+ const initial=execute(base(),supplier).state;
+ const one=execute(initial,{...sale,ordemCompraCliente:'000OC-128',itens:[{...sale.itens[0],qtd:10,itemOrdemCompraCliente:'7'}]}).state;
+ const two=execute(one,{...sale,ordemCompraCliente:'OC-999',itens:[{...sale.itens[0],qtd:5}]}).state;
+ assert.equal(two.vendas[0].ordemCompraCliente,'000OC-128');assert.equal(two.vendas[0].itemOrdemCompraCliente,7);assert.equal(two.vendas[1].ordemCompraCliente,'OC-999');assert.equal(two.vendas[1].itemOrdemCompraCliente,null);
+ assert.equal(two.cargas[0].numeroOS,initial.cargas[0].numeroOS);
+ assert.throws(()=>execute(initial,{...sale,ordemCompraCliente:'1234567890123456'}),/15 caracteres/);
+ assert.throws(()=>execute(initial,{...sale,itens:[{...sale.itens[0],itemOrdemCompraCliente:'2'}]}),/ordem correspondente/);
+ });
