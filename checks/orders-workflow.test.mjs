@@ -207,3 +207,16 @@ test('avisos cadastrais informam falta de telefone e CNH vencida sem excluir mot
  assert(!driverRegistrationWarnings(withoutProof,'2026-11-24').some(w=>/comprovante/i.test(w)));
  assert(!driverRegistrationWarnings({...m,cnhValidade:''},'2026-11-24').some(w=>w.includes('validade')));
 });
+
+ test('pedido comercial sem motorista pode ser enviado sem autorizar carregamento',()=>{
+ const s=base();s.fornecedores[0].emailPedidos='teste@example.invalid';
+ const saved=execute(s,{...supplier,motoristaId:''}).state;const o=saved.comprasFornecedor[0];
+ assert.equal(o.motoristaId,'');assert.equal(o.motoristaSnapshot,null);assert.deepEqual(o.placas,[]);assert.equal(o.numero,saved.cargas[0].numeroOS);
+ const reviewed=execute(saved,{action:'SUPPLIER_PREVIEW',id:o.id}).state;
+ const sent=execute(reviewed,{action:'SUPPLIER_SEND',id:o.id,canal:'EMAIL'}).state;
+ assert.equal(sent.comunicacoes[0].order.pedidoComercialSemLiberacao,true);
+ assert.equal(supplierDispatchCapacity(sent,sent.comunicacoes[0]).commercialOnly,true);
+ assert.throws(()=>execute(sent,{action:'LOAD_ASSIGN',cargaId:sent.cargas[0].id,motoristaId:'',origem:'Arcos',destino:'Galpão'}),/Motorista/i);
+ const assigned=execute(saved,{...supplier,action:'LOAD_ASSIGN',cargaId:saved.cargas[0].id}).state;
+ assert.equal(assigned.cargas[0].motoristaId,'m');assert.equal(assigned.cargas[0].numeroOS,o.numero);assert.equal(assigned.cargas.length,1);
+ });
