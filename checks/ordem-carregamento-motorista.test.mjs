@@ -29,6 +29,7 @@ test('ordem do motorista A4 de uma página com referência da indústria e OS se
    'SEM','CONFIRMA']){}
  assert.match(raw,/ORDEM DE CARREGAMENTO/);
  assert.match(raw,/OS-000001/);
+ assert(!raw.includes('FC-000001'));
  assert.match(raw,/IND-7788/);
  assert.match(raw,/CIPLAN CIMENTOS/);
  assert.match(raw,/ABC1D23/);
