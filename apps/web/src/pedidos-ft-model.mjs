@@ -85,7 +85,7 @@ export function buildPedidosFTDossier(state,cargaId){
 }
 
 export const pendingTypes=[
- ['fornecedor','Aguardando fornecedor',1],['paletes','Liberação de paletes pendente',1],['motorista','Motorista ou documentos pendentes',2],['veiculo','Veículo a definir',2],['ordem','Ordem de carregamento pendente',2],['saldo','Mercadoria disponível para venda',4],['faturamento','Documentos fiscais pendentes',5],['frete','Frete pendente',6],['fechamento','Conferência do fechamento',6],['finalizada','Finalizadas',7],['cancelada','Canceladas',7]
+ ['fornecedor','Aguardando fornecedor',1],['paletes','Liberação de paletes pendente',1],['motorista','Motorista ou documentos pendentes',2],['veiculo','Veículo a definir',2],['ordem','Ordem de carregamento pendente',2],['saldo','Mercadoria disponível para venda',4],['faturamento','Documentos fiscais pendentes',4],['frete','Frete pendente',5],['fechamento','Conferência do fechamento',5],['finalizada','Finalizadas',6],['cancelada','Canceladas',6]
 ];
 export function dossierPending(d){
  if(!d)return [];
