@@ -34,6 +34,9 @@ export function validateScope(scope){
 }
 export function scopeAllows(scope,kind,key){return scope==null||scope[kind].includes(key);}
 export function suggestedFields(driver){
- const values={nome:driver.nome,cpf:driver.cpf,whatsapp:driver.whatsapp||driver.telefone,cnh:driver.cnhNumero||driver.cnh,categoria:driver.cnhCategoria||driver.categoria_cnh,validade:driver.cnhValidade||driver.validade_cnh};
+ const values={nome:driver.nome,cpf:driver.cpf,whatsapp:driver.whatsapp||driver.telefone,cnh:driver.cnhNumero||driver.cnh,categoria:driver.cnhCategoria||driver.categoria_cnh};
  return Object.keys(values).filter(k=>!String(values[k]||'').trim()||(['cpf','cnh'].includes(k)&&String(values[k]).replace(/\D/g,'').length!==11));
 }
+
+// Validade continua disponível para solicitação manual e controle de expedição.
+export const internalCnhDocuments=['cnhFrente','cnhVerso','cnhDigital'];
