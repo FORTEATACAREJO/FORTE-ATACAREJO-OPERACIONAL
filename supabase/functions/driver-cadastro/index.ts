@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
-import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken,validateScope,scopeAllows} from './validation.mjs';
+import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken,validateScope,scopeAllows,internalCnhDocuments} from './validation.mjs';
 const origins=new Set(['https://pedidos-ft.onrender.com','https://forte-vendas.onrender.com']);
 const url=Deno.env.get('SUPABASE_URL')!,secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -68,6 +68,44 @@ Deno.serve(async(req)=>{
     await linkFor(req);
     check(await db.from('fc_driver_intake_submissions').update({status:'RECEBIDO',arquivos:docs}).eq('id',id).eq('status','RESERVADO').select('id').single());
    }catch(e){if(uploaded.length)await db.storage.from(bucket).remove(uploaded);await db.from('fc_driver_intake_submissions').delete().eq('id',id).eq('status','RESERVADO');throw e;}
+   return reply({ok:true,protocolo:id});
+  }
+  // Recebimento interno de CNH: somente administração, sem gerar link público.
+  if(action==='IMPORT_CNH'){
+   const p=await admin(req),body=await readBounded(req),form=await body.formData();
+   const driverId=String(form.get('motoristaId')||'');
+   if(!driverId||driverId.length>150||form.getAll('motoristaId').length!==1)throw new Fault(400,'Selecione o motorista.');
+   const state=check(await db.from('fc_app_state').select('estado').eq('empresa_id',p.empresa_id).maybeSingle());
+   if(state?.estado?.motoristas?.filter((m:any)=>m.id===driverId).length!==1)throw new Fault(404,'Motorista não localizado de forma única nesta empresa.');
+   const uploads:any[]=[];const seen=new Set<string>();
+   for(const [name,value] of form.entries()){
+    if(name==='motoristaId')continue;
+    if(!internalCnhDocuments.includes(name)||typeof value==='string'||seen.has(name)||!value.size||value.size>maxFile)throw new Fault(400,'Anexo de CNH inválido. Limite de 6 MB por arquivo.');
+    seen.add(name);const bytes=new Uint8Array(await value.arrayBuffer());let kind;
+    try{kind=identifyFile(bytes);}catch(e){throw new Fault(400,(e as Error).message);}
+    const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(v=>v.toString(16).padStart(2,'0')).join('');
+    uploads.push({name,bytes,sha256,...kind});
+   }
+   if(!uploads.length)throw new Fault(400,'Selecione pelo menos uma cópia de CNH.');
+   // Reutiliza a caixa privada de recebimentos existente. O registro de origem já
+   // nasce expirado e revogado; não há token público retornado ou link acionável.
+   const now=new Date().toISOString(),receipt=crypto.randomUUID(),id=crypto.randomUUID();
+   check(await db.from('fc_driver_intake_links').insert({id:receipt,empresa_id:p.empresa_id,motorista_id:driverId,criado_por:p.user_id,token_hash:await hash(token()),expira_em:now,revogado_em:now,solicitacao:{fields:[],documents:[...seen]}}));
+   const uploaded:string[]=[];const docs:any[]=[];
+   try{
+    check(await db.from('fc_driver_intake_submissions').insert({id,link_id:receipt,slot:1,dados:{}}));
+    for(const f of uploads){
+     const path=p.empresa_id+'/'+receipt+'/'+id+'/'+f.name+'.'+f.ext;
+     check(await db.storage.from(bucket).upload(path,f.bytes,{contentType:f.mime,upsert:false}));
+     uploaded.push(path);docs.push({tipo:f.name,path,mime:f.mime,sha256:f.sha256,origem:'RECUPERACAO_ADMIN'});
+    }
+    check(await db.from('fc_driver_intake_submissions').update({status:'RECEBIDO',arquivos:docs}).eq('id',id).eq('status','RESERVADO').select('id').single());
+   }catch(e){
+    if(uploaded.length)await db.storage.from(bucket).remove(uploaded);
+    await db.from('fc_driver_intake_submissions').delete().eq('id',id).eq('status','RESERVADO');
+    // Preserva o protocolo revogado para auditoria; nenhum link utilizável.
+    throw e;
+   }
    return reply({ok:true,protocolo:id});
   }
   const p=await admin(req),body=await readBounded(req),b=await body.json();
