@@ -1,0 +1,13 @@
+# Auditoria FORTE — lote 05/05
+26/11/2026. Relatórios 01 e 04 consultados; continuidade dos lotes anteriores. Revisão estática, sem execução de testes novos.
+| PR | Branch | SHA | Base SHA | Mergeável | Checks |
+|---|---|---|---|---|---|
+|13|codex/whatsapp-modelos-vendas-20261011|4ce9270cf69c3003b8faf8e50008e210213b27f2|f9587940a7c944c53c4efa59e217cfbc0400bc6a|Sim|Qualidade Forte Vendas: sucesso; demais três não retornados|
+|8|fix/itau-safe-diagnostics-20261009|c59ab36a19b8ec6d802f349d07695ea6e0f7682e|cf5a162838f690b24d45837bb2a49f5a28f1d219|Não|Qualidade Forte Vendas: sucesso; demais três não retornados|
+
+## #13 — documentação, pendência de homologação
+Arquivo docs/whatsapp-modelos-vendas.md, 97 linhas novas. Cinco modelos: pedido, ajuste, carregamento, entrega com respostas rápidas, fornecedor com PDF. Dependências: aprovação Meta, contrato atual de parâmetros, roteamento e assinatura webhook (#22/#25), integração atual de comunicações. Main provider.mjs blob b9d20d0011dcb651dc0b6b87277607c7b57b41af não contém os cinco nomes literais de variáveis WHATSAPP_TEMPLATE_* indicados no documento; isso não prova ausência de configuração em outros módulos. Atualizar documentação após rastrear configuração efetiva, verificar referência OS, parâmetros, PDF fictício, payload único, consentimento e isolamento. Não submeter modelos, ativar flags ou enviar mensagens reais. Sete testes citados pelo autor não foram reexecutados. Não apto para ativação.
+## #8 — conflito, sobreposição parcial, revisão de segurança
+Arquivo itau-server.mjs. Diff valida PEM, extrai chave pública do CSR com openssl, compara com chave privada, classifica transporte e HTTP, reduz logs sensíveis. Main blob 3f333c9c7a16574a01c3cb18fe755ec13374a295 contém CSR_KEY_MISMATCH, mas não os símbolos CSR_INVALID, BANK_TRANSPORT_ERROR, safeCode ou csrPublic; comparar implementação atual integralmente antes de reaplicar. Dependências: runtime OpenSSL, contrato de ativação Itaú e configuração segura. Autor registra necessidade de rotação de credenciais previamente expostas; não confirmar exposição ou rotação sem evidência, não acessar valores. Testes locais com chaves descartáveis: CSR válido, inválido, chave divergente, timeout, HTTP simulado, resposta inválida, ausência de segredo em logs. Não chamar banco, ativar certificado ou emitir cobrança. Não apto.
+## Continuidade
+22/22 PRs da lista inicial revisados estaticamente, não homologados. Relatórios #126–129 e este lote. Próxima etapa: consolidar evidências, confirmar inventário atual, revisar resíduos em main em grupos de até cinco, criar branches corretivas apenas para falhas comprovadas, executar testes funcionais isolados. Nenhum merge, deploy, correção operacional ou teste novo nesta execução. Gate global bloqueado.
