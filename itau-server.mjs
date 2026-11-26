@@ -28,13 +28,22 @@ const send = (res, status, body, type = "application/json; charset=utf-8", heade
   res.writeHead(status, { "content-type": type, "cache-control": "no-store", ...headers });
   res.end(typeof body === "string" ? body : JSON.stringify(body));
 };
-const readBody = (req) => new Promise((resolve, reject) => {
-  let body = "";
+const readBody = (req, { raw = false } = {}) => new Promise((resolve, reject) => {
+  const chunks = [];
+  let size = 0;
   req.on("data", (chunk) => {
-    body += chunk;
-    if (body.length > 2_000_000) req.destroy();
+    size += chunk.length;
+    if (size > 2_000_000) {
+      reject(safeError("PAYLOAD_TOO_LARGE", "Corpo da requisição excede o limite", 413));
+      req.destroy();
+      return;
+    }
+    chunks.push(chunk);
   });
-  req.on("end", () => resolve(body));
+  req.on("end", () => {
+    const body = Buffer.concat(chunks, size);
+    resolve(raw ? body : body.toString("utf8"));
+  });
   req.on("error", reject);
 });
 const encrypt = (payload, password) => {
@@ -163,10 +172,10 @@ const server = http.createServer(async (req, res) => {
       return send(res, 403, { error: "Falha na verificação do webhook" });
     }
     if (["/webhook", "/webhooks/whatsapp"].includes(requestUrl.pathname) && req.method === "POST") {
-      const raw = await readBody(req);
       const secret = process.env.WHATSAPP_APP_SECRET;
       if (!secret) return send(res, 503, { error: "Assinatura do WhatsApp não configurada" });
       const signature = String(req.headers["x-hub-signature-256"] || "");
+      const raw = await readBody(req, { raw: true });
       const expected = Buffer.from("sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex"));
       const supplied = Buffer.from(signature);
       if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
@@ -175,7 +184,7 @@ const server = http.createServer(async (req, res) => {
       const endpoints = ['https://xmfpvvmvdkepmnvtdoio.supabase.co/functions/v1/whatsapp-fiscal/webhook'];
       if (process.env.WHATSAPP_VENDAS_WEBHOOK_ENABLED === 'true') endpoints.push('https://gtwecfyffjszghnvtlzr.supabase.co/functions/v1/order-communications/webhook');
       const responses = await Promise.all(endpoints.map(url => fetch(url, {
-        method: 'POST', headers: {'Content-Type': 'application/json', 'x-hub-signature-256': String(req.headers['x-hub-signature-256'] || '')},
+        method: 'POST', headers: {'Content-Type': 'application/json', 'x-hub-signature-256': signature},
         body: raw, signal: AbortSignal.timeout(20000)
       })));
       if (responses.some(r => !r.ok)) return send(res, 502, {error: 'Retorno ainda não confirmado pelas integrações.'});
