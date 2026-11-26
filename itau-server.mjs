@@ -164,6 +164,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (["/webhook", "/webhooks/whatsapp"].includes(requestUrl.pathname) && req.method === "POST") {
       const raw = await readBody(req);
+      const secret = process.env.WHATSAPP_APP_SECRET;
+      if (!secret) return send(res, 503, { error: "Assinatura do WhatsApp não configurada" });
+      const signature = String(req.headers["x-hub-signature-256"] || "");
+      const expected = Buffer.from("sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex"));
+      const supplied = Buffer.from(signature);
+      if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+        return send(res, 403, { error: "Assinatura do WhatsApp inválida" });
+      }
       const endpoints = ['https://xmfpvvmvdkepmnvtdoio.supabase.co/functions/v1/whatsapp-fiscal/webhook'];
       if (process.env.WHATSAPP_VENDAS_WEBHOOK_ENABLED === 'true') endpoints.push('https://gtwecfyffjszghnvtlzr.supabase.co/functions/v1/order-communications/webhook');
       const responses = await Promise.all(endpoints.map(url => fetch(url, {
