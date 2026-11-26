@@ -55,6 +55,14 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  await page.getByRole('button',{name:'Enviar para Pedro',exact:true}).click();
  const closing=page.getByRole('region',{name:'Enviar dossiê ao Pedro'});await closing.waitFor();
  assert.match(await closing.getByRole('link',{name:'Abrir WhatsApp de Pedro'}).getAttribute('href'),/wa\.me\/5500000000000/);
+ const downloadPromise=page.waitForEvent('download');
+ await closing.getByRole('button',{name:'Baixar PDF do dossiê'}).click();
+ const pdf=await downloadPromise;
+ assert.match(pdf.suggestedFilename(),/^OS.+-DOSSIE\.pdf$/i);
+ const report=await pdf.createReadStream();
+ const chunks=[];
+ for await(const chunk of report) chunks.push(chunk);
+ assert.equal(Buffer.concat(chunks).subarray(0,5).toString(),'%PDF-');
  await closing.getByRole('button',{name:'Fechar envio'}).click();
  await page.getByRole('button',{name:'Alterar motorista',exact:true}).click();
  const change=page.getByRole('region',{name:'Alterar motorista da carga'});await change.waitFor();assert(await change.getByRole('button',{name:'Salvar novo motorista'}).isDisabled());await page.evaluate(()=>window.addReplacementDriver());await change.getByRole('combobox',{name:'Novo motorista da carga'}).selectOption('m2');await change.getByRole('button',{name:'Salvar novo motorista'}).click();await page.waitForFunction(()=>window.fixtureState.cargas[0].motoristaId==='m2');assert.equal(await page.evaluate(()=>window.fixtureState.comprasFornecedor[0].numero),'OS-000001');assert.deepEqual(await page.evaluate(()=>window.fixtureState.cargas[0].placas),[]);assert.equal(await page.getByRole('button',{name:'Link e documentos do motorista'}).count(),1);
