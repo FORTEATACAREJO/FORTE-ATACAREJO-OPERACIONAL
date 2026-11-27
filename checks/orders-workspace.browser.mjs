@@ -107,6 +107,12 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]){
  assert.equal(await page.getByRole('button',{name:'Sincronizar aprovados',exact:true}).count(),1);
  await page.getByRole('button',{name:/Voltar ao Pedidos FT/}).click();
  assert.equal(await page.getByRole('region',{name:'PEDIDOS FT'}).count(),1);
+ const supplierConfirmation=page.getByRole('form',{name:'Registrar pedido do fornecedor'});
+ await supplierConfirmation.getByLabel('Número do pedido do fornecedor').fill('0006015647');
+ await supplierConfirmation.getByLabel('Referência da confirmação').fill('Portal do fornecedor');
+ await supplierConfirmation.getByRole('button',{name:'Salvar número do fornecedor'}).click();
+ await page.locator('.ft-picker').getByText('0006015647',{exact:true}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>[window.fixtureState.cargas[0].numeroPedidoFornecedor,window.fixtureState.comprasFornecedor[0].numeroPedidoFornecedor]),['0006015647','0006015647']);
  await page.getByRole('button',{name:'Novo pedido ao fornecedor',exact:true}).click();
  await page.getByRole('combobox',{name:'Fornecedor',exact:true}).selectOption('g');
  assert.equal(await page.getByLabel('Condição de paletes',{exact:true}).inputValue(),'Com pallets');
