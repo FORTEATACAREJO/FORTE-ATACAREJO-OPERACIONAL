@@ -39,9 +39,10 @@ export async function ftDossierAction(db:any,b:any,p:any,user:any,globalMaster:b
  }
  if(b.action==='FT_MY_LOADS')return {loads:currentAssignments(own).flatMap(h=>{const c=s.cargas?.find((x:any)=>x.id===h.carga_id&&x.status!=='CANCELADA');if(!c)return [];return [{id:c.id,os:c.numeroOS||c.codigo,fornecedor:c.fornecedor,role:h.papel,finalizadaEm:c.finalizadaEm}];})};
  const role=scopeFor(own,uid,id),snapshot=scopedSnapshot(s,id,role);
- if(b.action==='FT_LOAD_GET')return {dossier:scopedView(s,id,role)};
+ const logAccess=async(action:string,docId?:string)=>{const r=await db.from('ft_dossier_access_log').insert({empresa_id:empresa,carga_id:id,user_id:uid,acao:action,documento_id:docId||null});if(r.error)fail('Não foi possível registrar o acesso.');};
+ if(b.action==='FT_LOAD_GET'){await logAccess('DOSSIÊ CONSULTADO');return {dossier:scopedView(s,id,role)};}
  async function assertScope(){if(scopeFor(await history(uid,id),uid,id)!==role)fail('Atribuição alterada.');}
- async function save(next:any){await assertScope();const r=await db.rpc('fc_gravar_workflow',{p_empresa:empresa,p_actor:uid,p_versao:row.versao,p_estado:next});if(r.error||r.data!==row.versao+1)fail('Outra pessoa atualizou a carga. Reabra e confira.');}
+ async function save(next:any){await assertScope();const r=await db.rpc('ft_save_dossier_scope',{p_empresa:empresa,p_actor:uid,p_carga:id,p_papel:role,p_versao:row.versao,p_estado:next});if(r.error||r.data!==row.versao+1)fail('Outra pessoa atualizou a carga. Reabra e confira.');}
  const audit=(next:any,action:string,detail:any)=>{next.auditoria=[...(next.auditoria||[]),{id:crypto.randomUUID(),acao:action,detalhe:JSON.stringify({cargaId:id,...detail}),userId:uid,usuario:p.nome,dataHora:new Date().toISOString()}];};
  if(b.action==='FT_DOC_OPEN'){
   const doc=snapshot.docs.find(d=>d.id===b.documentoId);if(!doc)fail('Documento não pertence a esta carga.');
@@ -54,7 +55,7 @@ export async function ftDossierAction(db:any,b:any,p:any,user:any,globalMaster:b
   }else if(doc.storageBucket!=='forte-vendas-dossies'||!String(doc.storagePath||'').startsWith(empresa+'/'))fail('Arquivo não autorizado.');
   await assertScope();
   const r=await db.storage.from(doc.storageBucket).createSignedUrl(doc.storagePath,60);if(r.error||!r.data?.signedUrl)fail('Arquivo indisponível.');
-  return {signedUrl:r.data.signedUrl};
+  await logAccess('DOCUMENTO ABERTO',doc.id);return {signedUrl:r.data.signedUrl};
  }
  if(snapshot.c.finalizadaEm)fail('Carga finalizada.');
  if(b.action==='FT_BILLING_UPLOAD'){
@@ -78,16 +79,18 @@ export async function ftDossierAction(db:any,b:any,p:any,user:any,globalMaster:b
  if(b.action==='FT_DOC_CHECK'){
   if(role!=='PEDRO'||b.confirmado!==true)fail('Conferência exclusiva do fechamento.');
   const doc=snapshot.docs.find(d=>d.id===b.documentoId),evidencia=String(b.evidencia||'').trim();if(!doc||evidencia.length<3||evidencia.length>500)fail('Documento ou evidência inválida.');
+  if(doc.cargaId!==id)fail('Peça ao MASTER para regularizar o vínculo do documento.');
   if(doc.categoria==='COMPROVANTE FRETE')fail('Comprovante de frete exige validação financeira pelo MASTER.');
   Object.assign(doc,{validationStatus:'VALIDADO',identificacaoConfirmada:true,validadoEm:new Date().toISOString(),conferente:p.nome,evidencia});audit(s,'FT_DOCUMENTO_CONFERIDO',{documentoId:doc.id});await save(s);return {ok:true};
  }
  if(b.action==='FT_PEDRO_CLOSE'){
   if(role!=='PEDRO'||b.conferidoImpresso!==true)fail('Confirmação exclusiva do fechamento.');
+  if(snapshot.c.destinoTipo==='GALPÃO')fail('Carga destinada ao estoque exige fechamento pelo MASTER.');
   billingReady(snapshot);const version=await digest(new TextEncoder().encode(billingVersion(snapshot)));
   if(snapshot.c.faturamentoFT?.version!==version)fail('Faturamento ainda não conferido ou alterado após a conferência.');
   if(snapshot.docs.filter(d=>billingCategories.includes(d.categoria)).some(d=>d.validationStatus!=='VALIDADO'))fail('Confira os documentos de faturamento antes de finalizar.');
   const out=applyWorkflow(s,{action:'PEDRO_CLOSE',requestId:crypto.randomUUID(),cargaId:id,conferidoImpresso:true,observacao:String(b.observacao||'').slice(0,500)}, {...p,perfil:'MASTER',user_id:uid},{id:crypto.randomUUID(),at:new Date().toISOString()});
-  await save(out.state);return {ok:true};
+  out.state.vendas=(out.state.vendas||[]).map(v=>v.cargaId===id?v:(s.vendas||[]).find(x=>x.id===v.id)||v);await save(out.state);return {ok:true};
  }
  fail('Ação não permitida neste escopo.');
 }
