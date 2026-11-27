@@ -1,4 +1,4 @@
-import {currentAssignments,scopeFor,scopedSnapshot,scopedView,saleForUpload,billingReady,billingVersion,billingCategories} from './ft-dossier-scope.mjs';
+import {latestAssignments,currentAssignments,scopeFor,scopedSnapshot,scopedView,saleForUpload,billingReady,billingVersion,billingCategories} from './ft-dossier-scope.mjs';
 import {applyWorkflow} from './domain.mjs';
 const fail=(message:string)=>{throw Error(message)};
 const table='ft_dossier_assignments_history';
@@ -19,7 +19,7 @@ export async function ftDossierAction(db:any,b:any,p:any,user:any,globalMaster:b
   if(!master)fail('Atribuição exclusiva do MASTER.');
   const r=await db.from('fc_perfis').select('user_id,nome,perfil').eq('empresa_id',empresa).eq('ativo',true).eq('status_aprovacao','APROVADO').eq('trocar_senha',false);
   if(r.error)fail('Cadastros indisponíveis.');
-  return {users:r.data.filter((x:any)=>x.user_id!==uid),assignments:currentAssignments(await history())};
+  return {users:r.data.filter((x:any)=>x.user_id!==uid),assignments:latestAssignments(await history())};
  }
  const state=async()=>{const r=await db.from('fc_app_state').select('estado,versao').eq('empresa_id',empresa).single();if(r.error||!r.data)fail('Base indisponível.');return r.data;};
  const row=await state(),s=row.estado,id=String(b.cargaId||'');
