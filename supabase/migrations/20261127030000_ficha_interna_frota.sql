@@ -17,7 +17,7 @@ create policy fc_veiculo_pix_admin on public.fc_veiculo_pix for all to authentic
   select 1 from public.fc_veiculos v where v.id=veiculo_id and v.empresa_id=public.fc_current_empresa_id()
  ));
 
-create function public.fc_gravar_ficha_veiculo(p_id uuid, p_placa text, p_proprietario text, p_carretas text[], p_pix text)
+create function public.fc_gravar_ficha_veiculo(p_id uuid, p_placa text, p_proprietario text, p_carretas text[], p_pix text, p_transportadora jsonb default null)
 returns uuid
 language plpgsql security invoker set search_path = ''
 as $$
@@ -48,13 +48,18 @@ begin
   where id=p_id and empresa_id=empresa returning id into veiculo;
  end if;
  if veiculo is null then raise exception 'Veículo não encontrado na empresa ativa.'; end if;
+ if p_transportadora is not null then
+  update public.fc_veiculos set transportadora_nome=nullif(trim(p_transportadora->>'nome'),''),
+   transportadora_cnpj=nullif(trim(p_transportadora->>'cnpj'),''), transportadora_whatsapp=nullif(trim(p_transportadora->>'whatsapp'),'')
+  where id=veiculo and empresa_id=empresa;
+ end if;
  insert into public.fc_veiculo_pix(veiculo_id,chave_pix) values(veiculo,trim(p_pix))
  on conflict (veiculo_id) do update set chave_pix=excluded.chave_pix;
  return veiculo;
 end;
 $$;
-revoke execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text) from public, anon;
-grant execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text) to authenticated;
+revoke execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text,jsonb) from public, anon;
+grant execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text,jsonb) to authenticated;
 
 create function public.fc_gravar_cadastro_conjunto(p_motorista jsonb, p_placa text, p_proprietario text, p_carretas text[], p_pix text)
 returns uuid language plpgsql security invoker set search_path = ''
