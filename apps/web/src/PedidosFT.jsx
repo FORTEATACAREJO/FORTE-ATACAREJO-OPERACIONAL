@@ -116,7 +116,6 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  const [saleToLink,setSaleToLink]=useState('');
  const [syncStatus,setSyncStatus]=useState('');
  const [syncBusy,setSyncBusy]=useState(false);
- const synced=useRef(new Set());
  const syncLock=useRef(false);
  const activeCarga=useRef('');
  useEffect(()=>{if(!loadView&&scrollField){document.getElementById('ft-campo-'+scrollField)?.scrollIntoView?.({block:'start'});setScrollField(null);}},[loadView,scrollField,selection]);
@@ -130,8 +129,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  const d=useMemo(()=>buildPedidosFTDossier(data,cargaId),[data,cargaId]);
  activeCarga.current=cargaId;
  useEffect(()=>{if(cargaId&&cargaId!==initialCargaId)onSelectCarga?.(cargaId);setSaleToLink('');setSyncStatus('');},[cargaId]);
- async function syncDocs(id){if(!onSyncSupplierDocs||syncLock.current)return;syncLock.current=true;setSyncBusy(true);setSyncStatus('Consultando documentos recebidos…');try{const count=await onSyncSupplierDocs(id);if(activeCarga.current===id)setSyncStatus(count?count+' documento(s) vinculado(s). Aguardam conferência.':'Consulta concluída. Nenhum novo documento com vínculo seguro.');}catch(e){if(activeCarga.current===id)setSyncStatus(e.message||'Consulta indisponível.');}finally{syncLock.current=false;setSyncBusy(false);}}
- useEffect(()=>{if(syncBusy||syncLock.current||!validMaster(currentUser)||!d||d.carga.finalizadaEm||d.carga.status==='CANCELADA'||!onSyncSupplierDocs||synced.current.has(d.carga.id))return;synced.current.add(d.carga.id);syncDocs(d.carga.id);},[d?.carga?.id,syncBusy]);
+ async function syncDocs(id){if(!onSyncSupplierDocs||syncLock.current)return;syncLock.current=true;setSyncBusy(true);setSyncStatus('Pesquisando no Gmail e conferindo anexos…');try{const result=await onSyncSupplierDocs(id);const count=typeof result==='number'?result:result.count;if(activeCarga.current===id)setSyncStatus((count?count+' documento(s) vinculado(s). Aguardam conferência.':result.found?'E-mails encontrados; nenhum novo anexo com vínculo seguro.':'Nenhum e-mail correspondente localizado.')+(result.incomplete?' Pesquisa parcial: há mensagens ainda não processadas. Confira na central Gmail.':''));}catch(e){if(activeCarga.current===id)setSyncStatus(e.message||'Consulta indisponível.');}finally{syncLock.current=false;setSyncBusy(false);}}
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
  const go=(target,field=0)=>onGo?.(target,d?.carga?.id||'',field);
  const jump=field=>document.getElementById('ft-campo-'+field)?.scrollIntoView?.({block:'start',behavior:'smooth'});
@@ -238,7 +236,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <div className="ft-subsection"><div className="ft-subsection-heading"><h4>Faturamento — Juliana</h4><Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill></div>
    <h4>Documentos do fornecedor — recebimento automático</h4>
    {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
-   {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Consultar documentos do fornecedor</button>}
+   {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Importar documentos do Gmail</button>}
    {syncStatus&&<p role="status">{syncStatus}</p>}
    <h4>Boletos dos clientes — anexar manualmente</h4>
    {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
