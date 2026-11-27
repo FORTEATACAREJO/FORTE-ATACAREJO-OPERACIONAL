@@ -98,14 +98,11 @@ function InternalPackage({d,role,readDocument}){
  return <div className="ow-actions"><button type="button" className="ft-outline" disabled={busy} onClick={()=>internalCover(d,role).save(name+'-CAPA.pdf')}>Baixar capa — {role==='JULIANA'?'Juliana':'Pedro'}</button><button type="button" className="ft-primary" disabled={busy||!readDocument} onClick={prepare}>{busy?'Montando pacote…':role==='JULIANA'?'Preparar dossiê de faturamento — Juliana':'Baixar dossiê imprimível completo — Pedro'}</button>{status&&<p role="status">{status}</p>}<p className="ft-hint">Uso interno. Não envia pelo WhatsApp, não valida documentos e não conclui a carga. XMLs devem ser baixados nos anexos originais.</p></div>;
 }
 
-function PedroClosing({data,carga,order}){
- const recipient=data.settings?.pedidoPreviaInterna;
- const phone=String(recipient?.whatsapp||'').replace(/\D/g,'');
- const valid=/^55\d{11}$/.test(phone);
- const [open,setOpen]=useState(false);
- const os=order?.numero||carga.numeroOS||'OS não vinculada';
- const message='FORTE ATACAREJO — Dossiê para conferência interna: '+os+'\nFornecedor: '+(carga.fornecedor||'A conferir')+'\nMotorista: '+(carga.motorista||'A definir')+'\nSegue o relatório da carga para conferência. Anexo PDF a incluir manualmente.';
- return <><button type="button" className="ft-primary" onClick={()=>setOpen(v=>!v)}>Enviar para Pedro</button>{open&&<section aria-label="Enviar dossiê ao Pedro"><p>Conferência interna — {os}. Não encerra a carga nem registra envio automático.</p><button type="button" onClick={()=>loadReport(data,carga).save(os+'-DOSSIE.pdf')}>Baixar PDF do dossiê</button>{valid?<a className="ft-outline" href={'https://wa.me/'+phone+'?text='+encodeURIComponent(message)} target="_blank" rel="noopener noreferrer">Abrir WhatsApp de Pedro</a>:<p role="alert">WhatsApp do Pedro não configurado em prévia interna.</p>}<p>Anexe o PDF na conversa e confirme o envio.</p><button type="button" className="ft-outline" onClick={()=>setOpen(false)}>Fechar envio</button></section>}</>;
+function InternalSend({carga,role,onSend}){
+ const [sending,setSending]=useState(false),[status,setStatus]=useState('');
+ const lock=useRef(false),name=role==='PEDRO'?'Pedro':'Juliana';
+ async function send(){if(lock.current)return;lock.current=true;setSending(true);setStatus('Gerando e enviando o PDF pelo WhatsApp Business…');try{const r=await onSend(carga.id,role);setStatus(r.message||'Confira o histórico do envio.');}catch(e){setStatus('Não confirmado: '+e.message);}finally{lock.current=false;setSending(false);}}
+ return <div className="ow-actions"><button type="button" className="ft-primary" disabled={sending||!onSend||carga.status==='CANCELADA'} onClick={send}>{sending?'Enviando…':'Enviar dossiê para '+name+' — WhatsApp'}</button><p className="ft-hint">Destinatário interno fixado no servidor. O PDF é anexado automaticamente, sem abrir o WhatsApp.</p>{status&&<p role="status">{status}</p>}</div>;
 }
 function DriverChange({carga,options=[],onSave,busy}){
  const [open,setOpen]=useState(false),[id,setId]=useState(''),[query,setQuery]=useState(''),[error,setError]=useState('');
@@ -123,7 +120,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,onReadInternalDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,onReadInternalDocument,onSendInternalDossier,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -252,6 +249,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <p className="ft-hint">Estimativa comercial antes de impostos, despesas e conciliação de pagamentos. Não equivale a lucro líquido.</p>
    </div>
    <div className="ft-subsection"><div className="ft-subsection-heading"><h4>Faturamento — Juliana</h4><Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill></div>
+   <InternalSend key={c.id+":SEND-JULIANA"} carga={c} role="JULIANA" onSend={onSendInternalDossier}/>
    <InternalPackage key={c.id+":JULIANA"} d={d} role="JULIANA" readDocument={onReadInternalDocument}/>
    <h4>Documentos do fornecedor — recebimento automático</h4>
    {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
@@ -270,7 +268,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
    <DocList docs={documents} onOpenDocument={onOpenDocument} onValidate={onValidateDocument&&!c.finalizadaEm&&c.status!=='CANCELADA'?doc=>onValidateDocument(c.id,doc):undefined}/>
    <InternalPackage key={c.id+":PEDRO"} d={d} role="PEDRO" readDocument={onReadInternalDocument}/>
-   <PedroClosing key={c.id} data={data} carga={c} order={order}/>
+   <InternalSend key={c.id+":SEND-PEDRO"} carga={c} role="PEDRO" onSend={onSendInternalDossier}/>
    {onFinalize&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onFinalize(c.id)}>Conferir fechamento / solicitar confirmação</button>}
    <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',5)}>Ajustes e comprovantes da carga</button></details>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
