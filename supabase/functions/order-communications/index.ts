@@ -1,5 +1,5 @@
 import {PDFDocument} from 'npm:pdf-lib@1.17.1';
-import {internalRecipient,internalSnapshot,buildInternalDocument} from './internal-dossier.mjs';
+import {internalSnapshot,buildInternalDocument} from './internal-dossier.mjs';
 import {captureInbox,inboxRowFor,persistInbox} from './inbox-store.mjs';
 import {inboxAction} from './inbox-actions.mjs';
 import {purchaseDocument} from './order-document.mjs';
@@ -98,10 +98,28 @@ Deno.serve(async req=>{
   const {data:p}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();if(p)p.perfil=grant.data.role;if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil)||!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&p.permissoes?.vendas!==true&&p.permissoes?.['carga-direta']!==true&&p.permissoes?.['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão.'},{status:403,headers:cors});
   const body=await req.json();const gmailTenant=await admin().from('gmail_hub_config').select('empresa_id').eq('id',true).maybeSingle();if(p.empresa_id!==env('WHATSAPP_TENANT_ID')&&p.empresa_id!==gmailTenant.data?.empresa_id)return Response.json({error:'Integração de mensagens ainda não configurada para esta empresa.'},{status:409,headers:cors});
   if(body.action==='CHANNEL_STATUS')return Response.json(await channelStatus(),{headers:cors});
+  if(['INTERNAL_RECIPIENTS_GET','INTERNAL_RECIPIENTS_SAVE'].includes(body.action)){
+   if(p.perfil!=='MASTER')return Response.json({error:'Configuração exclusiva do MASTER.'},{status:403,headers:cors});
+   const db=admin(),latest=await db.from('ft_internal_recipients_history').select('revision,faturamento_whatsapp,fechamento_whatsapp,changed_at').eq('empresa_id',p.empresa_id).order('revision',{ascending:false}).limit(1).maybeSingle();
+   if(latest.error)throw Error('Configuração interna indisponível.');
+   const current=latest.data;
+   if(body.action==='INTERNAL_RECIPIENTS_GET')return Response.json({config:current},{headers:cors});
+   const normalize=(v:any)=>{let n=String(v||'').replace(/\D/g,'');if(n.length===11)n='55'+n;if(!/^55[1-9][0-9]9[0-9]{8}$/.test(n))throw Error('Informe celular brasileiro válido com DDD.');return n;};
+   const faturamento=normalize(body.faturamento),fechamento=normalize(body.fechamento);
+   if(faturamento===fechamento)throw Error('Informe destinatários distintos.');
+   if(body.revision!==(current?.revision||0))throw Error('Configuração alterada. Reabra e confira os números.');
+   if(current?.faturamento_whatsapp===faturamento&&current?.fechamento_whatsapp===fechamento)return Response.json({config:current},{headers:cors});
+   const saved=await db.from('ft_internal_recipients_history').insert({empresa_id:p.empresa_id,revision:(current?.revision||0)+1,faturamento_whatsapp:faturamento,fechamento_whatsapp:fechamento,changed_by:user.id,origin:'MASTER'}).select('revision,faturamento_whatsapp,fechamento_whatsapp,changed_at').single();
+   if(saved.error)throw Error('Não foi possível gravar. Reabra a configuração e confira.');
+   return Response.json({config:saved.data},{headers:cors});
+  }
   if(body.action==='INTERNAL_DOSSIER_SEND'){
    if(p.perfil!=='MASTER')return Response.json({error:'Envio interno restrito ao MASTER.'},{status:403,headers:cors});
-   const role=String(body.role||''),to=internalRecipient(env,role),db=admin();
-   if(env('PEDIDOS_FT_INTERNAL_TENANT_ID')!==p.empresa_id)throw Error('Destinatários internos não autorizados para esta empresa.');
+   const role=String(body.role||''),db=admin();
+   if(!['PEDRO','JULIANA'].includes(role))throw Error('Destinatário interno inválido.');
+   const readRecipients=async()=>{const r=await db.from('ft_internal_recipients_history').select('revision,faturamento_whatsapp,fechamento_whatsapp').eq('empresa_id',p.empresa_id).order('revision',{ascending:false}).limit(1).maybeSingle();if(r.error||!r.data)throw Error('Cadastre os destinatários internos nas configurações.');return r.data;};
+   const config=await readRecipients(),to=role==='PEDRO'?config.fechamento_whatsapp:config.faturamento_whatsapp;
+   if(!/^55[1-9][0-9]9[0-9]{8}$/.test(to))throw Error('Destinatário interno inválido.');
    const row=await rowFor(db,p.empresa_id),snapshot=internalSnapshot(row.estado,String(body.cargaId||''),role);
    if(!snapshot.os)throw Error('OS não vinculada.');
    if(!env('WHATSAPP_TEMPLATE_INTERNAL_DOSSIER'))throw Error('Modelo interno de PDF não configurado.');
@@ -126,6 +144,7 @@ Deno.serve(async req=>{
     return data;
    });
    const job={id,key:id,kind:'INTERNAL_DOSSIER',audience:'INTERNO',canal:'WHATSAPP',to,cargaId:snapshot.c.id,reference:snapshot.os,recipientRole:role,state:'SENDING',createdAt:new Date().toISOString(),attemptAt:new Date().toISOString(),message:'Dossiê interno para '+role+' • '+snapshot.os};
+   if((await readRecipients()).revision!==config.revision)throw Error('Destinatário alterado. Confira e envie novamente.');
    row.estado.comunicacoes.push(job);await persist(db,p.empresa_id,row);
    let providerId='',failure='',state='FAILED',submitted=false;
    try{
