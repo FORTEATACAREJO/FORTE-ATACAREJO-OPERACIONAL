@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {loadSaleProducts,checkLoadSaleProducts} from '../supabase/functions/orders-workflow/load-sale-products.mjs';
+const state={produtos:[{id:'cp2',marca:'CIPLAN'},{id:'ac2',marca:'CIPLAN'},{id:'csn',marca:'CSN'},{id:'ari',marca:'CIPLAN'}],cargas:[{id:'os2',compraFornecedorId:'o2',itens:[{produtoId:'cp2'},{produtoId:'ac2'}]},{id:'os1',itens:[{produtoId:'csn'}]}],comprasFornecedor:[{id:'o2',itens:[{produtoId:'cp2'},{produtoId:'ac2'}]}]};
+assert.deepEqual(loadSaleProducts(state,'os2').map(p=>p.id),['cp2','ac2']);
+assert.deepEqual(loadSaleProducts(state,'os1').map(p=>p.id),['csn']);
+assert.doesNotThrow(()=>checkLoadSaleProducts(state,'os2',[{produtoId:'cp2',marca:'CIPLAN'},{produtoId:'ac2',marca:'CIPLAN'}]));
+assert.throws(()=>checkLoadSaleProducts(state,'os2',[{produtoId:'csn',marca:'CSN'}]),/somente/);
+assert.throws(()=>checkLoadSaleProducts(state,'os2',[{produtoId:'ari',marca:'CIPLAN'}]),/somente/);
+assert.throws(()=>checkLoadSaleProducts(state,'os2',[{produtoId:'cp2',marca:'CSN'}]),/somente/);
+assert.throws(()=>loadSaleProducts(state,'inexistente'),/indisponível/);
+state.cargas[0].finalizadaEm='2026-11-27';
+assert.throws(()=>loadSaleProducts(state,'os2'),/indisponível/);
+console.log('8 verificações de catálogo e marca por OS: OK');
