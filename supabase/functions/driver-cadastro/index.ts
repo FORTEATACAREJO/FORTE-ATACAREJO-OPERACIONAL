@@ -45,7 +45,8 @@ Deno.serve(async(req)=>{
    const l=await linkFor(req);
    const state=check(await db.from('fc_app_state').select('estado').eq('empresa_id',l.empresa_id).maybeSingle());
    const driver=state?.estado?.motoristas?.find((m:any)=>m.id===l.motorista_id);
-   return reply({ok:true,solicitacao:l.solicitacao,prefill:driverPrefill(driver,l.solicitacao)});
+   const prefill=driverPrefill(driver,l.solicitacao);
+   return reply({ok:true,...(l.solicitacao?{solicitacao:l.solicitacao}:{}),...(Object.keys(prefill).length?{prefill}:{})});
   }
   if(action==='SUBMIT'){
    const l=await linkFor(req);
