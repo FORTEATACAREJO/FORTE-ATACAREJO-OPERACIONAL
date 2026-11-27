@@ -8,6 +8,7 @@ const emptyLink={motorista_operacional_id:'',veiculo_id:'',observacao:''};
 const digits=v=>String(v||'').replace(/\D/g,'');
 const pretty=v=>v?new Date(v).toLocaleString('pt-BR'):'';
 const vehicleNotices=v=>[!v.proprietario_nome?'Proprietário a conferir':null,!v.proprietario_documento?'CPF/CNPJ do proprietário a conferir':null,!v.crlv_referencia?'CRLV a conferir':null,!v.rntrc?'RNTRC a conferir':null,!(Number(v.capacidade_kg)>0)?'Capacidade a conferir':null,v.ativo===false?'Veículo não liberado para transporte':null].filter(Boolean);
+const driverNeedsReview=d=>d.ativo===false||d.documentosConferidos===false||/^PENDENTE/.test(String(d.statusCadastro||'').toUpperCase());
 const carrierLabel=(vehicle,link)=>link?.transportadora_nome_snapshot||vehicle?.transportadora_nome||'Transportadora não informada';
 
 export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriverId=''}){
@@ -135,8 +136,8 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
      <h4>1. Escolha o motorista</h4>
      {!initialDriverId&&<input type="search" aria-label="Buscar motorista" placeholder="Nome" value={driverQuery} onChange={e=>setDriverQuery(e.target.value)}/>}
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar motorista">
-      {(initialDriverId?shownDrivers.filter(d=>d.id===initialDriverId):shownDrivers).map(d=>{const l=current.find(l=>l.motorista_operacional_id===d.id);return <button key={d.id} type="button" aria-pressed={choice.motorista_operacional_id===d.id} disabled={busy||!!initialDriverId&&d.id!==initialDriverId} onClick={()=>selectDriver(d.id)}>
-       <strong>{d.nome}</strong><small>{l?'Vinculado · '+(vehicleById.get(l.veiculo_id)?.placa||'Veículo a conferir'):'Sem vínculo'}{d.ativo===false?' · Pré-cadastro/inativo':''}</small>
+      {(initialDriverId?shownDrivers.filter(d=>d.id===initialDriverId):shownDrivers).map(d=>{const l=current.find(l=>l.motorista_operacional_id===d.id);return <button key={d.id} className={driverNeedsReview(d)?'ft-fleet-needs-review':undefined} type="button" aria-pressed={choice.motorista_operacional_id===d.id} disabled={busy||!!initialDriverId&&d.id!==initialDriverId} onClick={()=>selectDriver(d.id)}>
+       <strong>{d.nome}</strong><small>{l?'Vinculado · '+(vehicleById.get(l.veiculo_id)?.placa||'Veículo a conferir'):'Sem vínculo'}</small>{driverNeedsReview(d)&&<small className="ft-fleet-review-badge">Cadastro a ajustar</small>}
       </button>;})}
       {!shownDrivers.length&&<p>Nenhum motorista encontrado.</p>}
      </div>
@@ -146,8 +147,8 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
      {!selectedDriver&&<p>Selecione um motorista para buscar a placa.</p>}
      <input type="search" disabled={!selectedDriver||!!driverLink||busy} aria-label="Buscar veículo pela placa" placeholder="Placa" value={vehicleQuery} onChange={e=>setVehicleQuery(e.target.value)}/>
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar veículo">
-      {selectedDriver&&shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
-       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):v.ativo===false?'Pendência cadastral · vínculo permitido':'Disponível'}</small>
+      {selectedDriver&&shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} className={vehicleNotices(v).length?'ft-fleet-needs-review':undefined} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
+       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):'Sem vínculo'}</small>{vehicleNotices(v).length>0&&<small className="ft-fleet-review-badge">Cadastro a ajustar</small>}
       </button>;})}
       {selectedDriver&&!shownVehicles.length&&<p>{loading?'Consultando veículos…':'Nenhum veículo encontrado.'}</p>}
      </div>
