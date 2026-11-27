@@ -17,11 +17,15 @@ export function purchaseReport(order,driver=false){return purchaseDocument(jsPDF
 export function loadReport(data,c){
  const d=buildPedidosFTDossier(data,c.id);
  const f=d?.finance;
- const amount=n=>n===null||n===undefined?'Pendente':money(n);
+ const validAmount=n=>n!==null&&n!==undefined&&n!==''&&Number.isFinite(Number(n))&&Number(n)>=0;
+ const amount=n=>validAmount(n)?money(n):'Pendente';
+ const unit=n=>validAmount(n)?Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4}):'Pendente';
+ const itemTotal=(item,price,total)=>validAmount(item[total])?Number(item[total]):validAmount(item.qtd)&&validAmount(item[price])?Math.round((Number(item.qtd)*Number(item[price])+Number.EPSILON)*100)/100:null;
  const os=(data.comprasFornecedor||[]).find(o=>o.id===c.compraFornecedorId||o.cargaId===c.id)?.numero||c.numeroOS||'OS não vinculada';
  return reportPDF('DOSSIÊ DA CARGA • '+os,[
  {title:'Carga e pedido',rows:['Nossa OS: '+os+' • '+c.fase,'Fornecedor: '+c.fornecedor,'Pedido: '+(c.numeroPedidoFornecedor||'Aguardando'),'Pagamento: '+(c.condicaoFornecedor||'Não registrado'),'Vencimentos previstos: '+(paymentScheduleText(c)||'Não registrados'),'Motorista: '+(c.motorista||'A definir'),'Placas: '+(c.placas||[]).join(' / '),'Destino: '+c.destino]},
- {title:'Distribuição aos clientes',rows:(data.vendas||[]).filter(v=>(c.vendaIds||[]).includes(v.id)).map(v=>v.numeroVenda+' • '+v.cliente+' • '+v.qtd+' de '+v.produto+(v.ordemCompraCliente?' • OC: '+v.ordemCompraCliente+(v.itemOrdemCompraCliente!=null?' item '+v.itemOrdemCompraCliente:''):''))},
+ {title:'Compra do fornecedor — valores por produto',rows:d?.items?.length?d.items.map(i=>(i.produto||i.produtoId||'Produto não identificado')+' • Qtd: '+(i.qtd??'Pendente')+' • Custo unitário: '+unit(i.custoUnitario)+' • Total: '+amount(itemTotal(i,'custoUnitario','total'))):['Nenhum item de compra registrado.']},
+ {title:'Distribuição aos clientes — valores de venda',rows:d?.sales?.length?d.sales.map(v=>(v.numeroVenda||'Venda')+' • '+(v.cliente||'Cliente não identificado')+' • '+(v.produto||v.produtoId||'Produto não identificado')+' • Qtd: '+(v.qtd??'Pendente')+' • Venda unitária: '+unit(v.precoUnitario)+' • Total: '+amount(itemTotal(v,'precoUnitario','totalVenda'))+' • Pagamento: '+(v.condicaoPagamento||v.formaPagamento||'Pendente')+(v.ordemCompraCliente?' • OC: '+v.ordemCompraCliente+(v.itemOrdemCompraCliente!=null?' item '+v.itemOrdemCompraCliente:''):'')):['Nenhuma venda ativa vinculada.']},
  {title:'Resumo financeiro da carga',rows:f?[
   'Modalidade de frete: '+f.modalidadeFrete,
   'Vendas de mercadorias: '+amount(f.receitaVendas),
