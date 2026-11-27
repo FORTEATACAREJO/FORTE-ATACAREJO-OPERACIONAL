@@ -39,3 +39,11 @@ test('um motorista não pode estar vinculado simultaneamente a dois veículos',(
  assert.match(result.reason,/já está vinculado a outro veículo/);
  assert.equal(canLink({links:[past],vehicleId:'v2',driverId:'m1',vehicles,drivers}).ok,true);
 });
+
+test('vínculo cadastral permite veículo pendente sem liberar a expedição',()=>{
+ const pending=[{...vehicles[0],ativo:false}];
+ const input={vehicleId:'v1',driverId:'m1',vehicles:pending,drivers,allowPendingVehicle:true};
+ assert.equal(canLink(input).ok,true);
+ assert.equal(canLink({...input,links:[current]}).ok,false);
+ assert.equal(activeVehicleForDriver({links:[current],vehicles:pending,driverId:'m2'}),null);
+});
