@@ -58,7 +58,12 @@ Deno.serve(async(req)=>{
    }
    const invoices=matchingSupplierInvoices(row.estado,c.id,[...new Map(xmlSources.map(x=>[x.id,x])).values()]);
    const ids=[...new Set(invoices.map(x=>x.dossier_id))];
-   if(!ids.length)return Response.json({ok:true,count:0},{headers:cors});
+   if(!ids.length){
+    const config=await stateClient.from('gmail_hub_config').select('status,error,refresh_secret_id').eq('empresa_id',p.empresa_id).maybeSingle();
+    if(config.error)throw Error('Central Gmail indisponível.');
+    if(!config.data?.refresh_secret_id||config.data?.status==='ERRO')throw Error(config.data?.error==='REAUTORIZACAO_GOOGLE_NECESSARIA'?'Central Gmail da FORTE precisa de reautorização Google. Nenhuma nova mensagem foi importada.':'Central Gmail não está sincronizada. Confira a integração antes de consultar documentos.');
+    return Response.json({ok:true,count:0},{headers:cors});
+   }
    const attached=await stateClient.from('gmail_hub_sources').select('id,file_id,dossier_id,filename,kind,allowed,metadata,gmail_date').eq('empresa_id',p.empresa_id).eq('allowed',true).in('dossier_id',ids).in('kind',['XML_NFE','DANFE','BOLETO']).limit(200);
    if(attached.error)throw Error(attached.error.message);
    const docs=row.estado.documentos||[],added=[];
