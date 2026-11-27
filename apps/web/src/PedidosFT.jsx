@@ -40,6 +40,20 @@ function FtOptions({onSelect,extraActions}){
  </details>;
 }
 function Panel({title,children,aside}){return <section id={/^\d\./.test(title)?'ft-campo-'+title.split('.')[0]:undefined} className="ft-card"><div className="ft-card-heading"><h3>{title}</h3>{aside}</div>{children}</section>;}
+function SupplierOrderNumber({value,canConfirm,busy,onConfirm}){
+ const [number,setNumber]=useState('');
+ const [evidence,setEvidence]=useState('');
+ if(value||!canConfirm)return <Field label="Número do pedido do fornecedor" value={value||'Aguardando retorno do fornecedor'}/>;
+ return <form aria-label="Registrar pedido do fornecedor" onSubmit={async event=>{
+  event.preventDefault();
+  if(busy||!number.trim()||!evidence.trim())return;
+  try{await onConfirm(number.trim(),evidence.trim());}catch{ /* OrdersWorkspace apresenta o erro e mantém a entrada. */ }
+ }}>
+  <label>Número do pedido do fornecedor<input type="text" value={number} onChange={event=>setNumber(event.target.value)} required disabled={busy}/></label>
+  <label>Referência da confirmação<input type="text" value={evidence} onChange={event=>setEvidence(event.target.value)} placeholder="Ex.: portal, e-mail ou WhatsApp" required disabled={busy}/></label>
+  <button type="submit" className="ft-outline" disabled={busy||!number.trim()||!evidence.trim()}>Salvar número do fornecedor</button>
+ </form>;
+}
 function Field({label,value}){return <div className="ft-field"><span>{label}</span><b>{text(value)}</b></div>;}
 function Pill({children,tone='neutral'}){return <span className={'ft-pill ft-'+tone}>{children}</span>;}
 function DocList({docs,onOpenDocument,onValidate}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button>{onValidate&&d.validationStatus!=='VALIDADO'&&<button type="button" className="ft-outline" onClick={()=>onValidate(d)}>Validar</button>}</li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
@@ -69,7 +83,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -130,12 +144,13 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
   </header>
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
-  <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
+  <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select>
+   <SupplierOrderNumber key={c.id} value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor} canConfirm={!!order?.id&&!!onConfirmSupplierOrder&&!c.finalizadaEm&&c.status!=='CANCELADA'&&order.status!=='CANCELADO'} busy={busy} onConfirm={(numero,evidencia)=>onConfirmSupplierOrder(order.id,numero,evidencia)}/>
+  </div>
 
   <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra e paletes','Motorista','Clientes','Conciliação e faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
   <Panel title="1. Compra, fornecedor e paletes" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor',1)}>Abrir compra</button>}>
    <Field label="Fornecedor" value={supplier?.nome||c.fornecedor}/>
-   <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
    <Field label="Expedição (origem da carga)" value={c.localCarregamento||c.origem}/>
