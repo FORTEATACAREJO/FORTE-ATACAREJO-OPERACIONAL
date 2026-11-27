@@ -159,8 +159,6 @@ export function applyWorkflow(original,b,p,{id,at}){
    if(validity&&validity<=at.slice(0,10))fail('CNH vencida. Não é possível habilitar esse motorista.');
    if(b.documentosConferidos!==true||b.confirmacaoResponsavel!==true)
     fail('Confirme expressamente a conferência dos documentos originais e sua responsabilidade.');
-   if(String(b.referenciaConferencia||'').trim().length<5)
-    fail('Registre a referência da conferência documental.');
   }
   Object.assign(m,{
    cpf:cpf||'',cnhNumero:cnh||'',cnhCategoria:categoria||'',cnhValidade:validity||'',
@@ -170,7 +168,7 @@ export function applyWorkflow(original,b,p,{id,at}){
    ultimaRevisaoCadastro:{responsavel:p.user_id,em:at,tipo:approved?'APROVACAO_DOCUMENTAL':'RASCUNHO'}
   });
   if(approved){
-   m.aprovacaoOperacional={responsavel:p.user_id,em:at,referenciaConferencia:String(b.referenciaConferencia).trim(),documentosConferidos:true};
+   m.aprovacaoOperacional={responsavel:p.user_id,em:at,referenciaConferencia:String(b.referenciaConferencia||'').trim()||'Conferência documental confirmada pelo responsável autenticado.',documentosConferidos:true};
   }else m.aprovacaoOperacional=null;
   result={motoristaId:m.id,aprovado:approved,warning:approved?
    'Motorista habilitado documentalmente. Para gerar ordem, vincule um veículo ativo na aba Veículos.':
