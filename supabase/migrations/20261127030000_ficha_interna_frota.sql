@@ -55,3 +55,32 @@ end;
 $$;
 revoke execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text) from public, anon;
 grant execute on function public.fc_gravar_ficha_veiculo(uuid,text,text,text[],text) to authenticated;
+
+create function public.fc_gravar_cadastro_conjunto(p_motorista jsonb, p_placa text, p_proprietario text, p_carretas text[], p_pix text)
+returns uuid language plpgsql security invoker set search_path = ''
+as $$
+declare
+ empresa uuid := public.fc_current_empresa_id();
+ motorista uuid;
+ veiculo uuid;
+begin
+ if empresa is null or not coalesce(public.fc_eh_admin(),false) then
+  raise exception 'Cadastro restrito à administração.';
+ end if;
+ if nullif(trim(p_motorista->>'nome'),'') is null or
+    coalesce(p_motorista->>'whatsapp','') !~ '^[0-9]{10,13}$' then
+  raise exception 'Informe nome e WhatsApp com DDD.';
+ end if;
+ insert into public.fc_motoristas(id,empresa_id,nome,whatsapp,cpf,cnh,categoria_cnh,endereco,status_ia,ativo)
+ values(coalesce(nullif(p_motorista->>'id','')::uuid,gen_random_uuid()),empresa,
+  trim(p_motorista->>'nome'),p_motorista->>'whatsapp',p_motorista->>'cpf',p_motorista->>'cnh',
+  p_motorista->>'categoria_cnh',p_motorista->>'endereco','PENDENTE_CONFERENCIA_DOCUMENTAL',false)
+ returning id into motorista;
+ veiculo := public.fc_gravar_ficha_veiculo(null,p_placa,p_proprietario,p_carretas,p_pix);
+ insert into public.fc_frota_vinculos(empresa_id,motorista_operacional_id,veiculo_id,vinculado_por)
+ values(empresa,motorista::text,veiculo,auth.uid());
+ return motorista;
+end;
+$$;
+revoke execute on function public.fc_gravar_cadastro_conjunto(jsonb,text,text,text[],text) from public, anon;
+grant execute on function public.fc_gravar_cadastro_conjunto(jsonb,text,text,text[],text) to authenticated;
