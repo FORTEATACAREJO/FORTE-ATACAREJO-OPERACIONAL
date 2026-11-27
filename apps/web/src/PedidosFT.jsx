@@ -3,8 +3,9 @@ import {paymentScheduleText} from '../../../supabase/functions/orders-workflow/s
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildPedidosFTDossier,pendingTypes,dossierPending} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
+import {assembleInternalPDF,downloadInternalPDF,internalCover} from './pedidos-ft-internal-package.mjs';
 import './pedidos-ft.css';
-import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
+import PedidosFTLoadPanel,{LoadCloseConfirmation} from './PedidosFTLoadPanel.jsx';
 import DriverIntake from './DriverIntake.jsx';
 import {useForteLayer} from './use-forte-navigation.js';
 
@@ -20,7 +21,7 @@ function FtTitle({subtitle,heading}) {
   <div><h2 ref={heading} tabIndex={heading?-1:undefined}>PEDIDOS FT</h2><p>{subtitle}</p></div>
  </div>;
 }
-function FtOptions({onSelect,extraActions}){
+function FtOptions({onSelect,extraActions,canConfigure}){
  const options=useRef(null);
  function select(view){
   options.current.open=false;
@@ -36,9 +37,18 @@ function FtOptions({onSelect,extraActions}){
   <div className="ft-options-list">
    <button type="button" onClick={()=>select('cargas')}>Todas as cargas</button>
    <button type="button" onClick={()=>select('relatorios')}>Relatórios</button>
+   {canConfigure&&<button type="button" onClick={()=>select('destinatarios')}>Destinatários internos</button>}
    {extraActions}
   </div>
  </details>;
+}
+function InternalRecipientsSettings({invoke,onBack}){
+ const [config,setConfig]=useState(null),[faturamento,setFaturamento]=useState(''),[fechamento,setFechamento]=useState(''),[busy,setBusy]=useState(true),[status,setStatus]=useState('');
+ const lock=useRef(false);
+ const fill=c=>{setConfig(c||{revision:0});setFaturamento(c?.faturamento_whatsapp||'');setFechamento(c?.fechamento_whatsapp||'');};
+ useEffect(()=>{let active=true;invoke({action:'INTERNAL_RECIPIENTS_GET'}).then(c=>{if(active)fill(c);}).catch(e=>{if(active)setStatus(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[]);
+ async function save(e){e.preventDefault();if(lock.current||!config)return;lock.current=true;setBusy(true);setStatus('');try{const c=await invoke({action:'INTERNAL_RECIPIENTS_SAVE',revision:config.revision,faturamento,fechamento});fill(c);setStatus('Destinatários gravados com sucesso.');}catch(e){setStatus(e.message);}finally{lock.current=false;setBusy(false);}}
+ return <section className="ft-app"><header className="ft-top"><FtTitle subtitle="Configuração exclusiva MASTER"/></header><Panel title="Destinatários internos"><form onSubmit={save}><label>WhatsApp do faturamento<input type="tel" value={faturamento} onChange={e=>setFaturamento(e.target.value)} required disabled={busy||!config}/></label><label>WhatsApp do fechamento<input type="tel" value={fechamento} onChange={e=>setFechamento(e.target.value)} required disabled={busy||!config}/></label><p className="ft-hint">Confira os números: os próximos dossiês serão enviados aos contatos gravados. Alterar telefone não concede acesso ao sistema. O histórico é preservado.</p><button type="submit" className="ft-primary" disabled={busy||!config}>{busy?'Processando…':'Salvar destinatários'}</button>{status&&<p role="status">{status}</p>}</form><button type="button" className="ft-outline" onClick={onBack} disabled={busy}>Voltar</button></Panel></section>;
 }
 function Panel({title,children,aside}){return <section id={/^\d\./.test(title)?'ft-campo-'+title.split('.')[0]:undefined} className="ft-card"><div className="ft-card-heading"><h3>{title}</h3>{aside}</div>{children}</section>;}
 function SupplierOrderNumber({value,canConfirm,busy,onConfirm,onSearch,onLink,onUnlink,supplier,order,onRefreshConfirmation}){
@@ -89,14 +99,19 @@ function Field({label,value}){return <div className="ft-field"><span>{label}</sp
 function Pill({children,tone='neutral'}){return <span className={'ft-pill ft-'+tone}>{children}</span>;}
 function DocList({docs,onOpenDocument,onValidate}){return docs.length?<ul className="ft-doc-list">{docs.map((d,i)=><li key={d.id||i}><div><b>{d.categoria||'Documento'}</b><small>{d.filename||'Arquivo sem nome'} • {d.validationStatus||'Pendente de validação'}</small></div><button type="button" className="ft-outline" disabled={!d.storagePath||!d.storageBucket} onClick={()=>onOpenDocument(d)}>Abrir</button>{onValidate&&d.validationStatus!=='VALIDADO'&&<button type="button" className="ft-outline" onClick={()=>onValidate(d)}>Validar</button>}</li>)}</ul>:<p className="ft-hint">Nenhum documento vinculado com segurança a esta carga.</p>;}
 
-function PedroClosing({data,carga,order}){
- const recipient=data.settings?.pedidoPreviaInterna;
- const phone=String(recipient?.whatsapp||'').replace(/\D/g,'');
- const valid=/^55\d{11}$/.test(phone);
- const [open,setOpen]=useState(false);
- const os=order?.numero||carga.numeroOS||'OS não vinculada';
- const message='FORTE ATACAREJO — Dossiê para conferência interna: '+os+'\nFornecedor: '+(carga.fornecedor||'A conferir')+'\nMotorista: '+(carga.motorista||'A definir')+'\nSegue o relatório da carga para conferência. Anexo PDF a incluir manualmente.';
- return <><button type="button" className="ft-primary" onClick={()=>setOpen(v=>!v)}>Enviar para Pedro</button>{open&&<section aria-label="Enviar dossiê ao Pedro"><p>Conferência interna — {os}. Não encerra a carga nem registra envio automático.</p><button type="button" onClick={()=>loadReport(data,carga).save(os+'-DOSSIE.pdf')}>Baixar PDF do dossiê</button>{valid?<a className="ft-outline" href={'https://wa.me/'+phone+'?text='+encodeURIComponent(message)} target="_blank" rel="noopener noreferrer">Abrir WhatsApp de Pedro</a>:<p role="alert">WhatsApp do Pedro não configurado em prévia interna.</p>}<p>Anexe o PDF na conversa e confirme o envio.</p><button type="button" className="ft-outline" onClick={()=>setOpen(false)}>Fechar envio</button></section>}</>;
+function InternalPackage({d,role,readDocument}){
+ const [busy,setBusy]=useState(false),[status,setStatus]=useState('');
+ const os=d.order?.numero||d.carga.numeroOS||'OS-NAO-VINCULADA';
+ const name=os+'-'+role;
+ async function prepare(){setBusy(true);setStatus('');try{const bytes=await assembleInternalPDF(d,role,readDocument);downloadInternalPDF(bytes,name+'-PACOTE.pdf');setStatus('Pacote gerado com os PDFs originais vinculados. XMLs permanecem disponíveis separadamente. Nenhum envio realizado.');}catch(e){setStatus('Pacote não gerado: '+e.message);}finally{setBusy(false);}}
+ return <div className="ow-actions"><button type="button" className="ft-outline" disabled={busy} onClick={()=>internalCover(d,role).save(name+'-CAPA.pdf')}>Baixar capa — {role==='JULIANA'?'Juliana':'Pedro'}</button><button type="button" className="ft-primary" disabled={busy||!readDocument} onClick={prepare}>{busy?'Montando pacote…':role==='JULIANA'?'Preparar dossiê de faturamento — Juliana':'Baixar dossiê imprimível completo — Pedro'}</button>{status&&<p role="status">{status}</p>}<p className="ft-hint">Uso interno. Não envia pelo WhatsApp, não valida documentos e não conclui a carga. XMLs devem ser baixados nos anexos originais.</p></div>;
+}
+
+function InternalSend({carga,role,onSend}){
+ const [sending,setSending]=useState(false),[status,setStatus]=useState('');
+ const lock=useRef(false),name=role==='PEDRO'?'Pedro':'Juliana';
+ async function send(){if(lock.current)return;lock.current=true;setSending(true);setStatus('Gerando e enviando o PDF pelo WhatsApp Business…');try{const r=await onSend(carga.id,role);setStatus(r.message||'Confira o histórico do envio.');}catch(e){setStatus('Não confirmado: '+e.message);}finally{lock.current=false;setSending(false);}}
+ return <div className="ow-actions"><button type="button" className="ft-primary" disabled={sending||!onSend||carga.status==='CANCELADA'} onClick={send}>{sending?'Enviando…':'Enviar dossiê para '+name+' — WhatsApp'}</button><p className="ft-hint">Destinatário interno fixado no servidor. O PDF é anexado automaticamente, sem abrir o WhatsApp.</p>{status&&<p role="status">{status}</p>}</div>;
 }
 function DriverChange({carga,options=[],onSave,busy}){
  const [open,setOpen]=useState(false),[id,setId]=useState(''),[query,setQuery]=useState(''),[error,setError]=useState('');
@@ -114,7 +129,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,onReadInternalDocument,onSendInternalDossier,onInternalRecipients,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,onUnlinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurgeTestOrder,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -140,6 +155,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  useEffect(()=>{if(cargaId&&cargaId!==initialCargaId)onSelectCarga?.(cargaId);setSaleToLink('');setSyncStatus('');},[cargaId]);
  async function syncDocs(id){if(!onSyncSupplierDocs||syncLock.current)return;syncLock.current=true;setSyncBusy(true);setSyncStatus('Pesquisando no Gmail e conferindo anexos…');try{const result=await onSyncSupplierDocs(id);const count=typeof result==='number'?result:result.count;if(activeCarga.current===id)setSyncStatus((count?count+' documento(s) vinculado(s). Aguardam conferência.':result.found?'E-mails encontrados; nenhum novo anexo com vínculo seguro.':'Nenhum e-mail correspondente localizado.')+(result.incomplete?' Pesquisa parcial: há mensagens ainda não processadas. Confira na central Gmail.':''));}catch(e){if(activeCarga.current===id)setSyncStatus(e.message||'Consulta indisponível.');}finally{syncLock.current=false;setSyncBusy(false);}}
  if(!validMaster(currentUser))return <section className="ft-app"><div className="ft-guard" role="alert"><h2>PEDIDOS FT — acesso restrito</h2><p>Esta primeira etapa está disponível somente para MASTER. Os acessos de Juliana e Pedro serão liberados após criar e validar as permissões por carga no servidor.</p></div></section>;
+ if(loadView==='destinatarios'&&onInternalRecipients)return <InternalRecipientsSettings invoke={onInternalRecipients} onBack={()=>setLoadView(null)}/>;
  const go=(target,field=0)=>onGo?.(target,d?.carga?.id||'',field);
  const jump=field=>document.getElementById('ft-campo-'+field)?.scrollIntoView?.({block:'start',behavior:'smooth'});
  if(loadView)return <section className="ft-app" aria-label="PEDIDOS FT">
@@ -147,15 +163,15 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <FtTitle heading={loadHeading} subtitle={loadView==='relatorios'?'Relatórios':'Todas as cargas'}/>
    <div className="ft-top-actions">
     <button type="button" className="ft-outline" onClick={()=>setLoadView(null)}>Voltar</button>
-    <FtOptions extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
+    <FtOptions canConfigure={!!onInternalRecipients} extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
    </div>
   </header>
-  <PedidosFTLoadPanel data={data} cargas={cargas} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
+  <PedidosFTLoadPanel data={data} cargas={cargas} onClose={onFinalize} onPurge={onPurgeTestOrder} busy={busy} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
    setSelection(id);onSelectCarga?.(id);setScrollField(pendingTypes.find(t=>t[0]===pendingFilter)?.[2]||null);
    setLoadView(null);
   }}/>
  </section>;
- if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions extraActions={extraActions} onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
+ if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions canConfigure={!!onInternalRecipients} extraActions={extraActions} onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
  const savedPlates=(c?.placas||[]).filter(Boolean);
  const currentLink=fleetLinks.find(link=>link.fim_em==null&&link.motorista_operacional_id===(c?.motoristaId||driver?.id));
@@ -170,7 +186,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  return <section className="ft-app ft-overview" aria-label="PEDIDOS FT">
   <header className="ft-top">
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
-   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
+   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions canConfigure={!!onInternalRecipients} extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
   </header>
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
   <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select>
@@ -218,6 +234,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    {clients.length?clients.map(client=><div className="ft-client" key={client.id}>
     <div className="ft-client-name"><b>{client.nome}</b><small>{[client.cidade,client.uf].filter(Boolean).join(' / ')||'Cidade não cadastrada'}</small></div>
     {client.items.map((item,i)=><div className="ft-client-item" key={item.id||i}><div><span>{text(item.produto)}</span><small>{text(item.condicaoPagamento)}</small>{item.ordemCompraCliente&&<small>OC do cliente: {item.ordemCompraCliente}{item.itemOrdemCompraCliente!=null?' · item '+item.itemOrdemCompraCliente:''}</small>}</div><div className="ft-right"><b>{number(item.qtd)} sacos</b><small>{item.precoUnitario==null?'Preço não informado':money(item.precoUnitario)+' / un.'}</small></div></div>)}
+    {onUnlinkSale&&client.salesGroups.map(g=><div key={g.id} className="ow-actions"><button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={async()=>{if(!confirm('Desvincular a venda '+g.numero+' desta OS? A venda será preservada e voltará a ficar disponível para outra carga.'))return;const motivo=prompt('Motivo da desvinculação:');if(!motivo||motivo.trim().length<5)return;try{await onUnlinkSale(c.id,g.id,motivo.trim());}catch{}}}>Desvincular venda — {g.numero}</button></div>)}
     {client.documents.length>0&&<small className="ft-hint">{client.documents.length} documento(s) vinculado(s)</small>}
    </div>):<p className="ft-hint">Ainda não há clientes atribuídos a esta carga.</p>}
   </Panel>
@@ -243,24 +260,28 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <p className="ft-hint">Estimativa comercial antes de impostos, despesas e conciliação de pagamentos. Não equivale a lucro líquido.</p>
    </div>
    <div className="ft-subsection"><div className="ft-subsection-heading"><h4>Faturamento — Juliana</h4><Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill></div>
+   <InternalSend key={c.id+":SEND-JULIANA"} carga={c} role="JULIANA" onSend={onSendInternalDossier}/>
+   <InternalPackage key={c.id+":JULIANA"} d={d} role="JULIANA" readDocument={onReadInternalDocument}/>
    <h4>Documentos do fornecedor — recebimento automático</h4>
    {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
    {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Importar documentos do Gmail</button>}
    {syncStatus&&<p role="status">{syncStatus}</p>}
-   <h4>Boletos dos clientes — anexar manualmente</h4>
+   <h4>Documentos de faturamento por cliente — anexar PDF</h4>
+   <p className="ft-hint">Anexe a nota fiscal da venda e, conforme a operação, boleto, comprovante de pagamento ou declaração de valor a receber. Recibo a receber não comprova quitação.</p>
    {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
-   {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&<label className="ow-upload">Anexar boletos — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:'BOLETO CLIENTE'});}}/></label>}</div>)}<DocList docs={client.documents.filter(doc=>doc.categoria==='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/></div>)}
-   {customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE').length>0&&<DocList docs={customerDocs.filter(doc=>doc.categoria!=='BOLETO CLIENTE')} onOpenDocument={onOpenDocument}/>}
+   {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&[['NF VENDA PDF','Nota fiscal da venda'],['BOLETO CLIENTE','Boleto'],['COMPROVANTE PAGAMENTO CLIENTE','Comprovante de pagamento'],['RECIBO A RECEBER','Recibo de valor a receber']].map(([cat,label])=><label key={cat} className="ow-upload">Anexar {label} — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:cat});}}/></label>)}<DocList docs={client.documents.filter(doc=>doc.vendaId===g.id||d.sales.some(v=>v.id===doc.vendaId&&(v.grupoPedidoId||v.id)===g.id&&v.clienteId===client.id))} onOpenDocument={onOpenDocument}/></div>)}</div>)}
+   {customerDocs.some(doc=>!doc.vendaId)&&<p role="alert">Há documentos sem vínculo individual de venda; confira antes de enviar ou fechar a OS.</p>}
    {onValidateDocument&&<p className="ft-hint">A conferência dos arquivos ocorre no campo 5 desta mesma OS.</p>}
-   <p className="ft-hint">Anexar não emite, paga ou envia boleto. Login próprio da Juliana depende da validação de permissões por carga.</p>
+   <p className="ft-hint">Anexar não emite nota fiscal ou boleto, não confirma pagamento e não envia documentos ao cliente. Login próprio da Juliana depende da validação de permissões por carga.</p>
    </div>
   </Panel>
 
   <Panel title="5. Fechamento — Pedro" aside={<Pill tone="warn">ACESSO EM PREPARAÇÃO</Pill>}>
    <p>Documentos do fornecedor e arquivos registrados por Juliana, sem misturar outras cargas.</p>
    <DocList docs={documents} onOpenDocument={onOpenDocument} onValidate={onValidateDocument&&!c.finalizadaEm&&c.status!=='CANCELADA'?doc=>onValidateDocument(c.id,doc):undefined}/>
-   <PedroClosing key={c.id} data={data} carga={c} order={order}/>
-   {onFinalize&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onFinalize(c.id)}>Conferir fechamento / solicitar confirmação</button>}
+   <InternalPackage key={c.id+":PEDRO"} d={d} role="PEDRO" readDocument={onReadInternalDocument}/>
+   <InternalSend key={c.id+":SEND-PEDRO"} carga={c} role="PEDRO" onSend={onSendInternalDossier}/>
+   <LoadCloseConfirmation key={c.id} load={c} onClose={onFinalize} busy={busy}/>
    <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',5)}>Ajustes e comprovantes da carga</button></details>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
@@ -269,6 +290,6 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
   <Panel title="6. Histórico desta carga">
    {timeline.length?<ol className="ft-timeline">{timeline.map((event,i)=><li key={i}><time>{when(event.when)}</time><span>{event.label}</span></li>)}</ol>:<p className="ft-hint">Nenhum evento com data registrada para esta carga.</p>}
   </Panel>
-  <p className="ft-hint">O relatório reúne o resumo e a lista de anexos vinculados. O pacote imprimível com os PDFs originais será desenvolvido na etapa de fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((order?.numero||c.numeroOS||'OS-NAO-VINCULADA')+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Painel de cargas</button></div>
+  <p className="ft-hint">O relatório simples reúne o resumo e a lista de anexos. Para imprimir também os PDFs originais vinculados, utilize o pacote interno no fechamento do Pedro.</p><div className="ft-footer"><button type="button" className="ft-primary" onClick={()=>loadReport(data,c).save((order?.numero||c.numeroOS||'OS-NAO-VINCULADA')+'-DOSSIE.pdf')}>Baixar relatório PDF da carga</button><button type="button" className="ft-outline" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Painel de cargas</button></div>
  </section>;
 }
