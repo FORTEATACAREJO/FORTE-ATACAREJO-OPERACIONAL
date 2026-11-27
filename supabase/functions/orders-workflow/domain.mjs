@@ -8,7 +8,7 @@ import {isResaleProduct,supplierProducts,supplierProductTerms} from './supplier-
 export {isResaleProduct,supplierProducts} from './supplier-catalog.mjs';
 import {queueDriverOrder} from './driver-dispatch.mjs';
 import {linkFreightReceipt,receiptSyncResult} from './freight-receipts.mjs';
-import {sheetAction,linkSales,terminalSale} from './operation-sheet.mjs';
+import {sheetAction,linkSales,unlinkSale,terminalSale} from './operation-sheet.mjs';
 import {requireCapacity,isProvisionalCommercialOrder} from './capacity.mjs';
 import {PURCHASE_MODES,driverSnapshot,supplierSnapshot,canEditPurchase,palletReleaseNeeded,supplierWasSent} from './complements.mjs';
 import {supplierConfirmationChannel,CUSTOMER_AUTOMATIC_MESSAGES_ENABLED,purchaseSnapshot,queueCustomer,queueLoading,itemsText,phone} from './communications.mjs';
@@ -309,6 +309,8 @@ export function applyWorkflow(original,b,p,{id,at}){
   const c=load(),j=queueDriverOrder(s,c,at,id);result={cargaId:c.id,jobIds:[j.id],state:j.state};
  }else if(b.action==='SALE_LINK'){
   const c=load(),rows=linkSales(s,c,[b.vendaId]);if(c.ordemRevisadaEm)queueCustomer(s,rows,'CARREGAMENTO',c.ordemRevisadaEm,at);result={cargaId:c.id};
+ }else if(b.action==='SALE_UNLINK'){
+  result=unlinkSale(s,load(),b.vendaId,p,{id,at,motivo:b.motivo});
  }else if(b.action==='DOCUMENT_ADD'){
   const c=b.cargaId?load():null,o=b.compraFornecedorId?arr(s,'comprasFornecedor').find(x=>x.id===b.compraFornecedorId):null;const sales=b.vendaId?arr(s,'vendas').filter(v=>v.id===b.vendaId||v.grupoPedidoId===b.vendaId):[];if(!c&&!o&&!sales.length)fail('Selecione a venda, pedido ou carga.');if(CLIENT_BILLING_DOCUMENTS.includes(b.categoria)){if(!c||c.finalizadaEm||/CANCELAD/i.test(c.status||'')||!sales.length||sales.some(v=>/CANCELAD/i.test(v.status||'')||!(v.cargaId===c.id||!v.cargaId&&(c.vendaIds||[]).includes(v.id))||!v.clienteId||v.clienteId!==sales[0].clienteId))fail('Documento de faturamento deve pertencer a uma venda ativa do mesmo cliente e da mesma carga.');if(!privileged(p)&&p.permissoes?.faturamento!==true)fail('Sem autorização para anexar documentos de faturamento.');}if(b.categoria==='COMPROVANTE FRETE'&&c?.modalidadeFrete==='CIF')fail('CIF não possui comprovante de frete separado.');if(!DOCUMENTS.includes(b.categoria))fail('Categoria inválida.');const path=text(b.path,'arquivo'),hash=text(b.hash,'hash do arquivo');if(!path.startsWith(p.empresa_id+'/')||!/^[a-f0-9]{64}$/.test(hash))fail('Arquivo inválido ou de outra empresa.');const existing=arr(s,'documentos').find(d=>d.cargaId===(c?.id||'')&&d.compraFornecedorId===(o?.id||'')&&d.vendaId===(b.vendaId||'')&&d.categoria===b.categoria&&d.hash===hash);if(existing)result={id:existing.id};else{const d={id,vendaId:b.vendaId||'',...(CLIENT_BILLING_DOCUMENTS.includes(b.categoria)?{clienteId:sales[0].clienteId}:{}),cargaId:c?.id||sales[0]?.cargaId||'',compraFornecedorId:o?.id||'',categoria:b.categoria,tipo:b.categoria,filename:text(b.filename,'nome do arquivo'),storageBucket:'forte-vendas-dossies',storagePath:path,hash,validationStatus:'RECEBIDO',identificacaoConfirmada:false,origem:'ANEXO MANUAL',receivedAt:at,usuario:p.nome};s.documentos=[...arr(s,'documentos'),d];result={id};}
  }else if(b.action==='PAYMENT_SYNC_RESULT'){
