@@ -7,10 +7,10 @@ import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import DriverIntake from './DriverIntake.jsx';
 import './driver-directory-mobile.css';
 
-const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
+const EMPTY={endereco:'',nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
 const legacyForm=source=>({
- nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
+ endereco:source.endereco||'',nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
  email:source.email||'',cnh:digits(source.cnh_registro||source.cnh||''),categoria_cnh:source.categoria_cnh||'',
  validade_cnh:source.validade_cnh||'',rntrc:source.rntrc||'',proprietario_nome:source.proprietario_nome||'',
  proprietario_documento:digits(source.proprietario_documento||source.proprietario_cpf_cnpj||''),chave_pix:source.chave_pix||'',
@@ -50,7 +50,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   setExisting(drivers.data||[]);setVehicles(veiculos.data||[]);
   if(isAdmin){
    const stored=await supabase.from('forte_op_motoristas_pendentes')
-    .select('source_id,nome,cpf,whatsapp,email,cnh,categoria_cnh,validade_cnh,rntrc,proprietario_nome,proprietario_documento,chave_pix,favorecido_pix,capacidade_operacional_kg,situacao,requisitos_pendentes,veiculo_origem_id')
+    .select('source_id,nome,cpf,whatsapp,endereco,email,cnh,categoria_cnh,validade_cnh,rntrc,proprietario_nome,proprietario_documento,chave_pix,favorecido_pix,capacidade_operacional_kg,situacao,requisitos_pendentes,veiculo_origem_id')
     .order('nome').limit(150);
    if(stored.error)throw new Error('Falha ao carregar motoristas pendentes: '+stored.error.message);
    setLegacy((stored.data||[]).map(item=>({id_origem:item.source_id,dados:item,situacao:item.situacao,requisitos_pendentes:item.requisitos_pendentes||[]})));
@@ -74,7 +74,6 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    if(user.error||!user.data.user)throw Error('Sessão expirada.');
    const grant=await supabase.rpc('access_current_module',{p_app:'vendas'});
    if(grant.error||!grant.data?.allowed||!grant.data?.isAdmin)throw Error('Revisão restrita à administração.');
-   const capacity=Number(form.capacidade_operacional_kg);
    const missing=[
     !cpfValido(form.cpf)?'CPF':null,
     digits(form.cnh).length!==11?'CNH':null,
@@ -84,12 +83,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    ].filter(Boolean);
    const payload={
     nome:form.nome.trim(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
-    email:form.email.trim()||null,cnh:digits(form.cnh)||null,
-    categoria_cnh:form.categoria_cnh.trim()||null,validade_cnh:form.validade_cnh||null,
-    rntrc:form.rntrc.trim()||null,proprietario_nome:form.proprietario_nome.trim()||null,
-    proprietario_documento:digits(form.proprietario_documento)||null,
-    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim()||null,
-    capacidade_operacional_kg:capacity>0?capacity:null,requisitos_pendentes:missing,
+    cnh:digits(form.cnh)||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    endereco:form.endereco.trim()||null,requisitos_pendentes:missing,
     revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()
    };
    if(!payload.nome)throw Error('O nome do motorista é obrigatório.');
@@ -122,11 +117,8 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    const payload={
     ...(selected?{id:selected}:{}),empresa_id:profile.data.empresa_id,
     nome:form.nome.trim().toUpperCase(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
-    cnh:digits(form.cnh)||null,email:form.email.trim()||null,categoria_cnh:form.categoria_cnh.trim()||null,
-    validade_cnh:form.validade_cnh||null,rntrc:form.rntrc.trim()||null,
-    proprietario_nome:form.proprietario_nome.trim().toUpperCase()||null,proprietario_documento:digits(form.proprietario_documento)||null,
-    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim().toUpperCase()||null,
-    capacidade_operacional_kg:Number(form.capacidade_operacional_kg)>0?Number(form.capacidade_operacional_kg):null,
+    cnh:digits(form.cnh)||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    endereco:form.endereco.trim()||null,
     status_ia:'PENDENTE_CONFERENCIA_DOCUMENTAL',ativo:false
    };
    const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
@@ -143,15 +135,9 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
  }
  const fields=[
-  ['nome','Nome completo',true],['cpf','CPF',false],['whatsapp','WhatsApp com DDD',false],
-  ['cnh','Registro CNH (11 dígitos)',false],['categoria_cnh','Categoria CNH',false],
-  ['validade_cnh','Validade CNH (opcional)',false,'date'],['email','E-mail',false,'email'],
-  ...(selected?[
-   ['proprietario_nome','Proprietário (histórico)',false],
-   ['proprietario_documento','Documento proprietário (histórico)',false],
-   ['chave_pix','Chave Pix (histórico)',false],['favorecido_pix','Favorecido Pix (histórico)',false],
-   ['capacidade_operacional_kg','Capacidade (histórico)',false,'number']
-  ]:[])
+  ['nome','Nome completo',true],['whatsapp','WhatsApp com DDD',false,'tel'],['cpf','CPF',false],
+  ['cnh','Número da CNH',false],['categoria_cnh','Categoria da CNH',false],
+  ['endereco','Endereço (opcional)',false]
  ];
  return <div className="modalBackdrop ft-driver-backdrop"><section className="modal wide ft-driver-dialog" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
  <div className="modalHead ft-driver-head"><h2>MOTORISTAS — PEDIDOS FT</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
