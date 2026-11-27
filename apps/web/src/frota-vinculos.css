@@ -18,14 +18,14 @@
 .ft-fleet-actions button{flex:1 1 170px}
 .ft-fleet-form input[readonly]{background:#f4f5f7;color:#4e5765}
 
-/* Painel de vínculo: duas listas independentes, com ação central também no celular. */
+/* Painel de vínculo: seleção em ordem e confirmação após o resumo. */
 .ft-fleet-pair-form{display:grid;gap:12px;padding:10px;border:1px solid #e1cbd3;border-radius:12px;background:#fffafb;min-width:0}
-.ft-fleet-pair-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(58px,auto) minmax(0,1fr);gap:8px;align-items:start;min-width:0}
+.ft-fleet-pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start;min-width:0}
 .ft-fleet-column{min-width:0;display:flex;flex-direction:column;gap:8px}
 .ft-fleet-column h4{margin:0;font-size:14px;color:#681a32}
 .ft-fleet-column input,.ft-fleet-note input{width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:44px;padding:8px;border:1px solid #c6cbd5;border-radius:8px;background:#fff;color:#20232a;font-size:16px}
 .ft-fleet-select-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;overscroll-behavior:contain;padding:2px;min-width:0}
-.ft-fleet-select-list button{display:flex;flex-direction:column;gap:4px;text-align:left;min-width:0;width:100%;min-height:48px;padding:9px 7px;border-radius:9px;border:1px solid #d8dce3;background:#fff;color:#252b35;font-size:13px;white-space:normal;overflow-wrap:anywhere}
+.ft-fleet-select-list button{display:flex;flex-direction:column;gap:4px;text-align:left;min-width:0;width:100%;flex-shrink:0;height:auto;min-height:48px;padding:9px 7px;border-radius:9px;border:1px solid #d8dce3;background:#fff;color:#252b35;font-size:13px;white-space:normal;overflow-wrap:anywhere}
 .ft-fleet-select-list button[aria-pressed=true]{background:#e6f5ec;border:2px solid #237d4a;color:#165733}
 .ft-fleet-select-list button[aria-pressed=true]:disabled{opacity:1}
 .ft-fleet-select-list button:disabled:not([aria-pressed=true]){opacity:.58}
@@ -40,4 +40,17 @@
 .ft-fleet-pair-summary{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center;text-align:center;padding:10px 5px;border:1px solid #cbded2;background:#f1f8f3;border-radius:9px;overflow-wrap:anywhere;font-size:12px}
 .ft-fleet-pair-summary span{font-size:11px;color:#41624c;font-weight:700}
 .ft-fleet-note{display:grid;gap:6px;font-size:13px}
-@media(max-width:420px){.ft-fleet-pair-form{padding:7px}.ft-fleet-pair-grid{gap:4px;grid-template-columns:minmax(0,1fr) minmax(54px,auto) minmax(0,1fr)}.ft-fleet-column h4{font-size:12px}.ft-fleet-select-list button{padding:7px 5px;font-size:12px}.ft-fleet-pair-center button{padding:7px 3px;font-size:11px}.ft-fleet-pair-status{font-size:9px}}
+ .ft-fleet-pair-center .ft-fleet-connect{
+  width:100%;
+  padding:10px 14px;
+  font-size:15px;
+}
+.ft-fleet-select-list button :is(strong,small){
+  display:block;
+  line-height:1.4;
+  white-space:normal;
+}
+@media(max-width:650px){
+  .ft-fleet-pair-grid{grid-template-columns:minmax(0,1fr);gap:16px}
+  .ft-fleet-select-list{max-height:200px}
+}
