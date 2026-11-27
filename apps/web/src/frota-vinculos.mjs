@@ -9,10 +9,10 @@ export const activeVehicleForDriver=({links=[],vehicles=[],driverId})=>{
  const vehicle=vehicles.find(v=>v.id===link.veiculo_id&&v.ativo!==false);
  return vehicle?{link,vehicle}:null;
 };
-export const canLink=({links=[],vehicleId,driverId,vehicles=[],drivers=[]})=>{
+export const canLink=({links=[],vehicleId,driverId,vehicles=[],drivers=[],allowPendingVehicle=false})=>{
  if(!driverId||!drivers.some(m=>m.id===driverId))return {ok:false,reason:'Selecione um motorista existente na base operacional.'};
  const vehicle=vehicles.find(v=>v.id===vehicleId);
- if(!vehicle||vehicle.ativo===false)return {ok:false,reason:'Selecione um veículo cadastrado e ativo na base de veículos.'};
+ if(!vehicle||vehicle.ativo===false&&!allowPendingVehicle)return {ok:false,reason:'Selecione um veículo cadastrado e ativo na base de veículos.'};
  const current=vehicleDriver({links,vehicleId});
  if(current)return {ok:false,reason:'Esse veículo já está vinculado. Desvincule primeiro; o vínculo anterior ficará no histórico.'};
  const driverLink=links.find(x=>x.motorista_operacional_id===driverId&&activeLink(x));
