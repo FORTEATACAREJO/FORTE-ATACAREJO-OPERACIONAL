@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {officialNumberConflict,assertOfficialNumberAvailable,releaseOfficialNumber} from '../supabase/functions/orders-workflow/official-number.mjs';
+const fixture=()=>({cargas:[{id:'c1',compraFornecedorId:'o1',numeroOS:'OS-1',fornecedorId:'f1',numeroPedidoFornecedor:'41561380'},{id:'c2',compraFornecedorId:'o2',numeroOS:'OS-2',fornecedorId:'f2'}],comprasFornecedor:[{id:'o1',cargaId:'c1',numeroPedidoFornecedor:'41561380'},{id:'o2',cargaId:'c2'}],documentos:[],comunicacoes:[]});
+const s=fixture(),params={orderId:'o1',cargaId:'c1',number:'41561380',reason:'Lançamento incorreto',actor:'master',at:'2026-11-27T17:00:00Z',id:'event'};
+assert.throws(()=>assertOfficialNumberAvailable(s,'41561380',{cargaId:'c2',orderId:'o2'}),/OS-1/);
+assert.equal(officialNumberConflict(s,' 4156 1380 ').os,'OS-1');
+assert.equal(officialNumberConflict(s,'41561380',{cargaId:'c1',orderId:'o1'}),null);
+s.cargas[0].status='CANCELADA';s.comprasFornecedor[0].status='CANCELADO';
+assert.throws(()=>assertOfficialNumberAvailable(s,'41561380',{cargaId:'c2'}),/Exclua/);
+assert.throws(()=>releaseOfficialNumber(s,{...params,reason:''}),/motivo/);
+assert.throws(()=>releaseOfficialNumber(s,{...params,number:'999'}),/alterado/);
+const closed=fixture();closed.cargas[0].finalizadaEm=params.at;
+assert.throws(()=>releaseOfficialNumber(closed,params),/revisão/);
+const invoiced=fixture();invoiced.documentos=[{cargaId:'c1',categoria:'XML NF'}];
+assert.throws(()=>releaseOfficialNumber(invoiced,params),/revisão/);
+releaseOfficialNumber(s,params);assert.equal(s.cargas[0].numeroPedidoFornecedor,'');assert.equal(s.comprasFornecedor[0].numeroPedidoFornecedor,'');assert.equal(s.cargas[0].historicoOperacao[0].numero,'41561380');assert.equal(s.comprasFornecedor[0].historico[0].motivo,params.reason);assert.doesNotThrow(()=>assertOfficialNumberAvailable(s,'41561380',{cargaId:'c2',orderId:'o2'}));assert.equal(s.cargas.length,2);
+console.log('Reserva única, exclusão e reutilização: OK');
