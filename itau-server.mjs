@@ -163,7 +163,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 403, { error: "Falha na verificação do webhook" });
     }
     if (["/webhook", "/webhooks/whatsapp"].includes(requestUrl.pathname) && req.method === "POST") {
-      const raw = await readBody(req);
+      const chunks = [];
+      for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const raw = Buffer.concat(chunks);
       const secret = process.env.WHATSAPP_APP_SECRET;
       if (!secret) return send(res, 503, { error: "Assinatura do WhatsApp não configurada" });
       const signature = String(req.headers["x-hub-signature-256"] || "");
