@@ -10,6 +10,7 @@ import {parseNfe,parsePdfText,supplierDecision,matchDossier,validatePush,pushRea
 import {CENTRAL_EMAIL,partsOf,decodeBytes,describeDocument,historyMessages} from './domain.mjs';
 import {parseCiplan,safeCandidates} from './supplier-confirmation.mjs';
 import {applyWorkflow} from '../orders-workflow/domain.mjs';
+import {supplierConfirmationChannel} from '../orders-workflow/communications.mjs';
 import {orderDocumentQueries,selectSearchMessages} from './order-document-search.mjs';
 const env=(s:string)=>Deno.env.get(s)||'',url=env('SUPABASE_URL'),callback=url+'/functions/v1/gmail-central/callback',pushURL=url+'/functions/v1/gmail-central/push';
 const origins:Record<string,{project:string,app:string}>={'https://pedidos-ft.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-vendas.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-vendas-app.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-fiscal.onrender.com':{project:'xmfpvvmvdkepmnvtdoio',app:'fiscal'},'https://forte-financeiro.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'financeiro'},'https://forte-frete.onrender.com':{project:'nkynfboqwfxhhxcsrawl',app:'frete'}};
@@ -127,6 +128,7 @@ Deno.serve(async req=>{
   const order=(row.estado.comprasFornecedor||[]).find((o:any)=>o.id===body.orderId);
   const load=(row.estado.cargas||[]).find((l:any)=>l.id===order?.cargaId||l.compraFornecedorId===order?.id);
   if(!order||!load||order.numeroPedidoFornecedor||load.numeroPedidoFornecedor||load.finalizadaEm||/CANCELAD|EXCLUID|FINALIZAD/i.test(String(order.status))||load.status==='CANCELADA')throw Error('OS indisponível ou já confirmada. Atualize a tela.');
+  if(supplierConfirmationChannel((row.estado.fornecedores||[]).find((f:any)=>f.id===order.fornecedorId))==='WHATSAPP')throw Error('Este fornecedor utiliza WhatsApp para confirmações.');
   if(order.fornecedorId!=='f-ciplan')throw Error('O formato de confirmação deste fornecedor ainda não está homologado. Utilize o registro manual.');
   const created=Date.parse(order.criadaEm);if(!Number.isFinite(created))throw Error('A OS não possui data de criação válida.');
   const t=await token(c),profile=await api(t,'/profile');if(String(profile.emailAddress).toLowerCase()!==CENTRAL_EMAIL)throw Error('CONTA_GOOGLE_DIVERGENTE');
