@@ -4,7 +4,7 @@ import {reportPDF} from './orders-reports.js';
 
 const fmt=n=>n===null||n===undefined||n===''||!Number.isFinite(Number(n))?'Pendente':Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:4});
 const supplierCategories=new Set(['PDF NF','XML NF','BOLETO FORNECEDOR','NF PALLETS']);
-const clientCategories=new Set(['BOLETO CLIENTE','COMPROVANTE PAGAMENTO CLIENTE','ANEXO DA VENDA']);
+const clientCategories=new Set(['BOLETO CLIENTE','COMPROVANTE PAGAMENTO CLIENTE','RECIBO A RECEBER','NF VENDA PDF','ANEXO DA VENDA']);
 const activeClient=(d,doc)=>d.clients.some(c=>(!doc.clienteId||String(doc.clienteId)===String(c.id))&&(!doc.vendaId||c.items.some(i=>i.id===doc.vendaId)||c.salesGroups.some(g=>g.id===doc.vendaId))&&(doc.clienteId||doc.vendaId));
 export function internalPackageSelection(d,role){
  if(!d||!['JULIANA','PEDRO'].includes(role))throw Error('Dossiê interno indisponível.');
