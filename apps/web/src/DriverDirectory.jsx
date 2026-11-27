@@ -88,6 +88,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
     revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()
    };
    if(!payload.nome)throw Error('O nome do motorista é obrigatório.');
+   if(digits(form.whatsapp).length<10||digits(form.whatsapp).length>13)throw Error('Informe o WhatsApp do motorista com DDD.');
    const {data:updated,error}=await supabase.from('forte_op_motoristas_pendentes')
     .update(payload).eq('source_id',selected).eq('situacao','PENDENTE_DOCUMENTOS')
     .select('source_id').maybeSingle();
@@ -101,7 +102,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   event.preventDefault();
   if(!isAdmin)return setMessage('Somente Master ou Administrador pode cadastrar motorista.');
   if(form.cpf.trim()&&!cpfValido(form.cpf))return setMessage('CPF informado inválido. Corrija ou deixe pendente.');
-  if(form.whatsapp.trim()&&digits(form.whatsapp).length<10)return setMessage('WhatsApp informado deve conter DDD.');
+  if(digits(form.whatsapp).length<10||digits(form.whatsapp).length>13)return setMessage('WhatsApp informado deve conter DDD.');
   if(form.cnh.trim()&&digits(form.cnh).length!==11)return setMessage('CNH informada deve ter 11 dígitos.');
   if(!form.nome.trim())return setMessage('Informe o nome do motorista.');
   setBusy(true);setMessage('');
@@ -135,7 +136,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
  }
  const fields=[
-  ['nome','Nome completo',true],['whatsapp','WhatsApp com DDD',false,'tel'],['cpf','CPF',false],
+  ['nome','Nome completo',true],['whatsapp','WhatsApp com DDD',true,'tel'],['cpf','CPF',false],
   ['cnh','Número da CNH',false],['categoria_cnh','Categoria da CNH',false],
   ['endereco','Endereço (opcional)',false]
  ];
