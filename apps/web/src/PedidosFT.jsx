@@ -40,13 +40,19 @@ function FtOptions({onSelect,extraActions}){
  </details>;
 }
 function Panel({title,children,aside}){return <section id={/^\d\./.test(title)?'ft-campo-'+title.split('.')[0]:undefined} className="ft-card"><div className="ft-card-heading"><h3>{title}</h3>{aside}</div>{children}</section>;}
-function SupplierOrderNumber({value,canConfirm,busy,onConfirm,onSearch,onLink}){
+function SupplierOrderNumber({value,canConfirm,busy,onConfirm,onSearch,onLink,onUnlink}){
  const [number,setNumber]=useState('');
  const [evidence,setEvidence]=useState('');
  const [searching,setSearching]=useState(false),[matches,setMatches]=useState(null),[searchError,setSearchError]=useState(''),[linked,setLinked]=useState(false);
  async function search(){setSearching(true);setMatches(null);setSearchError('');setLinked(false);try{const result=await onSearch();setMatches(result.candidates||[]);}catch(e){setSearchError(e.message||'Não foi possível pesquisar no Gmail.');}finally{setSearching(false);}}
  async function link(match){setSearching(true);setSearchError('');try{await onLink(match.messageId);setLinked(true);setMatches(null);}catch(e){setSearchError(e.message||'Não foi possível vincular. Pesquise novamente.');}finally{setSearching(false);}}
- if(value||!canConfirm)return <Field label="Número do pedido do fornecedor" value={value||'Aguardando retorno do fornecedor'}/>;
+ const [removeOpen,setRemoveOpen]=useState(false),[reason,setReason]=useState('');
+ if(value||!canConfirm)return <div><Field label="Número do pedido do fornecedor" value={value||'Aguardando retorno do fornecedor'}/>
+ {value&&onUnlink&&<><button type="button" className="ft-outline" disabled={busy||searching} onClick={()=>{setRemoveOpen(v=>!v);setReason('');setSearchError('');}}>Excluir vínculo do número</button>
+ {removeOpen&&<section className="ft-card" aria-label="Excluir vínculo do pedido do fornecedor"><p>O número será liberado para outra carga. A OS e seu histórico serão preservados.</p><label>Motivo da exclusão<textarea value={reason} onChange={e=>setReason(e.target.value)} disabled={busy||searching}/></label>
+ <button type="button" className="ft-outline" disabled={busy||searching||reason.trim().length<5} onClick={async()=>{setSearching(true);setSearchError('');try{await onUnlink(value,reason.trim());setRemoveOpen(false);setReason('');setLinked(false);setMatches(null);setNumber('');setEvidence('');}catch(e){setSearchError(e.message||'Não foi possível excluir o vínculo.');}finally{setSearching(false);}}}>Confirmar exclusão do vínculo</button>
+ <button type="button" className="ft-outline" disabled={busy||searching} onClick={()=>setRemoveOpen(false)}>Voltar</button></section>}{searchError&&<p role="alert">{searchError}</p>}</>}
+ </div>;
  return <form aria-label="Registrar pedido do fornecedor" onSubmit={async event=>{
   event.preventDefault();
   if(busy||!number.trim()||!evidence.trim())return;
@@ -99,7 +105,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -161,7 +167,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
   </header>
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
   <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select>
-   <SupplierOrderNumber key={c.id} value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor} canConfirm={!!order?.id&&!!onConfirmSupplierOrder&&!c.finalizadaEm&&c.status!=='CANCELADA'&&order.status!=='CANCELADO'} busy={busy} onConfirm={(numero,evidencia)=>onConfirmSupplierOrder(order.id,numero,evidencia)} onSearch={onSearchSupplierOrder&&(validMaster(currentUser)||String(currentUser?.perfil||'').toUpperCase()==='ADMINISTRADOR')?()=>onSearchSupplierOrder(order.id):undefined} onLink={onLinkSupplierOrder?messageId=>onLinkSupplierOrder(order.id,messageId):undefined}/>
+   <SupplierOrderNumber key={c.id} value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor} canConfirm={!!order?.id&&!!onConfirmSupplierOrder&&!c.finalizadaEm&&c.status!=='CANCELADA'&&order.status!=='CANCELADO'} busy={busy} onConfirm={(numero,evidencia)=>onConfirmSupplierOrder(order.id,numero,evidencia)} onSearch={onSearchSupplierOrder&&(validMaster(currentUser)||String(currentUser?.perfil||'').toUpperCase()==='ADMINISTRADOR')?()=>onSearchSupplierOrder(order.id):undefined} onLink={onLinkSupplierOrder?messageId=>onLinkSupplierOrder(order.id,messageId):undefined} onUnlink={onUnlinkSupplierOrder&&(validMaster(currentUser)||String(currentUser?.perfil||'').toUpperCase()==='ADMINISTRADOR')&&!c.finalizadaEm&&!c.fretePublicadaId&&!c.ordemEnviadaEm?(numero,motivo)=>onUnlinkSupplierOrder(order?.id,c.id,numero,motivo):undefined}/>
   </div>
 
   <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra e paletes','Motorista','Clientes','Conciliação e faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
