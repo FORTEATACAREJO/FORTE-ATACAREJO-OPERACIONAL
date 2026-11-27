@@ -78,6 +78,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    await admin();
    const plate=plateKey(vehicle.placa);
    const carretas=[vehicle.carreta1,vehicle.carreta2,vehicle.carreta3].map(plateKey).filter(Boolean);
+   if(!vehicle.proprietario_nome.trim()||!vehicle.chave_pix.trim())throw Error('Informe o nome do proprietário e a chave Pix do frete.');
    if(!validPlate(plate)||carretas.some(p=>!validPlate(p)))throw Error('Confira as placas do cavalo e das carretas.');
    const result=await supabase.rpc('fc_gravar_ficha_veiculo',{
     p_id:editingVehicleId||null,p_placa:plate,p_proprietario:vehicle.proprietario_nome,
@@ -170,8 +171,8 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   {isAdmin&&<form className="ft-fleet-form" onSubmit={saveVehicle} aria-label="Cadastro do veículo com transportadora">
    <label>Placa do cavalo<input required value={vehicle.placa} onChange={e=>setVehicle(v=>({...v,placa:e.target.value}))} placeholder="AAA1B23" maxLength={8}/></label>
    {['carreta1','carreta2','carreta3'].map((key,index)=><label key={key}>Placa da carreta {index+1} (opcional)<input value={vehicle[key]} onChange={e=>setVehicle(v=>({...v,[key]:e.target.value}))} maxLength={8}/></label>)}
-   <label>Nome completo do proprietário<input value={vehicle.proprietario_nome} onChange={e=>setVehicle(v=>({...v,proprietario_nome:e.target.value}))}/></label>
-   <label>Chave Pix do frete<input autoComplete="off" value={vehicle.chave_pix} onChange={e=>setVehicle(v=>({...v,chave_pix:e.target.value}))}/></label>
+   <label>Nome completo do proprietário<input required value={vehicle.proprietario_nome} onChange={e=>setVehicle(v=>({...v,proprietario_nome:e.target.value}))}/></label>
+   <label>Chave Pix do frete<input required autoComplete="off" value={vehicle.chave_pix} onChange={e=>setVehicle(v=>({...v,chave_pix:e.target.value}))}/></label>
    <div className="ft-fleet-actions">
     <button type="submit" disabled={busy}>{editingVehicleId?'SALVAR ALTERAÇÕES DO VEÍCULO':'CADASTRAR VEÍCULO'}</button>
     {editingVehicleId&&<button type="button" disabled={busy} onClick={cancelEdit}>CANCELAR EDIÇÃO</button>}
