@@ -160,7 +160,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    {driver&&onLinkVehicle&&<button type="button" className="ft-primary" disabled={busy} onClick={()=>onLinkVehicle(driver.id)}>Vincular motorista e veículo</button>}
    {driver&&<DriverIntake key={driver.id} driver={driver}/>}
    <Field label={savedPlates.length||!displayedPlates.length?'Placas':'Placas do cadastro'} value={displayedPlates.join(' / ')}/>
-   {!savedPlates.length&&displayedPlates.length>0&&<p className="ft-hint">Conjunto cadastrado. Confira as placas ao gravar a ordem.</p>
+   {!savedPlates.length&&displayedPlates.length>0&&<p className="ft-hint">Conjunto cadastrado. Confira as placas ao gravar a ordem.</p>}
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
    <Field label="Expedição do pedido" value={c.localCarregamento||c.origem}/>
    {c.ordemRevisadaEm&&onDriverActions?.(c)}
