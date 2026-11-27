@@ -233,3 +233,19 @@ test('anexar vários boletos do cliente preserva venda e rejeita venda de outra 
  assert.equal(s.documentos.filter(x=>x.categoria==='BOLETO CLIENTE').length,2);
  assert(s.documentos.every(x=>x.clienteId==='c'&&x.cargaId===c&&x.vendaId===v&&x.validationStatus==='RECEBIDO'));
 });
+
+
+test('OS no rodapé e xPed permitem encontrar a compra ainda sem número oficial, sem misturar cargas',()=>{
+ const s={fornecedores:[{id:'f',cnpj:'00057240000122'}],unidades:[{id:'u',cnpj:'49832961000232'}],produtos:[{id:'cp',nome:'CIMENTO CP II Z 32 50 KG',nomeExatoContador:'CIMENTO CIPLAN USO GERAL 50KG'},{id:'ac',nome:'ARGAMASSA AC2 CIPLAN 20 KG',nomeExatoContador:'ARGAMASSA COLANTE ACII 20 KG'}],cargas:[{id:'c',fornecedorId:'f',unidadeId:'u',numeroOS:'OS-000002',compraFornecedorId:'o'},{id:'other',fornecedorId:'f',unidadeId:'u',numeroOS:'OS-000001'}],comprasFornecedor:[{id:'o',cargaId:'c',numero:'OS-000002',itens:[{produtoId:'cp',qtd:760,unidadeMedida:'SACO',total:21984.90},{produtoId:'ac',qtd:100,unidadeMedida:'SACO',total:1514.30}]}]};
+ const metadata={key:'1'.repeat(44),issuer_cnpj:'00057240000122',recipient_cnpj:'49832961000232',order_references:['OS-000002','41561380'],customer_order_references:['OS-000002'],supplier_order_references:['41561380'],protocol:{status:'100'},items:[{description:'ARGAMASSA COLANTE ACII 20 KG',quantity:100,unit:'SC'},{description:'CIMENTO CIPLAN USO GERAL 50KG',quantity:760,unit:'SC'}],total_cents:2349920};
+ const src={id:'xml',kind:'XML_NFE',allowed:true,dossier_id:'d',metadata};
+ const match=(state=s,patch={})=>matchingSupplierInvoices(state,'c',[{...src,metadata:{...metadata,...patch}}]).length;
+ assert.equal(match(),1);
+ assert.equal(matchingSupplierInvoices(s,'other',[src]).length,0);
+ assert.equal(match(s,{items:[metadata.items[0],{...metadata.items[1],quantity:759}]}),0);
+ assert.equal(match(s,{total_cents:2349921}),0);
+ assert.equal(match(s,{recipient_cnpj:'49832961000151'}),0);
+ assert.equal(match(s,{customer_order_references:['OS-000001']}),0);
+ assert.equal(match({...s,cargas:s.cargas.map(c=>c.id==='other'?{...c,numeroPedidoFornecedor:'41561380'}:c)}),0);
+ assert.equal(match({...s,cargas:s.cargas.map(c=>c.id==='c'?{...c,numeroPedidoFornecedor:'99999'}:c)}),0);
+});

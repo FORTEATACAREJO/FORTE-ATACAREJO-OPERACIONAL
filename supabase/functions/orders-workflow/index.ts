@@ -58,7 +58,12 @@ Deno.serve(async(req)=>{
    }
    const invoices=matchingSupplierInvoices(row.estado,c.id,[...new Map(xmlSources.map(x=>[x.id,x])).values()]);
    const ids=[...new Set(invoices.map(x=>x.dossier_id))];
-   if(!ids.length)return Response.json({ok:true,count:0},{headers:cors});
+   if(!ids.length){
+    const config=await stateClient.from('gmail_hub_config').select('status,error,refresh_secret_id').eq('empresa_id',p.empresa_id).maybeSingle();
+    if(config.error)throw Error('Central Gmail indisponível.');
+    if(!config.data?.refresh_secret_id||config.data?.status==='ERRO')throw Error(config.data?.error==='REAUTORIZACAO_GOOGLE_NECESSARIA'?'Central Gmail da FORTE precisa de reautorização Google. Nenhuma nova mensagem foi importada.':'Central Gmail não está sincronizada. Confira a integração antes de consultar documentos.');
+    return Response.json({ok:true,count:0},{headers:cors});
+   }
    const attached=await stateClient.from('gmail_hub_sources').select('id,file_id,dossier_id,filename,kind,allowed,metadata,gmail_date').eq('empresa_id',p.empresa_id).eq('allowed',true).in('dossier_id',ids).in('kind',['XML_NFE','DANFE','BOLETO']).limit(200);
    if(attached.error)throw Error(attached.error.message);
    const docs=row.estado.documentos||[],added=[];
@@ -72,7 +77,18 @@ Deno.serve(async(req)=>{
     if(!file.data?.storage_path||!file.data.hash||docs.concat(added).some(x=>x.gmailSourceId===source.id||x.hash===file.data.hash))continue;
     added.push({id:crypto.randomUUID(),cargaId:c.id,compraFornecedorId:o?.id||'',categoria:cat,tipo:cat,filename:source.filename,hash:file.data.hash,storageBucket:'forte-gmail-central',storagePath:file.data.storage_path,gmailSourceId:source.id,validationStatus:'RECEBIDO',identificacaoConfirmada:false,origem:'GMAIL — VÍNCULO AUTOMÁTICO',receivedAt:source.gmail_date||new Date().toISOString(),usuario:'GMAIL CENTRAL'});
    }
-   if(added.length){row.estado.documentos=[...docs,...added];const saved=await stateClient.rpc('fc_gravar_workflow',{p_empresa:p.empresa_id,p_actor:user.id,p_versao:row.versao,p_estado:row.estado});if(saved.error||saved.data!==row.versao+1)throw Error('Os dados mudaram. Atualize e tente novamente.');}
+   if(added.length){
+    let next=row.estado;
+    // A reference read from a fully matched XML is eligible for the same
+    // authoritative confirmation workflow used by manual and Gmail entry.
+    const official=[...new Set(invoices.filter(x=>added.some(d=>d.gmailSourceId===x.id)).flatMap(x=>x.metadata?.supplier_order_references||[]).map(v=>String(v).trim()).filter(Boolean))];
+    if(o&&!o.numeroPedidoFornecedor&&!c.numeroPedidoFornecedor&&official.length===1){
+     const evidence=invoices.filter(x=>added.some(d=>d.gmailSourceId===x.id)).map(x=>x.metadata?.key).filter(Boolean).join(', ');
+     next=applyWorkflow(next,{action:'OFFICIAL_CONFIRM',requestId:crypto.randomUUID(),id:o.id,numeroPedidoFornecedor:official[0],evidencia:'XML NF-e — OS, produtos, quantidades e total conferidos; chave '+evidence},p,{id:crypto.randomUUID(),at:new Date().toISOString()}).state;
+    }
+    next.documentos=[...(next.documentos||[]),...added];
+    const saved=await stateClient.rpc('fc_gravar_workflow',{p_empresa:p.empresa_id,p_actor:user.id,p_versao:row.versao,p_estado:next});if(saved.error||saved.data!==row.versao+1)throw Error('Os dados mudaram. Atualize e tente novamente.');
+   }
    return Response.json({ok:true,count:added.length},{headers:cors});
   }
   if(b.action==='SUPPLIER_DOC_OPEN'){
