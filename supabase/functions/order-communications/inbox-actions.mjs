@@ -4,7 +4,18 @@ export async function inboxAction({body,db,profile,user,env,rowFor,persist,readB
  if(body.action==='INBOX_LIST')return listInbox(state,{query:body.query,filter:body.filter,offset:Math.max(0,Math.min(100000,Number(body.offset)||0))});
  if(body.action==='INBOX_OPTIONS'){const collections={venda:'vendas',compra:'comprasFornecedor',carga:'cargas',cliente:'clientes',motorista:'motoristas',fornecedor:'fornecedores',orcamento:'vendasBalcao'};const collection=collections[body.type];if(!collection)throw Error('Tipo de vínculo inválido.');return {options:(state[collection]||[]).filter(x=>x.ativo!==false).slice(-1000).reverse().map(x=>({id:x.id,label:[x.numeroVenda||x.numeroOrcamento||x.codigo||x.numeroPedidoFornecedor||x.numero||x.nome||x.razaoSocial||x.id,x.cliente||x.fornecedor||x.motorista||''].filter(Boolean).join(' · ')}))};}
  const thread=(state.whatsappInboxThreads||[]).find(t=>t.id===body.threadId);if(!thread)throw Error('Conversa não encontrada nesta empresa.');
- if(body.action==='INBOX_MESSAGES')return {messages:(state.whatsappInboxMessages||[]).filter(m=>m.threadId===thread.id).sort((a,b)=>String(a.at).localeCompare(String(b.at))).slice(-200),canReply:replyWindow(state,thread.id),thread};
+ if(body.action==='INBOX_MESSAGES'){
+  const all=(state.whatsappInboxMessages||[]).filter(m=>m.threadId===thread.id)
+    .sort((a,b)=>String(a.at).localeCompare(String(b.at))||String(a.id).localeCompare(String(b.id)));
+  // A API nunca apaga mensagens antigas: permite percorrer o historico integral por cursor.
+  const limit=Math.min(200,Math.max(1,Math.floor(Number(body.limit)||200)));
+  const beforeId=body.beforeMessageId;
+  const end=beforeId===undefined||beforeId===null||beforeId===''?all.length:all.findIndex(m=>m.id===beforeId);
+  if(end<0)throw Error('Mensagem de referencia nao encontrada nesta conversa.');
+  const start=Math.max(0,end-limit);
+  return {messages:all.slice(start,end),hasMore:start>0,totalMessages:all.length,
+    nextBeforeMessageId:start>0?all[start].id:null,canReply:replyWindow(state,thread.id),thread};
+ }
  if(body.action==='INBOX_UPDATE'){
   if(body.state!==undefined){if(!['PENDENTE','RESOLVIDA'].includes(body.state))throw Error('Situação inválida.');thread.state=body.state;}
   if(body.markRead===true)thread.readAt=new Date().toISOString();

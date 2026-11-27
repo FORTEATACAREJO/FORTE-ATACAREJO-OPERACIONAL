@@ -30,3 +30,25 @@ test('vínculo desconhecido e conversa de outra empresa são recusados; notas n�
  const f=fixture();await assert.rejects(()=>inboxAction({...f.args,body:{action:'INBOX_MESSAGES',threadId:'outro'}}),/não encontrada/);await assert.rejects(()=>inboxAction({...f.args,body:{action:'INBOX_UPDATE',threadId:f.threadId,link:{type:'carga',id:'inexistente'}}}),/Vínculo/);
  await inboxAction({...f.args,body:{action:'INBOX_UPDATE',threadId:f.threadId,note:'Conferência interna',claim:true}});assert.equal(f.state.whatsappInboxMessages.at(-1).direction,'NOTE');assert.equal(f.state.whatsappInboxThreads[0].assignedTo,'operator');assert.equal(f.sends,0);
 });
+
+
+test('histórico acima de 200 mensagens é íntegro e paginado, sem reenvio ou descarte',async()=>{
+ const state={};
+ for(let i=0;i<455;i++){
+  receiveInbox(state,{...value,messages:[{...value.messages[0],id:'meta-history-'+String(i).padStart(4,'0'),text:{body:'Mensagem '+i}}]},at);
+ }
+ const f=fixture(),args={...f.args,rowFor:async()=>({estado:structuredClone(state)})};
+ const base={action:'INBOX_MESSAGES',threadId:state.whatsappInboxThreads[0].id};
+ const recent=await inboxAction({...args,body:base});
+ assert.equal(recent.messages.length,200);assert.equal(recent.totalMessages,455);assert.equal(recent.hasMore,true);
+ const middle=await inboxAction({...args,body:{...base,beforeMessageId:recent.messages[0].id}});
+ assert.equal(middle.messages.length,200);assert.equal(middle.hasMore,true);
+ const oldest=await inboxAction({...args,body:{...base,beforeMessageId:middle.messages[0].id}});
+ assert.equal(oldest.messages.length,55);assert.equal(oldest.hasMore,false);
+ assert.equal(oldest.nextBeforeMessageId,null);
+ const ids=[...oldest.messages,...middle.messages,...recent.messages].map(m=>m.id);
+ assert.equal(new Set(ids).size,455);
+ assert.deepEqual(ids,state.whatsappInboxMessages.map(m=>m.id));
+ assert.equal(state.whatsappInboxMessages.length,455);
+ await assert.rejects(()=>inboxAction({...args,body:{...base,beforeMessageId:'conversa-inexistente'}}),/referencia nao encontrada/);
+});

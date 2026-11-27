@@ -8,11 +8,38 @@ export async function inboxCall(client,action,body={}){
 }
 export default function WhatsappInbox({client,onUnread}){
  const [threads,setThreads]=useState([]),[total,setTotal]=useState(0),[query,setQuery]=useState(''),[filter,setFilter]=useState('TODAS'),[selected,setSelected]=useState(null),[messages,setMessages]=useState([]),[text,setText]=useState(''),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[canReply,setCanReply]=useState(false),[linkType,setLinkType]=useState('carga'),[linkId,setLinkId]=useState(''),[options,setOptions]=useState([]);
- const [preview,setPreview]=useState(null),closePreview=useRef(null);
+ const [preview,setPreview]=useState(null),[hasMore,setHasMore]=useState(false),closePreview=useRef(null);
  useEffect(()=>{if(!preview)return;const previous=document.activeElement;closePreview.current?.focus();const key=e=>{if(e.key==='Escape')setPreview(null);};document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);URL.revokeObjectURL(preview.url);previous?.focus?.();};},[preview]);
  const version=useRef(0),selectedRef=useRef(null),command=useRef(null),sending=useRef(false),listVersion=useRef(0);
  async function refresh(){const seq=++listVersion.current;const data=await inboxCall(client,'INBOX_LIST',{query,filter});if(seq!==listVersion.current)return;setThreads(data.threads);setTotal(data.total);onUnread?.(data.unread);}
- async function load(id,mark=false){const seq=++version.current;const data=await inboxCall(client,'INBOX_MESSAGES',{threadId:id});if(seq!==version.current||selectedRef.current!==id)return;setMessages(data.messages);setCanReply(data.canReply);setSelected(data.thread);if(mark){await inboxCall(client,'INBOX_UPDATE',{threadId:id,markRead:true});await refresh();}}
+ async function load(id,mark=false){
+  const seq=++version.current;
+  const data=await inboxCall(client,'INBOX_MESSAGES',{threadId:id});
+  if(seq!==version.current||selectedRef.current!==id)return;
+  if(mark){setMessages(data.messages);setHasMore(Boolean(data.hasMore));}
+  else {
+    // A atualizacao periodica preserva paginas antigas ja abertas pelo atendente.
+    setMessages(current=>{
+      const map=new Map(current.map(m=>[m.id,m]));
+      for(const message of data.messages)map.set(message.id,message);
+      return [...map.values()].sort((a,b)=>String(a.at).localeCompare(String(b.at))||String(a.id).localeCompare(String(b.id)));
+    });
+  }
+  setCanReply(data.canReply);setSelected(data.thread);
+  if(mark){await inboxCall(client,'INBOX_UPDATE',{threadId:id,markRead:true});await refresh();}
+ }
+ async function loadOlder(){
+  if(!selectedRef.current||!messages.length||!hasMore)return;
+  const id=selectedRef.current;
+  const data=await inboxCall(client,'INBOX_MESSAGES',{threadId:id,beforeMessageId:messages[0].id});
+  if(selectedRef.current!==id)return;
+  setMessages(current=>{
+   const map=new Map(current.map(m=>[m.id,m]));
+   for(const message of data.messages)map.set(message.id,message);
+   return [...map.values()].sort((a,b)=>String(a.at).localeCompare(String(b.at))||String(a.id).localeCompare(String(b.id)));
+  });
+  setHasMore(Boolean(data.hasMore));
+ }
  useEffect(()=>{let active=true;refresh().catch(e=>{if(active)setError(e.message);});const timer=setInterval(()=>{refresh().catch(()=>{});if(selectedRef.current)load(selectedRef.current).catch(()=>{});},30000);return()=>{active=false;listVersion.current++;clearInterval(timer);};},[query,filter]);
  useEffect(()=>()=>{version.current++;selectedRef.current=null;},[]);
  useEffect(()=>{let active=true;setOptions([]);setLinkId('');if(selected?.id)inboxCall(client,'INBOX_OPTIONS',{type:linkType}).then(data=>{if(active)setOptions(data.options||[]);}).catch(()=>{});return()=>{active=false;};},[selected?.id,linkType]);
@@ -24,7 +51,7 @@ export default function WhatsappInbox({client,onUnread}){
  <div className="wa-toolbar"><label>Pesquisar<input type="search" value={query} onChange={e=>setQuery(e.target.value)}/></label><label>Caixa<select value={filter} onChange={e=>setFilter(e.target.value)}>{['TODAS','NAO_LIDAS','PENDENTE','RESOLVIDA','CLIENTES','MOTORISTAS','FORNECEDORES','DESCONHECIDOS'].map(value=><option key={value}>{value}</option>)}</select></label><button disabled={busy} onClick={()=>run(refresh)}>ATUALIZAR</button></div>
  <div className="wa-layout"><aside aria-label="Conversas"><p>{total} conversa(s)</p>{threads.length===0&&<p>Nenhuma conversa nesta seleção.</p>}{threads.map(thread=><button key={thread.id} className={thread.id===selected?.id?'wa-selected':''} onClick={()=>run(async()=>{selectedRef.current=thread.id;setSelected(thread);setMessages([]);setText('');command.current=null;await load(thread.id,true);})}><strong>{thread.name||thread.phone} {thread.unread>0&&'('+thread.unread+')'}</strong><span>{thread.preview}</span><small>{thread.state} · {thread.phone}</small></button>)}</aside>
  <article aria-label="Atendimento">{!selected?<p>Selecione uma conversa.</p>:<><h2>{selected.name||selected.phone}</h2><p>{selected.phone} · {selected.state} · {selected.assignedTo?'Atendente: '+selected.assignedTo:'Sem atendente'}</p><div className="wa-toolbar"><button disabled={busy} onClick={()=>run(()=>update({claim:true}))}>ASSUMIR ATENDIMENTO</button><button disabled={busy} onClick={()=>run(()=>update({state:selected.state==='RESOLVIDA'?'PENDENTE':'RESOLVIDA'}))}>{selected.state==='RESOLVIDA'?'REABRIR':'MARCAR RESOLVIDA'}</button></div>
- <div className="wa-messages" role="log" aria-live="polite">{messages.map(message=><div key={message.id} className={'wa-message wa-'+message.direction}><small>{message.direction==='NOTE'?'NOTA INTERNA':message.direction==='IN'?'RECEBIDA':'ENVIADA'} · {new Date(message.at).toLocaleString('pt-BR')} · {message.state}</small><p>{message.text||'['+message.type+']'}</p>{message.mediaId&&<div>{(message.type==='image'||message.mime==='application/pdf')&&<button disabled={busy} onClick={()=>run(()=>media(message,true))}>ABRIR {message.type==='image'?'IMAGEM':'PDF'}</button>}<button disabled={busy} onClick={()=>run(()=>media(message))}>BAIXAR {message.filename||message.type}</button></div>}{message.unsupported&&<p>Tipo não suportado. Consulte o aplicativo oficial.</p>}</div>)}</div>
+ <>{hasMore&&<button type="button" disabled={busy} onClick={()=>run(loadOlder)}>CARREGAR MENSAGENS ANTIGAS</button>}<div className="wa-messages" role="log" aria-live="polite">{messages.map(message=><div key={message.id} className={'wa-message wa-'+message.direction}><small>{message.direction==='NOTE'?'NOTA INTERNA':message.direction==='IN'?'RECEBIDA':'ENVIADA'} · {new Date(message.at).toLocaleString('pt-BR')} · {message.state}</small><p>{message.text||'['+message.type+']'}</p>{message.mediaId&&<div>{(message.type==='image'||message.mime==='application/pdf')&&<button disabled={busy} onClick={()=>run(()=>media(message,true))}>ABRIR {message.type==='image'?'IMAGEM':'PDF'}</button>}<button disabled={busy} onClick={()=>run(()=>media(message))}>BAIXAR {message.filename||message.type}</button></div>}{message.unsupported&&<p>Tipo não suportado. Consulte o aplicativo oficial.</p>}</div>)}</div></>
  <form onSubmit={e=>{e.preventDefault();run(async()=>{command.current??=crypto.randomUUID();const out=await inboxCall(client,'INBOX_REPLY',{threadId:selected.id,text,commandId:command.current});if(out.message.state==='SENT'||out.message.state==='DELIVERED'||out.message.state==='READ'){setText('');command.current=null;}else setError('Resposta '+out.message.state+'. Confira o resultado antes de reenviar.');await load(selected.id);await refresh();});}}><label>Resposta ao contato<textarea value={text} maxLength={4096} disabled={busy} onChange={e=>setText(e.target.value)}/></label><button disabled={busy||!canReply||!text.trim()}>ENVIAR RESPOSTA</button>{!canReply&&<p>A janela de atendimento está encerrada. Envie um modelo aprovado pelo fluxo de documentos.</p>}</form>
  <form onSubmit={e=>{e.preventDefault();run(async()=>{await update({note});setNote('');});}}><label>Nota interna<textarea value={note} maxLength={4000} onChange={e=>setNote(e.target.value)}/></label><button disabled={busy||!note.trim()}>SALVAR NOTA INTERNA</button></form>
  <form onSubmit={e=>{e.preventDefault();run(async()=>{await update({link:{type:linkType,id:linkId}});setLinkId('');});}}><label>Vincular a<select value={linkType} onChange={e=>setLinkType(e.target.value)}>{['carga','venda','compra','orcamento','cliente','motorista','fornecedor'].map(type=><option key={type}>{type}</option>)}</select></label><label>Registro<select value={linkId} onChange={e=>setLinkId(e.target.value)}><option value="">Selecione o registro</option>{options.map(option=><option key={option.id} value={option.id}>{option.label}</option>)}</select></label><button disabled={busy||!linkId}>VINCULAR REGISTRO</button></form><p>Vínculos: {(selected.links||[]).map(l=>l.type+': '+l.id).join(' · ')||'Nenhum'}</p></>}</article></div></section>;
