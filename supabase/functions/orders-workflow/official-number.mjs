@@ -12,7 +12,7 @@ export function officialNumberConflict(state,number,{cargaId='',orderId=''}={}){
 }
 export function assertOfficialNumberAvailable(state,number,owner){
  const conflict=officialNumberConflict(state,number,owner);
- if(conflict)throw Error('Número do fornecedor já utilizado na OS '+conflict.os+'. Exclua o vínculo anterior antes de reutilizar.');
+ if(conflict)throw Error('Número do fornecedor já utilizado em outra carga: OS '+conflict.os+'. Exclua o vínculo anterior antes de reutilizar.');
 }
 export function releaseOfficialNumber(state,{orderId,cargaId,number,reason,actor,at,id}){
  const orders=state.comprasFornecedor||[],loads=state.cargas||[];
