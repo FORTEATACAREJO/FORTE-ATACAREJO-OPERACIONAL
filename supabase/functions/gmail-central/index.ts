@@ -10,6 +10,7 @@ import {parseNfe,parsePdfText,supplierDecision,matchDossier,validatePush,pushRea
 import {CENTRAL_EMAIL,partsOf,decodeBytes,describeDocument,historyMessages} from './domain.mjs';
 import {parseCiplan,safeCandidates} from './supplier-confirmation.mjs';
 import {applyWorkflow} from '../orders-workflow/domain.mjs';
+import {orderDocumentQueries,selectSearchMessages} from './order-document-search.mjs';
 const env=(s:string)=>Deno.env.get(s)||'',url=env('SUPABASE_URL'),callback=url+'/functions/v1/gmail-central/callback',pushURL=url+'/functions/v1/gmail-central/push';
 const origins:Record<string,{project:string,app:string}>={'https://pedidos-ft.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-vendas.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-vendas-app.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-fiscal.onrender.com':{project:'xmfpvvmvdkepmnvtdoio',app:'fiscal'},'https://forte-financeiro.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'financeiro'},'https://forte-frete.onrender.com':{project:'nkynfboqwfxhhxcsrawl',app:'frete'}};
 const db=createClient(url,env('SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}}),jwks=createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -20,17 +21,21 @@ const patch=async(p:any)=>ok(await db.from('gmail_hub_config').update({...p,upda
 async function token(c:any){const s=await secrets();if(!s.refresh_token)throw Error('AUTORIZACAO_SERVIDOR_PENDENTE');const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:c.client_id,client_secret:s.client_secret||env('GOOGLE_CLIENT_SECRET'),refresh_token:s.refresh_token,grant_type:'refresh_token'}),signal:AbortSignal.timeout(15000)});const j=await r.json();if(!r.ok||!j.access_token)throw Error(j.error==='invalid_grant'?'REAUTORIZACAO_GOOGLE_NECESSARIA':'GOOGLE_TOKEN_RECUSADO');return j.access_token;}
 async function api(t:string,path:string,body?:any){const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+t,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000)});if(!r.ok){const e:any=Error('GMAIL_API_'+r.status);e.status=r.status;throw e;}return r.json();}
 async function enqueue(ids:string[]){if(ids.length)ok(await db.from('gmail_hub_messages').upsert(ids.map(id=>({email:CENTRAL_EMAIL,message_id:id})),{onConflict:'email,message_id',ignoreDuplicates:true}));}
-async function worker(){const owner=crypto.randomUUID();if(!ok(await db.rpc('gmail_hub_claim',{p_owner:owner})))return {busy:true};const workerPatch=async(p:any)=>ok(await db.from('gmail_hub_config').update({...p,updated_at:new Date().toISOString()}).eq('id',true).eq('lease_owner',owner));try{
+async function worker(target?:{empresa:string,queries:string[]}){const owner=crypto.randomUUID();if(!ok(await db.rpc('gmail_hub_claim',{p_owner:owner})))return {busy:true};const workerPatch=async(p:any)=>ok(await db.from('gmail_hub_config').update({...p,updated_at:new Date().toISOString()}).eq('id',true).eq('lease_owner',owner));try{
  const deadline=Date.now()+65000;
  const c=await config();if(!c?.refresh_secret_id)return {pending:'AUTORIZACAO_SERVIDOR_PENDENTE'};const t=await token(c),profile=await api(t,'/profile');if(profile.emailAddress.toLowerCase()!==CENTRAL_EMAIL)throw Error('CONTA_GOOGLE_DIVERGENTE');
+ let selected:any=null;
+ if(target){if(target.empresa!==c.empresa_id)throw Error('Integração de outra empresa.');const pages=[];for(const q of target.queries)pages.push(await api(t,'/messages?'+new URLSearchParams({q,maxResults:'20'})));selected=selectSearchMessages(pages);await enqueue(selected.ids);if(selected.ids.length)ok(await db.from('gmail_hub_messages').update({status:'PENDENTE',attempts:0,error:null}).eq('email',CENTRAL_EMAIL).in('message_id',selected.ids));}
+ else {
  if(!c.history_id){c.history_id=profile.historyId;await workerPatch({history_id:c.history_id});}
  if(!c.backfill_done){const q=new URLSearchParams({q:'newer_than:30d has:attachment -in:spam -in:trash',maxResults:'50'});if(c.backfill_page)q.set('pageToken',c.backfill_page);const page=await api(t,'/messages?'+q);await enqueue((page.messages||[]).map((m:any)=>m.id));await workerPatch({backfill_page:page.nextPageToken||null,backfill_done:!page.nextPageToken});}
  else {let pageToken=c.history_page||'',cursor=c.history_id;for(let i=0;i<3;i++){const q=new URLSearchParams({startHistoryId:c.history_id,historyTypes:'messageAdded',maxResults:'50'});if(pageToken)q.set('pageToken',pageToken);let page;try{page=await api(t,'/history?'+q);}catch(e){if(e.status===404){await workerPatch({history_id:profile.historyId,backfill_done:false,backfill_page:null,history_page:null,status:'RECUPERANDO_HISTORICO'});return {recovering:true};}throw e;}
  await enqueue(historyMessages(page));cursor=page.historyId||cursor;pageToken=page.nextPageToken||'';if(!pageToken){await workerPatch({history_id:cursor,history_page:null});break;}await workerPatch({history_page:pageToken});}
  }
+ }
  const rules=ok(await db.from('gmail_hub_supplier_rules').select('*').eq('empresa_id',c.empresa_id));
  const recipients=ok(await db.from('gmail_hub_recipient_rules').select('cnpj').eq('empresa_id',c.empresa_id)).map((r:any)=>r.cnpj);
- const pending=ok(await db.from('gmail_hub_messages').select('*').eq('email',CENTRAL_EMAIL).in('status',['PENDENTE','ERRO']).lt('attempts',8).order('received_at').limit(20));let imported=0;
+ let query=db.from('gmail_hub_messages').select('*').eq('email',CENTRAL_EMAIL).in('status',['PENDENTE','ERRO']).lt('attempts',8);if(selected&&selected.ids.length)query=query.in('message_id',selected.ids);const pending=selected&&!selected.ids.length?[]:ok(await query.order('received_at').limit(20));let imported=0,processed=0;
  for(const m of pending){if(Date.now()>deadline)break;try{
  const full=await api(t,'/messages/'+m.message_id+'?format=full');const headers=Object.fromEntries((full.payload?.headers||[]).map((h:any)=>[h.name.toLowerCase(),h.value]));
  const parts=partsOf(full.payload).sort((a:any,b:any)=>Number(/\.xml$/i.test(b.filename))-Number(/\.xml$/i.test(a.filename)));const failures=[];
@@ -56,11 +61,12 @@ async function worker(){const owner=crypto.randomUUID();if(!ok(await db.rpc('gma
  if(!file)ok(await db.storage.from('forte-gmail-central').upload(path,bytes,{contentType:p.mimeType||'application/octet-stream',upsert:true}));
  ok(await db.rpc('gmail_hub_intake_save',{p_empresa:c.empresa_id,p_owner:owner,p_data:{hash,storage_path:path,size_bytes:bytes.length,mime_type:p.mimeType,email:CENTRAL_EMAIL,message_id:m.message_id,part_id:part,thread_id:full.threadId,filename:p.filename,sender:headers.from||'',subject:headers.subject||'',gmail_date:full.internalDate?new Date(Number(full.internalDate)).toISOString():null,kind:desc.kind,metadata:desc,key:decision.allowed?match.key:null,allowed:decision.allowed,supplier_id:decision.supplier?.id||null,issues:[...new Set([...(desc.issues||[]),...(decision.issues||[]),...match.issues]) ]}}));imported++;
  }catch(e){failures.push('ANEXO '+p.partId+': '+(e instanceof Error?e.message:'FALHA_PROCESSAMENTO'));}}
- ok(await db.from('gmail_hub_messages').update({status:failures.length?'ERRO':'PROCESSADO',error:failures.length?failures.join(' | '):null,attempts:m.attempts+1}).eq('email',CENTRAL_EMAIL).eq('message_id',m.message_id));
+ ok(await db.from('gmail_hub_messages').update({status:failures.length?'ERRO':'PROCESSADO',error:failures.length?failures.join(' | '):null,attempts:m.attempts+1}).eq('email',CENTRAL_EMAIL).eq('message_id',m.message_id));if(!failures.length)processed++;
  }catch(e){ok(await db.from('gmail_hub_messages').update({status:'ERRO',error:e instanceof Error?e.message:'FALHA_PROCESSAMENTO',attempts:m.attempts+1}).eq('email',CENTRAL_EMAIL).eq('message_id',m.message_id));}}
  // Complementary boleto arriving before XML can be linked later using the same strict evidence.
- const orphans=ok(await db.from('gmail_hub_sources').select('id,metadata,supplier_id').eq('empresa_id',c.empresa_id).eq('allowed',true).eq('kind','BOLETO').is('dossier_id',null).limit(100));
+ let orphanQuery=db.from('gmail_hub_sources').select('id,metadata,supplier_id').eq('empresa_id',c.empresa_id).eq('allowed',true).eq('kind','BOLETO').is('dossier_id',null);if(selected&&selected.ids.length)orphanQuery=orphanQuery.in('message_id',selected.ids);const orphans=selected&&!selected.ids.length?[]:ok(await orphanQuery.limit(100));
  for(const source of orphans){if(Date.now()>deadline)break;const candidates=ok(await db.from('gmail_hub_dossiers').select('id,metadata').eq('empresa_id',c.empresa_id).eq('metadata->>number',source.metadata.invoice_number||''));const match=matchDossier(source.metadata,candidates.map((r:any)=>r.metadata),rules.find((r:any)=>r.id===source.supplier_id&&r.active));if(match.key){const d=candidates.find((r:any)=>r.metadata.key===match.key);ok(await db.from('gmail_hub_sources').update({dossier_id:d.id,issues:source.metadata.issues||[],updated_at:new Date().toISOString()}).eq('empresa_id',c.empresa_id).eq('id',source.id));}}
+ if(target){await workerPatch({status:'SERVIDOR_CONECTADO',error:null});return {imported,found:selected.ids.length,processed,incomplete:selected.limited||processed<selected.ids.length};}
  let notificationError:string|null=null;
  if(c.topic&&(!c.watch_updated_at||Date.parse(c.watch_updated_at)<Date.now()-24*3600000||!c.watch_expires||Date.parse(c.watch_expires)<Date.now()+24*3600000)){try{const w=await api(t,'/watch',{topicName:c.topic,labelIds:['INBOX'],labelFilterBehavior:'INCLUDE'});await workerPatch({watch_expires:new Date(Number(w.expiration)).toISOString(),watch_updated_at:new Date().toISOString(),error:null});}catch{notificationError='NOTIFICACOES_GOOGLE_PENDENTES';}}
  await workerPatch({last_sync:new Date().toISOString(),status:'SERVIDOR_CONECTADO',error:notificationError});return {imported};
@@ -150,6 +156,20 @@ Deno.serve(async req=>{
   const saved=await db.rpc('fc_gravar_workflow',{p_empresa:empresa,p_actor:actor,p_versao:row.versao,p_estado:out.state});
   if(saved.error||saved.data!==row.versao+1)return reply({error:'Dados alterados durante a consulta. Atualize e pesquise novamente.'},409);
   return reply({ok:true,numero:match.numero,...out.result});
+ }
+ if(body.action==='IMPORT_ORDER_DOCUMENTS'){
+  if(source.app!=='vendas'||!actorProfile||!['MASTER','ADMINISTRADOR'].includes(actorProfile.perfil))return reply({error:'Importação restrita à administração de Vendas.'},403);
+  const scoped=createClient(url,env('SUPABASE_ANON_KEY'),{global:{headers:{Authorization:auth}}});
+  const permission=await scoped.rpc('fc_operacao_autorizada');if(permission.error||permission.data!==true)return reply({error:'Acesso operacional não autorizado.'},403);
+  const state=ok(await db.from('fc_app_state').select('estado').eq('empresa_id',empresa).single()).estado;
+  const load=(state.cargas||[]).find((x:any)=>x.id===body.cargaId&&x.status!=='CANCELADA'&&!x.finalizadaEm);
+  if(!load)throw Error('OS indisponível para importação.');
+  const order=(state.comprasFornecedor||[]).find((o:any)=>o.id===load.compraFornecedorId||o.cargaId===load.id);
+  const supplier=(state.fornecedores||[]).find((f:any)=>f.id===(order?.fornecedorId||load.fornecedorId));
+  const issuer=String(order?.fornecedorSnapshot?.cnpj||load.fornecedorSnapshot?.cnpj||supplier?.cnpj||'').replace(/\D/g,'');
+  const rules=ok(await db.from('gmail_hub_supplier_rules').select('*').eq('empresa_id',empresa).eq('cnpj',issuer).eq('active',true));
+  const queries=orderDocumentQueries({references:[order?.numero,load.numeroOS,order?.numeroPedidoFornecedor,load.numeroPedidoFornecedor],senders:rules.flatMap((r:any)=>r.senders||[]),domains:rules.flatMap((r:any)=>r.domains||[]),createdAt:order?.criadaEm||load.criadaEm||load.criadoEm});
+  const result=await worker({empresa,queries});if(result.busy)return reply({error:'Central Gmail ocupada. Tente importar novamente.'},409);if(result.pending)return reply({error:'Autorize a conta Google da central Gmail antes de importar.'},400);return reply(result);
  }
  if(body.action==='SYNC')return reply(await worker());
  if(body.action==='RULES')return reply({rules:ok(await db.from('gmail_hub_supplier_rules').select('*').eq('empresa_id',empresa))});
