@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {supabase} from './supabase.js';
 import {activeLink,canLink,driverName,plateKey,validPlate,vehicleDriver} from './frota-vinculos.mjs';
+import {isDriverDraftSelectable} from './pedidos-ft-drivers.mjs';
 import './frota-vinculos.css';
 
 const emptyVehicle={placa:'',proprietario_nome:'',carreta1:'',carreta2:'',carreta3:'',chave_pix:'',transportadora_nome:'',transportadora_cnpj:'',transportadora_whatsapp:''};
@@ -24,7 +25,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
  const selectedVehicle=vehicleById.get(displayedVehicleId);
  const selectedDriver=allDrivers.find(d=>d.id===choice.motorista_operacional_id);
  const vehicleLink=vehicleDriver({links:current,vehicleId:displayedVehicleId});
- const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers:allDrivers,vehicles});
+ const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers:allDrivers,vehicles,allowPendingVehicle:true});
  const normalize=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
  const shownDrivers=allDrivers.filter(d=>d.id===choice.motorista_operacional_id||normalize(d.nome).includes(normalize(driverQuery)));
  const shownVehicles=vehicles.filter(v=>v.id===displayedVehicleId||plateKey(v.placa).includes(plateKey(vehicleQuery))||normalize(v.proprietario_nome).includes(normalize(vehicleQuery)));
@@ -94,7 +95,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   event.preventDefault();
   await transact(async()=>{
    const {empresaId,userId}=await admin();
-   const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers:allDrivers,vehicles});
+   const check=canLink({links,vehicleId:choice.veiculo_id,driverId:choice.motorista_operacional_id,drivers:allDrivers,vehicles,allowPendingVehicle:true});
    if(!check.ok)throw Error(check.reason);
    const selectedVehicle=vehicles.find(v=>v.id===choice.veiculo_id);
    const result=await supabase.from('fc_frota_vinculos').insert({
@@ -131,7 +132,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
      {!initialDriverId&&<input type="search" aria-label="Buscar motorista" placeholder="Nome" value={driverQuery} onChange={e=>setDriverQuery(e.target.value)}/>}
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar motorista">
       {(initialDriverId?shownDrivers.filter(d=>d.id===initialDriverId):shownDrivers).map(d=>{const l=current.find(l=>l.motorista_operacional_id===d.id);return <button key={d.id} type="button" aria-pressed={choice.motorista_operacional_id===d.id} disabled={busy||!!initialDriverId&&d.id!==initialDriverId} onClick={()=>selectDriver(d.id)}>
-       <strong>{d.nome}</strong><small>{l?'Vinculado · '+(vehicleById.get(l.veiculo_id)?.placa||'Veículo a conferir'):'Sem vínculo'}{d.ativo===false?' · Pré-cadastro/inativo':''}</small>
+       <strong>{d.nome}</strong><small>{l?'Vinculado · '+(vehicleById.get(l.veiculo_id)?.placa||'Veículo a conferir'):'Sem vínculo'}{d.ativo===false?(isDriverDraftSelectable(d)?' · Liberado para preparar pedido':' · Cadastro inativo'):''}</small>
       </button>;})}
       {!shownDrivers.length&&<p>Nenhum motorista encontrado.</p>}
      </div>
@@ -141,8 +142,8 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
      {!selectedDriver&&<p>Selecione um motorista para buscar a placa.</p>}
      <input type="search" disabled={!selectedDriver||!!driverLink||busy} aria-label="Buscar veículo pela placa" placeholder="Placa" value={vehicleQuery} onChange={e=>setVehicleQuery(e.target.value)}/>
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar veículo">
-      {selectedDriver&&shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink||v.ativo===false} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
-       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):v.ativo===false?'Inativo · indisponível para vínculo':'Disponível'}</small>
+      {selectedDriver&&shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
+       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):v.ativo===false?'Cadastro pendente · vínculo para planejamento':'Disponível'}</small>
       </button>;})}
       {selectedDriver&&!shownVehicles.length&&<p>{loading?'Consultando veículos…':'Nenhum veículo encontrado.'}</p>}
      </div>
@@ -151,6 +152,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    <div className="ft-fleet-pair-summary" aria-label="Vínculo selecionado">
     <strong>{selectedDriver?.nome||'Selecione o motorista'}</strong><span>{driverLink?'Vinculado':'↔'}</span><strong>{selectedVehicle?.placa||'Selecione o veículo'}</strong>
    </div>
+   {selectedVehicle?.ativo===false&&<p role="status">Vínculo disponível para planejamento. A expedição exige veículo liberado.</p>}
    {selectedVehicle&&<small>Transportadora: {carrierLabel(selectedVehicle,vehicleLink)}</small>}
    {!driverLink&&choice.motorista_operacional_id&&choice.veiculo_id&&!check.ok&&<p role="alert">{check.reason}</p>}
    {isAdmin&&!driverLink&&<label className="ft-fleet-note">Observação (opcional)<input value={choice.observacao} onChange={e=>setChoice(v=>({...v,observacao:e.target.value}))} placeholder="Ex.: substituição de motorista"/></label>}
