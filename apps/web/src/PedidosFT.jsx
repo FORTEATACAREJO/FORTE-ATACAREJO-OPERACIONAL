@@ -19,13 +19,13 @@ function FtTitle({subtitle,heading}) {
   <div><h2 ref={heading} tabIndex={heading?-1:undefined}>PEDIDOS FT</h2><p>{subtitle}</p></div>
  </div>;
 }
-function FtOptions({onSelect}){
+function FtOptions({onSelect,extraActions}){
  const options=useRef(null);
  function select(view){
   options.current.open=false;
   onSelect(view);
  }
- return <details className="ft-options" ref={options} onKeyDown={event=>{
+ return <details className={`ft-options${extraActions?" ft-admin-tools":""}`} ref={options} onKeyDown={event=>{
   if(event.key==='Escape'&&options.current.open){
    options.current.open=false;
    options.current.querySelector('summary').focus();
@@ -35,6 +35,7 @@ function FtOptions({onSelect}){
   <div className="ft-options-list">
    <button type="button" onClick={()=>select('cargas')}>Todas as cargas</button>
    <button type="button" onClick={()=>select('relatorios')}>Relatórios</button>
+   {extraActions}
   </div>
  </details>;
 }
@@ -68,7 +69,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -103,7 +104,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <FtTitle heading={loadHeading} subtitle={loadView==='relatorios'?'Relatórios':'Todas as cargas'}/>
    <div className="ft-top-actions">
     <button type="button" className="ft-outline" onClick={()=>setLoadView(null)}>Voltar</button>
-    <FtOptions onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
+    <FtOptions extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
    </div>
   </header>
   <PedidosFTLoadPanel data={data} cargas={cargas} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
@@ -111,7 +112,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    setLoadView(null);
   }}/>
  </section>;
- if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
+ if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions extraActions={extraActions} onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
  const savedPlates=(c?.placas||[]).filter(Boolean);
  const currentLink=fleetLinks.find(link=>link.fim_em==null&&link.motorista_operacional_id===(c?.motoristaId||driver?.id));
@@ -126,7 +127,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  return <section className="ft-app ft-overview" aria-label="PEDIDOS FT">
   <header className="ft-top">
    <FtTitle subtitle="Criação e acompanhamento de pedidos"/>
-   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
+   <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
   </header>
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
   <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
