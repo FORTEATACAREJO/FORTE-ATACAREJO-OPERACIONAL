@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verificacao:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,11 @@ jobs:
       - run: npm ci
       - name: Regras, acesso, caixa, pedidos e build
         run: npm run build
+      - name: Verificar confirmação, número único e catálogo por OS
+        run: |
+          node checks/supplier-confirmation.mjs
+          node checks/official-number.mjs
+          node checks/load-sale-products.mjs
       - run: npm ci --prefix qa
       - name: Instalar Chromium de teste
         working-directory: qa

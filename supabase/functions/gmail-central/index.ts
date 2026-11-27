@@ -8,6 +8,8 @@ import {XMLParser,XMLValidator} from 'npm:fast-xml-parser@5.11.2';
 import {getDocumentProxy,extractText} from 'npm:unpdf@1.8.1';
 import {parseNfe,parsePdfText,supplierDecision,matchDossier,validatePush,pushReady,validCnpj} from './intake.mjs';
 import {CENTRAL_EMAIL,partsOf,decodeBytes,describeDocument,historyMessages} from './domain.mjs';
+import {parseCiplan,safeCandidates} from './supplier-confirmation.mjs';
+import {applyWorkflow} from '../orders-workflow/domain.mjs';
 const env=(s:string)=>Deno.env.get(s)||'',url=env('SUPABASE_URL'),callback=url+'/functions/v1/gmail-central/callback',pushURL=url+'/functions/v1/gmail-central/push';
 const origins:Record<string,{project:string,app:string}>={'https://forte-vendas.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-vendas-app.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'vendas'},'https://forte-fiscal.onrender.com':{project:'xmfpvvmvdkepmnvtdoio',app:'fiscal'},'https://forte-financeiro.onrender.com':{project:'gtwecfyffjszghnvtlzr',app:'financeiro'},'https://forte-frete.onrender.com':{project:'nkynfboqwfxhhxcsrawl',app:'frete'}};
 const db=createClient(url,env('SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}}),jwks=createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -102,8 +104,8 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return reply({error:'Método inválido'},405);const body=await req.json();
  if(body.action==='SEND_ORDER'){const s=await secrets();if(!s.worker_token||req.headers.get('x-forte-worker')!==s.worker_token)return reply({error:'Não autorizado'},401);return reply(await sendOrder(String(body.id||'')));}
  if(body.action==='TICK'){const s=await secrets();if(!s.worker_token||req.headers.get('x-forte-worker')!==s.worker_token)return reply({error:'Não autorizado'},401);return reply(await worker());}
- if(!source)return reply({error:'Origem não permitida'},403);const auth=req.headers.get('authorization')||'';let actor,empresa;
- if(source.app==='vendas'||source.app==='financeiro'){const client=createClient(url,env('SUPABASE_ANON_KEY'),{global:{headers:{Authorization:auth}}});const user=await client.auth.getUser();if(user.error||!user.data.user)return reply({error:'Entre no sistema'},401);const p=ok(await client.from('fc_perfis').select('*').eq('user_id',user.data.user.id).single());if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!(['MASTER','ADMINISTRADOR'].includes(p.perfil)||(source.app==='financeiro'&&(p.permissoes?.financeiro===true||p.permissoes?.FINANCEIRO===true))))return reply({error:'Acesso administrativo necessário'},403);const grant=ok(await db.rpc('access_module_context',{p_user:user.data.user.id,p_app:source.app}));if(!grant.allowed||!grant.isAdmin)return reply({error:'Aprovação administrativa neste módulo é necessária'},403);actor=user.data.user.id;empresa=p.empresa_id;
+ if(!source)return reply({error:'Origem não permitida'},403);const auth=req.headers.get('authorization')||'';let actor,empresa,actorProfile;
+ if(source.app==='vendas'||source.app==='financeiro'){const client=createClient(url,env('SUPABASE_ANON_KEY'),{global:{headers:{Authorization:auth}}});const user=await client.auth.getUser();if(user.error||!user.data.user)return reply({error:'Entre no sistema'},401);const p=ok(await client.from('fc_perfis').select('*').eq('user_id',user.data.user.id).single());if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!(['MASTER','ADMINISTRADOR'].includes(p.perfil)||(source.app==='financeiro'&&(p.permissoes?.financeiro===true||p.permissoes?.FINANCEIRO===true))))return reply({error:'Acesso administrativo necessário'},403);const grant=ok(await db.rpc('access_module_context',{p_user:user.data.user.id,p_app:source.app}));if(!grant.allowed||!grant.isAdmin)return reply({error:'Aprovação administrativa neste módulo é necessária'},403);actor=user.data.user.id;empresa=p.empresa_id;actorProfile={...p,user_id:actor,perfil:grant.role||p.perfil};
  }else{const r=await fetch('https://'+source.project+'.supabase.co/functions/v1/access-invites',{method:'POST',headers:{Origin:origin,Authorization:auth,'Content-Type':'application/json'},body:JSON.stringify({app:source.app,action:'AUTHORIZE_CONFIG'}),signal:AbortSignal.timeout(15000)});const a=await r.json();if(!r.ok||!a.authorized)return reply({error:'Acesso master necessário'},403);actor=a.actor;empresa=(await config())?.empresa_id;}
  let c=await config();if(c&&c.empresa_id!==empresa)return reply({error:'Integração de outra empresa'},403);
  if(body.action==='CONFIGURE'){if(source.app!=='vendas')throw Error('Configure a conta central no Vendas.');const clientId=String(body.client_id||'').trim(),topic=String(body.topic||'').trim(),pushEmail=String(body.push_email||'').trim();if(!/^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(clientId))throw Error('Client ID Google inválido');if(topic&&!/^projects\/[a-z0-9-]+\/topics\/[a-zA-Z0-9_.~-]+$/.test(topic))throw Error('Tópico Pub/Sub inválido');if(Boolean(topic)!==Boolean(pushEmail))throw Error('Informe tópico e conta de serviço juntos.');if(topic&&!topic.endsWith('/topics/forte-gmail-central'))throw Error('Selecione o tópico forte-gmail-central.');if(pushEmail&&!/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(pushEmail))throw Error('Conta de serviço Pub/Sub inválida');if(c&&c.client_id!==clientId&&c.refresh_secret_id)throw Error('Client ID de uma conexão ativa não pode ser substituído.');ok(await db.from('gmail_hub_config').upsert({id:true,empresa_id:empresa,client_id:clientId,topic:topic||null,push_email:pushEmail||null,...(c?.topic!==topic||c?.push_email!==pushEmail?{watch_expires:null,last_push:null,watch_updated_at:null}:{}),error:null}));if(body.client_secret)ok(await db.rpc('gmail_hub_secret_save',{p_kind:'client',p_value:String(body.client_secret)}));return reply({message:'Configuração salva. Autorize a conta central para continuar.'});}
@@ -111,6 +113,44 @@ Deno.serve(async req=>{
  if(!c)throw Error('Configure o Client ID da conta central.');
  if(source.app==='financeiro'&&['CONNECT','SYNC'].includes(body.action))return reply({error:'Ação exige administrador Vendas'},403);
  if(body.action==='CONNECT'){const s=await secrets();if(!s.client_secret&&!env('GOOGLE_CLIENT_SECRET'))throw Error('Salve a chave secreta Google no campo protegido da integração.');const state=crypto.randomUUID()+crypto.randomUUID(),verifier=crypto.randomUUID()+crypto.randomUUID(),challenge=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier))))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');ok(await db.from('gmail_hub_oauth').insert({state,empresa_id:empresa,actor,origin,verifier,expires_at:new Date(Date.now()+10*60000).toISOString()}));const q=new URLSearchParams({client_id:c.client_id,redirect_uri:callback,response_type:'code',scope:'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',access_type:'offline',prompt:'consent',login_hint:CENTRAL_EMAIL,state,code_challenge:challenge,code_challenge_method:'S256'});return reply({url:'https://accounts.google.com/o/oauth2/v2/auth?'+q});}
+ if(['SEARCH_ORDER_CONFIRMATION','LINK_ORDER_CONFIRMATION'].includes(body.action)){
+  if(source.app!=='vendas'||!actorProfile||!['MASTER','ADMINISTRADOR'].includes(actorProfile.perfil))return reply({error:'Conferência restrita à administração de Vendas.'},403);
+  const scoped=createClient(url,env('SUPABASE_ANON_KEY'),{global:{headers:{Authorization:auth}}});
+  const permission=await scoped.rpc('fc_operacao_autorizada');if(permission.error||permission.data!==true)return reply({error:'Acesso operacional não autorizado.'},403);
+  const row=ok(await db.from('fc_app_state').select('estado,versao').eq('empresa_id',empresa).single());
+  const order=(row.estado.comprasFornecedor||[]).find((o:any)=>o.id===body.orderId);
+  const load=(row.estado.cargas||[]).find((l:any)=>l.id===order?.cargaId||l.compraFornecedorId===order?.id);
+  if(!order||!load||order.numeroPedidoFornecedor||load.numeroPedidoFornecedor||load.finalizadaEm||/CANCELAD|EXCLUID|FINALIZAD/i.test(String(order.status))||load.status==='CANCELADA')throw Error('OS indisponível ou já confirmada. Atualize a tela.');
+  if(order.fornecedorId!=='f-ciplan')throw Error('O formato de confirmação deste fornecedor ainda não está homologado. Utilize o registro manual.');
+  const created=Date.parse(order.criadaEm);if(!Number.isFinite(created))throw Error('A OS não possui data de criação válida.');
+  const t=await token(c),profile=await api(t,'/profile');if(String(profile.emailAddress).toLowerCase()!==CENTRAL_EMAIL)throw Error('CONTA_GOOGLE_DIVERGENTE');
+  const q=new URLSearchParams({q:'from:BR_Svc_RelaySAP@ciplan.com.br subject:"Ciplan - Pedido de Venda" after:'+Math.floor(created/1000)+' -in:spam -in:trash -in:sent',maxResults:'50'});
+  const list=await api(t,'/messages?'+q);
+  if(list.nextPageToken)throw Error('Muitas confirmações no período. Revise a OS manualmente para evitar vínculo incorreto.');
+  const candidates=[];
+  const messages=(list.messages||[]).slice(0,50);
+  for(let start=0;start<messages.length;start+=5){
+   const batch=await Promise.all(messages.slice(start,start+5).map(async(m:any)=>{
+    const full=await api(t,'/messages/'+encodeURIComponent(m.id)+'?format=full');
+    const h=Object.fromEntries((full.payload?.headers||[]).map((v:any)=>[String(v.name).toLowerCase(),v.value]));
+    if(!full.internalDate||!Number.isFinite(Number(full.internalDate)))return null;
+    const receivedAt=new Date(Number(full.internalDate)).toISOString(),parts:any[]=[];
+    function collect(part:any){if(!part)return;if(!part.filename&&['text/plain','text/html'].includes(part.mimeType)&&part.body?.data&&part.body.data.length<=500000)parts.push(part);for(const child of part.parts||[])collect(child);}
+    collect(full.payload);parts.sort((a,b)=>Number(b.mimeType==='text/plain')-Number(a.mimeType==='text/plain'));
+    for(const part of parts){const parsed=parseCiplan({subject:h.subject,from:h.from,body:new TextDecoder().decode(decodeBytes(part.body.data)),receivedAt,messageId:full.id});if(parsed)return parsed;}
+    return null;
+   }));candidates.push(...batch);
+  }
+  const matches=safeCandidates(row.estado,order,candidates);
+  if(body.action==='SEARCH_ORDER_CONFIRMATION')return reply({candidates:matches,unverified:['Preço','Expedição','Destino/CNPJ de entrega'],mailbox:CENTRAL_EMAIL});
+  // Reconsulta o Gmail e a OS no servidor antes da gravação; jamais aceita o número digitado como evidência automática.
+  if(matches.length!==1||matches[0].messageId!==body.messageId)throw Error('Confirmação ambígua, alterada ou não localizada. Pesquise novamente; nada foi vinculado.');
+  const match=matches[0],evidence='GMAIL '+CENTRAL_EMAIL+' | mensagem '+match.messageId+' | '+match.subject+' | '+match.receivedAt+' | produtos, quantidades, prazo e frete conferidos; valores, expedição e destino não informados.';
+  const out=applyWorkflow(row.estado,{action:'OFFICIAL_CONFIRM',requestId:crypto.randomUUID(),id:order.id,numeroPedidoFornecedor:match.numero,evidencia:evidence},actorProfile,{id:crypto.randomUUID(),at:new Date().toISOString()});
+  const saved=await db.rpc('fc_gravar_workflow',{p_empresa:empresa,p_actor:actor,p_versao:row.versao,p_estado:out.state});
+  if(saved.error||saved.data!==row.versao+1)return reply({error:'Dados alterados durante a consulta. Atualize e pesquise novamente.'},409);
+  return reply({ok:true,numero:match.numero,...out.result});
+ }
  if(body.action==='SYNC')return reply(await worker());
  if(body.action==='RULES')return reply({rules:ok(await db.from('gmail_hub_supplier_rules').select('*').eq('empresa_id',empresa))});
  if(body.action==='SAVE_RULE'){if(source.app!=='vendas')return reply({error:'Cadastre regras no Vendas'},403);const r=body.rule||{};if(!validCnpj(r.cnpj)||!String(r.name||'').trim()||!Array.isArray(r.kinds)||r.kinds.some((k:string)=>!['XML_NFE','DANFE','BOLETO','DOCUMENTO','COMPROVANTE_FRETE'].includes(k)))throw Error('Regra inválida');const senders=(r.senders||[]).map((s:string)=>String(s).trim().toLowerCase()),domains=(r.domains||[]).map((s:string)=>String(s).trim().toLowerCase());if(senders.some((s:string)=>!/^[-a-z0-9._%+]+@[-a-z0-9.]+\.[a-z]{2,}$/.test(s))||domains.some((s:string)=>!/^[-a-z0-9]+(?:\.[-a-z0-9]+)+$/.test(s)))throw Error('Remetente ou domínio inválido');if(r.active&&!senders.length&&!domains.length)throw Error('Cadastre remetente ou domínio antes de ativar');ok(await db.from('gmail_hub_supplier_rules').upsert({empresa_id:empresa,name:String(r.name).trim(),cnpj:r.cnpj,senders,domains,kinds:r.kinds,active:Boolean(r.active)},{onConflict:'empresa_id,cnpj'}));return reply({saved:true});}
