@@ -2,15 +2,16 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable,isDriverDraftSelectable,driverRegistrationWarnings} from './pedidos-ft-drivers.mjs';
+import {plateKey,validPlate} from './frota-vinculos.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
 import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import DriverIntake from './DriverIntake.jsx';
 import './driver-directory-mobile.css';
 
-const EMPTY={nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
+const EMPTY={placa:'',carreta1:'',carreta2:'',carreta3:'',pixFrete:'',endereco:'',nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
 const legacyForm=source=>({
- nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
+ endereco:source.endereco||'',nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
  email:source.email||'',cnh:digits(source.cnh_registro||source.cnh||''),categoria_cnh:source.categoria_cnh||'',
  validade_cnh:source.validade_cnh||'',rntrc:source.rntrc||'',proprietario_nome:source.proprietario_nome||'',
  proprietario_documento:digits(source.proprietario_documento||source.proprietario_cpf_cnpj||''),chave_pix:source.chave_pix||'',
@@ -50,7 +51,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   setExisting(drivers.data||[]);setVehicles(veiculos.data||[]);
   if(isAdmin){
    const stored=await supabase.from('forte_op_motoristas_pendentes')
-    .select('source_id,nome,cpf,whatsapp,email,cnh,categoria_cnh,validade_cnh,rntrc,proprietario_nome,proprietario_documento,chave_pix,favorecido_pix,capacidade_operacional_kg,situacao,requisitos_pendentes,veiculo_origem_id')
+    .select('source_id,nome,cpf,whatsapp,endereco,email,cnh,categoria_cnh,validade_cnh,rntrc,proprietario_nome,proprietario_documento,chave_pix,favorecido_pix,capacidade_operacional_kg,situacao,requisitos_pendentes,veiculo_origem_id')
     .order('nome').limit(150);
    if(stored.error)throw new Error('Falha ao carregar motoristas pendentes: '+stored.error.message);
    setLegacy((stored.data||[]).map(item=>({id_origem:item.source_id,dados:item,situacao:item.situacao,requisitos_pendentes:item.requisitos_pendentes||[]})));
@@ -62,7 +63,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  }
  function begin(row=null){
   setSelected(row?.id_origem||null);
-  setForm(row?legacyForm(row.dados||{}):EMPTY);
+  setForm(row?{...EMPTY,...legacyForm(row.dados||{}),pixFrete:row.dados?.chave_pix||''}:EMPTY);
   setEditor(true);setMessage('');
  }
  const patch=(name,value)=>setForm(f=>({...f,[name]:value}));
@@ -74,7 +75,6 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    if(user.error||!user.data.user)throw Error('Sessão expirada.');
    const grant=await supabase.rpc('access_current_module',{p_app:'vendas'});
    if(grant.error||!grant.data?.allowed||!grant.data?.isAdmin)throw Error('Revisão restrita à administração.');
-   const capacity=Number(form.capacidade_operacional_kg);
    const missing=[
     !cpfValido(form.cpf)?'CPF':null,
     digits(form.cnh).length!==11?'CNH':null,
@@ -84,15 +84,12 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    ].filter(Boolean);
    const payload={
     nome:form.nome.trim(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
-    email:form.email.trim()||null,cnh:digits(form.cnh)||null,
-    categoria_cnh:form.categoria_cnh.trim()||null,validade_cnh:form.validade_cnh||null,
-    rntrc:form.rntrc.trim()||null,proprietario_nome:form.proprietario_nome.trim()||null,
-    proprietario_documento:digits(form.proprietario_documento)||null,
-    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim()||null,
-    capacidade_operacional_kg:capacity>0?capacity:null,requisitos_pendentes:missing,
+    cnh:digits(form.cnh)||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    endereco:form.endereco.trim()||null,requisitos_pendentes:missing,
     revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()
    };
    if(!payload.nome)throw Error('O nome do motorista é obrigatório.');
+   if(digits(form.whatsapp).length<10||digits(form.whatsapp).length>13)throw Error('Informe o WhatsApp do motorista com DDD.');
    const {data:updated,error}=await supabase.from('forte_op_motoristas_pendentes')
     .update(payload).eq('source_id',selected).eq('situacao','PENDENTE_DOCUMENTOS')
     .select('source_id').maybeSingle();
@@ -106,9 +103,13 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   event.preventDefault();
   if(!isAdmin)return setMessage('Somente Master ou Administrador pode cadastrar motorista.');
   if(form.cpf.trim()&&!cpfValido(form.cpf))return setMessage('CPF informado inválido. Corrija ou deixe pendente.');
-  if(form.whatsapp.trim()&&digits(form.whatsapp).length<10)return setMessage('WhatsApp informado deve conter DDD.');
+  if(digits(form.whatsapp).length<10||digits(form.whatsapp).length>13)return setMessage('WhatsApp informado deve conter DDD.');
   if(form.cnh.trim()&&digits(form.cnh).length!==11)return setMessage('CNH informada deve ter 11 dígitos.');
   if(!form.nome.trim())return setMessage('Informe o nome do motorista.');
+  const plate=plateKey(form.placa);
+  const carretas=[form.carreta1,form.carreta2,form.carreta3].map(plateKey).filter(Boolean);
+  if(!validPlate(plate)||carretas.some(p=>!validPlate(p)))return setMessage('Confira as placas do cavalo e das carretas.');
+  if(!form.proprietario_nome.trim()||!form.pixFrete.trim())return setMessage('Informe o nome do proprietário e a chave Pix.');
   setBusy(true);setMessage('');
   try{
    const user=await supabase.auth.getUser();
@@ -122,16 +123,15 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
    const payload={
     ...(selected?{id:selected}:{}),empresa_id:profile.data.empresa_id,
     nome:form.nome.trim().toUpperCase(),cpf:digits(form.cpf)||null,whatsapp:digits(form.whatsapp)||null,
-    cnh:digits(form.cnh)||null,email:form.email.trim()||null,categoria_cnh:form.categoria_cnh.trim()||null,
-    validade_cnh:form.validade_cnh||null,rntrc:form.rntrc.trim()||null,
-    proprietario_nome:form.proprietario_nome.trim().toUpperCase()||null,proprietario_documento:digits(form.proprietario_documento)||null,
-    chave_pix:form.chave_pix.trim()||null,favorecido_pix:form.favorecido_pix.trim().toUpperCase()||null,
-    capacidade_operacional_kg:Number(form.capacidade_operacional_kg)>0?Number(form.capacidade_operacional_kg):null,
+    cnh:digits(form.cnh)||null,categoria_cnh:form.categoria_cnh.trim()||null,
+    endereco:form.endereco.trim()||null,
     status_ia:'PENDENTE_CONFERENCIA_DOCUMENTAL',ativo:false
    };
-   const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
-   if(result.error)throw Error(result.error.code==='23505'?'Motorista já registrado; confira os dados existentes.':result.error.message);
-   let note='Motorista cadastrado como INATIVO, independente do veículo. A conferência documental e o vínculo manual serão feitos posteriormente.';
+   const result=await supabase.rpc('fc_gravar_cadastro_conjunto',{
+    p_motorista:payload,p_placa:plate,p_proprietario:form.proprietario_nome,p_carretas:carretas,p_pix:form.pixFrete
+   });
+   if(result.error)throw Error(result.error.code==='23505'?'Motorista ou placa já cadastrado. Confira os cadastros existentes antes de criar outro.':result.error.message);
+   let note='Motorista, veículo e vínculo cadastrados. A equipe pode conferir e liberar a expedição depois.';
    if(selected){
     const marked=await supabase.from('forte_op_motoristas_pendentes')
       .update({situacao:'CADASTRO_INATIVO',revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()})
@@ -143,22 +143,19 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   }catch(e){setMessage(e.message||'Não foi possível gravar.')}finally{setBusy(false)}
  }
  const fields=[
-  ['nome','Nome completo',true],['cpf','CPF',false],['whatsapp','WhatsApp com DDD',false],
-  ['cnh','Registro CNH (11 dígitos)',false],['categoria_cnh','Categoria CNH',false],
-  ['validade_cnh','Validade CNH (opcional)',false,'date'],['email','E-mail',false,'email'],
-  ...(selected?[
-   ['proprietario_nome','Proprietário (histórico)',false],
-   ['proprietario_documento','Documento proprietário (histórico)',false],
-   ['chave_pix','Chave Pix (histórico)',false],['favorecido_pix','Favorecido Pix (histórico)',false],
-   ['capacidade_operacional_kg','Capacidade (histórico)',false,'number']
-  ]:[])
+  ['nome','Nome completo',true],['whatsapp','WhatsApp com DDD',true,'tel'],['cpf','CPF',false],
+  ['cnh','Número da CNH',false],['categoria_cnh','Categoria da CNH',false],
+  ['endereco','Endereço (opcional)',false],
+  ['placa','Placa do cavalo',true],['carreta1','Placa da carreta 1 (opcional)',false],
+  ['carreta2','Placa da carreta 2 (opcional)',false],['carreta3','Placa da carreta 3 (opcional)',false],
+  ['proprietario_nome','Nome completo do proprietário',true],['pixFrete','Chave Pix do frete',true]
  ];
  return <div className="modalBackdrop ft-driver-backdrop"><section className="modal wide ft-driver-dialog" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
  <div className="modalHead ft-driver-head"><h2>MOTORISTAS — PEDIDOS FT</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
  <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
  <div className="rowActions">
  <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
- {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
+ {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA E VEÍCULO</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
  <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['veiculos','Veículos']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
@@ -192,7 +189,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
  </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
- <div className="rowActions"><button type="submit" disabled={busy}>GERAR CADASTRO INATIVO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
+ <div className="rowActions"><button type="submit" disabled={busy}>SALVAR MOTORISTA E VEÍCULO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
  {isAdmin&&<section className="ft-driver-legacy-list"><div className="ft-driver-cards">{legacyRows.map(l=><article className="ft-driver-card" key={l.id_origem}>
   <strong className="ft-driver-name">{l.dados?.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(l.dados?.cpf)} · CNH: {digits(l.dados?.cnh).length===11?'Informada':'Pendente'}</span>

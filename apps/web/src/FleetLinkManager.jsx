@@ -3,9 +3,8 @@ import {supabase} from './supabase.js';
 import {activeLink,canLink,driverName,plateKey,validPlate,vehicleDriver} from './frota-vinculos.mjs';
 import './frota-vinculos.css';
 
-const emptyVehicle={placa:'',tipo:'CAVALO MECÂNICO',marca_modelo:'',capacidade_kg:'',proprietario_nome:'',proprietario_documento:'',crlv_referencia:'',transportadora_nome:'',transportadora_cnpj:'',transportadora_whatsapp:''};
+const emptyVehicle={placa:'',proprietario_nome:'',carreta1:'',carreta2:'',carreta3:'',chave_pix:'',transportadora_nome:'',transportadora_cnpj:'',transportadora_whatsapp:''};
 const emptyLink={motorista_operacional_id:'',veiculo_id:'',observacao:''};
-const digits=v=>String(v||'').replace(/\D/g,'');
 const pretty=v=>v?new Date(v).toLocaleString('pt-BR'):'';
 const vehicleNotices=v=>[!v.proprietario_nome?'Proprietário a conferir':null,!v.proprietario_documento?'CPF/CNPJ do proprietário a conferir':null,!v.crlv_referencia?'CRLV a conferir':null,!v.rntrc?'RNTRC a conferir':null,!(Number(v.capacidade_kg)>0)?'Capacidade a conferir':null,v.ativo===false?'Veículo não liberado para transporte':null].filter(Boolean);
 const carrierLabel=(vehicle,link)=>link?.transportadora_nome_snapshot||vehicle?.transportadora_nome||'Transportadora não informada';
@@ -34,7 +33,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
  async function load(){
   if(!supabase)throw Error('Supabase não configurado.');
   const [vr,lr,dr]=await Promise.all([
-   supabase.from('fc_veiculos').select('id,empresa_id,placa,tipo,marca_modelo,capacidade_kg,proprietario_nome,proprietario_documento,crlv_referencia,transportadora_nome,transportadora_cnpj,transportadora_whatsapp,rntrc,ativo').order('placa').limit(500),
+   supabase.from('fc_veiculos').select('id,empresa_id,placa,tipo,marca_modelo,capacidade_kg,proprietario_nome,proprietario_documento,crlv_referencia,transportadora_nome,transportadora_cnpj,transportadora_whatsapp,rntrc,ativo,placas_carretas').order('placa').limit(500),
    supabase.from('fc_frota_vinculos').select('id,empresa_id,motorista_operacional_id,veiculo_id,transportadora_nome_snapshot,transportadora_cnpj_snapshot,inicio_em,fim_em,observacao').order('inicio_em',{ascending:false}).limit(1000),
    supabase.from('fc_motoristas').select('id,nome,ativo').order('nome').limit(500)
   ]);
@@ -60,39 +59,35 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   catch(e){setMessage(e.message||'Não foi possível concluir a operação.');}
   finally{setBusy(false);}
  }
- function editExisting(row){
-  setEditingVehicleId(row.id);
-  setVehicle(Object.fromEntries(Object.keys(emptyVehicle).map(key=>[key,String(row[key]??emptyVehicle[key])])));
-  setMessage('Editando a placa '+row.placa+'. Os dados do motorista são independentes.');
+ async function editExisting(row){
+  setBusy(true);setMessage('');
+  try{
+   await admin();
+   const result=await supabase.from('fc_veiculo_pix').select('chave_pix').eq('veiculo_id',row.id).maybeSingle();
+   if(result.error)throw Error(result.error.message);
+   const [carreta1='',carreta2='',carreta3='']=row.placas_carretas||[];
+   setVehicle({placa:row.placa,proprietario_nome:row.proprietario_nome||'',carreta1,carreta2,carreta3,chave_pix:result.data?.chave_pix||'',transportadora_nome:row.transportadora_nome||'',transportadora_cnpj:row.transportadora_cnpj||'',transportadora_whatsapp:row.transportadora_whatsapp||''});
+   setEditingVehicleId(row.id);
+  }catch(e){setMessage(e.message);}
+  finally{setBusy(false);}
  }
  function cancelEdit(){setEditingVehicleId('');setVehicle(emptyVehicle);}
  async function saveVehicle(event){
   event.preventDefault();
   await transact(async()=>{
-   const {empresaId}=await admin();
+   await admin();
    const plate=plateKey(vehicle.placa);
-   if(!validPlate(plate))throw Error('Informe placa válida (sete caracteres).');
-   const cnpj=digits(vehicle.transportadora_cnpj),whatsapp=digits(vehicle.transportadora_whatsapp);
-   if(cnpj&&cnpj.length!==14)throw Error('CNPJ da transportadora deve ter 14 números.');
-   if(whatsapp&&whatsapp.length<10)throw Error('WhatsApp da transportadora deve conter DDD.');
-   const payload={
-    empresa_id:empresaId,placa:plate,tipo:vehicle.tipo,
-    marca_modelo:vehicle.marca_modelo.trim()||null,
-    capacidade_kg:vehicle.capacidade_kg?Number(vehicle.capacidade_kg):null,
-    proprietario_nome:vehicle.proprietario_nome.trim()||null,
-    proprietario_documento:digits(vehicle.proprietario_documento)||null,
-    crlv_referencia:vehicle.crlv_referencia.trim()||null,
-    transportadora_nome:vehicle.transportadora_nome.trim()||null,
-    transportadora_cnpj:cnpj||null,transportadora_whatsapp:whatsapp||null
-   };
-   if(payload.capacidade_kg!==null&&!(payload.capacidade_kg>0))throw Error('A capacidade deve ser positiva.');
-   const request=editingVehicleId
-    ?supabase.from('fc_veiculos').update(payload).eq('id',editingVehicleId).eq('empresa_id',empresaId)
-    :supabase.from('fc_veiculos').insert(payload);
-   const result=await request.select('id').single();
+   const carretas=[vehicle.carreta1,vehicle.carreta2,vehicle.carreta3].map(plateKey).filter(Boolean);
+   if(!vehicle.proprietario_nome.trim()||!vehicle.chave_pix.trim())throw Error('Informe o nome do proprietário e a chave Pix do frete.');
+   if(!validPlate(plate)||carretas.some(p=>!validPlate(p)))throw Error('Confira as placas do cavalo e das carretas.');
+   const result=await supabase.rpc('fc_gravar_ficha_veiculo',{
+    p_id:editingVehicleId||null,p_placa:plate,p_proprietario:vehicle.proprietario_nome,
+    p_carretas:carretas,p_pix:vehicle.chave_pix,
+    p_transportadora:{nome:vehicle.transportadora_nome,cnpj:vehicle.transportadora_cnpj.replace(/\D/g,''),whatsapp:vehicle.transportadora_whatsapp.replace(/\D/g,'')}
+   });
    if(result.error)throw Error(result.error.code==='23505'?'Placa já cadastrada. Utilize Editar veículo.':result.error.message);
    cancelEdit();
-   return 'Ficha do veículo salva com a transportadora. Nenhum motorista foi vinculado automaticamente.';
+   return 'Ficha do veículo salva.';
   });
  }
  async function linkDriver(event){
@@ -175,17 +170,13 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   <h3>Cadastro de veículos</h3>
   <p>O veículo é cadastrado por placa. <strong>Transportadora e proprietário ficam nesta mesma ficha</strong>; o motorista é escolhido separadamente.</p>
   {isAdmin&&<form className="ft-fleet-form" onSubmit={saveVehicle} aria-label="Cadastro do veículo com transportadora">
-   <label>Placa<input required value={vehicle.placa} onChange={e=>setVehicle(v=>({...v,placa:e.target.value}))} placeholder="AAA1B23" maxLength={8}/></label>
-   <label>Tipo<select value={vehicle.tipo} onChange={e=>setVehicle(v=>({...v,tipo:e.target.value}))}>{['CAVALO MECÂNICO','CAMINHÃO','SEMIRREBOQUE','REBOQUE','BITREM','RODOTREM','OUTRO'].map(v=><option key={v}>{v}</option>)}</select></label>
-   <label>Marca/modelo<input value={vehicle.marca_modelo} onChange={e=>setVehicle(v=>({...v,marca_modelo:e.target.value}))}/></label>
-   <label>Capacidade (kg)<input type="number" min="1" value={vehicle.capacidade_kg} onChange={e=>setVehicle(v=>({...v,capacidade_kg:e.target.value}))}/></label>
-   <label>Proprietário do veículo<input value={vehicle.proprietario_nome} onChange={e=>setVehicle(v=>({...v,proprietario_nome:e.target.value}))}/></label>
-   <label>CPF/CNPJ do proprietário<input value={vehicle.proprietario_documento} onChange={e=>setVehicle(v=>({...v,proprietario_documento:e.target.value}))}/></label>
-   <label>Referência CRLV<input value={vehicle.crlv_referencia} onChange={e=>setVehicle(v=>({...v,crlv_referencia:e.target.value}))}/></label>
-   <div className="ft-fleet-form-heading">Transportadora deste veículo</div>
-   <label>Nome ou razão social<input value={vehicle.transportadora_nome} onChange={e=>setVehicle(v=>({...v,transportadora_nome:e.target.value}))} placeholder="Transportadora / proprietário transportador"/></label>
-   <label>CNPJ<input value={vehicle.transportadora_cnpj} onChange={e=>setVehicle(v=>({...v,transportadora_cnpj:e.target.value}))}/></label>
-   <label>WhatsApp da transportadora<input value={vehicle.transportadora_whatsapp} onChange={e=>setVehicle(v=>({...v,transportadora_whatsapp:e.target.value}))}/></label>
+   <label>Placa do cavalo<input required value={vehicle.placa} onChange={e=>setVehicle(v=>({...v,placa:e.target.value}))} placeholder="AAA1B23" maxLength={8}/></label>
+   {['carreta1','carreta2','carreta3'].map((key,index)=><label key={key}>Placa da carreta {index+1} (opcional)<input value={vehicle[key]} onChange={e=>setVehicle(v=>({...v,[key]:e.target.value}))} maxLength={8}/></label>)}
+   <label>Nome completo do proprietário<input required value={vehicle.proprietario_nome} onChange={e=>setVehicle(v=>({...v,proprietario_nome:e.target.value}))}/></label>
+   <label>Chave Pix do frete<input required autoComplete="off" value={vehicle.chave_pix} onChange={e=>setVehicle(v=>({...v,chave_pix:e.target.value}))}/></label>
+   <details><summary>Transportadora (opcional)</summary>
+   {[['transportadora_nome','Nome da transportadora'],['transportadora_cnpj','CNPJ da transportadora'],['transportadora_whatsapp','WhatsApp da transportadora']].map(([key,label])=><label key={key}>{label}<input value={vehicle[key]} onChange={e=>setVehicle(v=>({...v,[key]:e.target.value}))}/></label>)}
+   </details>
    <div className="ft-fleet-actions">
     <button type="submit" disabled={busy}>{editingVehicleId?'SALVAR ALTERAÇÕES DO VEÍCULO':'CADASTRAR VEÍCULO'}</button>
     {editingVehicleId&&<button type="button" disabled={busy} onClick={cancelEdit}>CANCELAR EDIÇÃO</button>}
@@ -194,10 +185,11 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
   <h3>Veículos cadastrados ({vehicles.length})</h3>
   <div className="ft-fleet-items">{vehicles.map(v=><article key={v.id}>
    <b>{v.placa} · {v.tipo}</b>
+   {!!v.placas_carretas?.length&&<span>Carretas: {v.placas_carretas.join(' / ')}</span>}
    <span>Transportadora: {v.transportadora_nome||'A preencher na ficha do veículo'}</span>
    <small>{v.proprietario_nome||'Proprietário a conferir'} · {v.capacidade_kg?Number(v.capacidade_kg).toLocaleString('pt-BR')+' kg':'Capacidade a conferir'}</small>
    {vehicleNotices(v).length>0&&<small role="status">Avisos: {vehicleNotices(v).join(' • ')}</small>}
-   {isAdmin&&<button type="button" disabled={busy} onClick={()=>editExisting(v)}>EDITAR VEÍCULO / TRANSPORTADORA</button>}
+   {isAdmin&&<button type="button" disabled={busy} onClick={()=>editExisting(v)}>EDITAR VEÍCULO</button>}
   </article>)}</div>
   </details>
   <h3>Vínculos atuais ({current.length})</h3>

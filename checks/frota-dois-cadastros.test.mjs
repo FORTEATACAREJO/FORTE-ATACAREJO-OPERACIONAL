@@ -13,11 +13,10 @@ test('apenas dois cadastros visíveis, motorista e veículo',()=>{
 });
 test('transportadora fica na mesma ficha do veículo e pode ser editada',()=>{
  assert.match(fleet,/Cadastro do veículo com transportadora/);
- assert.match(fleet,/transportadora_nome:vehicle\.transportadora_nome/);
- assert.match(fleet,/transportadora_cnpj:cnpj/);
- assert.match(fleet,/transportadora_whatsapp:whatsapp/);
- assert.match(fleet,/EDITAR VEÍCULO \/ TRANSPORTADORA/);
- assert.match(fleet,/supabase\.from\('fc_veiculos'\)\.update\(payload\)/);
+ assert.match(fleet,/Transportadora \(opcional\)/);
+ assert.match(fleet,/p_transportadora:\{nome:vehicle\.transportadora_nome/);
+ assert.match(fleet,/fc_gravar_ficha_veiculo/);
+ assert.match(directory,/fc_gravar_cadastro_conjunto/);
  assert.doesNotMatch(fleet,/CADASTRAR TRANSPORTADORA|Cadastro independente de transportadoras/);
  assert.doesNotMatch(fleet,/\.from\('fc_transportadoras'\)\.insert/);
 });
