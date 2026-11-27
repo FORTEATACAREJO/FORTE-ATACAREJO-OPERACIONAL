@@ -1,8 +1,12 @@
+function supplierReference(job,name){
+ if(name!=='forte_pedido_compra_fornecedor_pdf_v2')return job.reference;
+ return String(job.order?.codigoFornecedor||job.snapshot?.codigoFornecedor||'').trim()||'Não informado';
+}
 export function templatePayload(job,name,documentId){
  if(!name)throw new Error('MODELO APROVADO NÃO CONFIGURADO: '+job.kind);
  const components=[];
  if(documentId)components.push({type:'header',parameters:[{type:'document',document:{id:documentId,filename:job.reference+'.pdf'}}]});
- components.push({type:'body',parameters:[{type:'text',text:job.reference},{type:'text',text:job.kind==='FORNECEDOR'?job.reference:job.kind==='ORDEM_MOTORISTA'?String(job.order?.origem||'Carregamento confirmado'):job.items.map(i=>i.qtd+' de '+i.produto).join('; ')}]});
+ components.push({type:'body',parameters:[{type:'text',text:job.reference},{type:'text',text:job.kind==='FORNECEDOR'?supplierReference(job,name):job.kind==='ORDEM_MOTORISTA'?String(job.order?.origem||'Carregamento confirmado'):job.items.map(i=>i.qtd+' de '+i.produto).join('; ')}]});
  if(job.kind==='ENTREGA')for(const [index,answer] of ['SIM','NAO'].entries())components.push({type:'button',sub_type:'quick_reply',index:String(index),parameters:[{type:'payload',payload:job.replyToken+':'+answer}]});
  return {messaging_product:'whatsapp',to:job.to,type:'template',template:{name,language:{code:'pt_BR'},components}};
 }
