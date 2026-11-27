@@ -25,7 +25,12 @@ test('motorista inativo abre revisão sem liberar; rascunho fica pendente',()=>{
 test('não permite aprovação sem confirmação documental real',()=>{
  assert.throws(()=>perform({...approved,documentosConferidos:false}),/Confirme expressamente/);
  assert.throws(()=>perform({...approved,confirmacaoResponsavel:false}),/Confirme expressamente/);
- assert.throws(()=>perform({...approved,referenciaConferencia:''}),/Registre a referência/);
+});
+test('observação é opcional e a confirmação permanece auditada',()=>{
+ const motorist=perform({...approved,referenciaConferencia:''}).state.motoristas[0];
+ assert.equal(motorist.ativo,true);
+ assert.equal(motorist.aprovacaoOperacional.responsavel,admin.user_id);
+ assert.equal(motorist.aprovacaoOperacional.referenciaConferencia,'Conferência documental confirmada pelo responsável autenticado.');
 });
 test('não permite CPF inválido, CNH ausente ou vencida',()=>{
  assert.throws(()=>perform({...approved,cpf:'11111111111'}),/CPF inválido/);
