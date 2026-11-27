@@ -1,3 +1,4 @@
+import {officialNumberConflict} from './official-number.mjs';
 const digits=v=>String(v||'').replace(/\D/g,'');
 export function phone(v){let n=digits(v);if(n.length===10||n.length===11)n='55'+n;return /^\d{12,15}$/.test(n)?n:'';}
 export function purchaseSnapshot(o){return JSON.stringify({id:o.id,numero:o.numero,protocolo:o.protocolo||'',modalidadeCompra:o.modalidadeCompra,motoristaSnapshot:o.motoristaSnapshot,fornecedorSnapshot:o.fornecedorSnapshot,liberacaoPalletsFornecedor:o.liberacaoPalletsFornecedor,fornecedorId:o.fornecedorId,unidadeId:o.unidadeId,cnpjComprador:o.cnpjComprador,codigoFornecedor:o.codigoFornecedor,motoristaId:o.motoristaId,placas:o.placas,itens:o.itens,origem:o.origem,destino:o.destino,pagamento:o.pagamento,modalidadeFrete:o.modalidadeFrete,regraPallets:o.regraPallets,palletQuantidade:o.palletQuantidade});}
@@ -22,7 +23,7 @@ export function linkedReturn(s,{providerId,contextId,from,text,at}){
   const matches=[...r.text.matchAll(/(?:pedido\s*(?:n[ºo.]?\s*)?[:#-]?\s*)([0-9][0-9A-Za-z/-]{1,39})/gi)].map(m=>m[1]);
   const unique=[...new Set(matches)];
   const c=(s.cargas||[]).find(c=>c.id===o?.cargaId);
-  if(!/cancelad|cancelamento|n[aã]o\s+(?:[ée]|foi|confirm)/i.test(r.text)&&o&&c&&!c.finalizadaEm&&unique.length===1&&!o.numeroPedidoFornecedor&&!(s.cargas||[]).some(x=>x.id!==c.id&&x.fornecedorId===o.fornecedorId&&x.numeroPedidoFornecedor===unique[0])){
+  if(!/cancelad|cancelamento|n[aã]o\s+(?:[ée]|foi|confirm)/i.test(r.text)&&o&&c&&!c.finalizadaEm&&unique.length===1&&!o.numeroPedidoFornecedor&&!officialNumberConflict(s,unique[0],{cargaId:c.id,orderId:o.id})&&!c.numeroPedidoFornecedor&&c.status!=='CANCELADA'&&o.status!=='CANCELADO'){
    o.numeroPedidoFornecedor=unique[0];o.status='AGUARDANDO NOTAS FISCAIS';o.evidenciaRetorno=providerId;o.confirmadoEm=at;o.confirmadoPor='RETORNO WHATSAPP VINCULADO';c.numeroPedidoFornecedor=unique[0];c.fase=o.status;r.state='VINCULADO';r.reason='RESPOSTA AO ENVIO ORIGINAL';
   }else r.reason='CONFIRA O NÚMERO OFICIAL DO FORNECEDOR';
  }
