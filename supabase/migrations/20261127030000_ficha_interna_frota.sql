@@ -28,6 +28,9 @@ begin
  if empresa is null or not coalesce(public.fc_eh_admin(),false) then
   raise exception 'Cadastro restrito à administração.';
  end if;
+ if nullif(trim(p_proprietario),'') is null or nullif(trim(p_pix),'') is null then
+  raise exception 'Informe o nome do proprietário e a chave Pix do frete.';
+ end if;
  if p_placa is null or p_placa !~ '^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$'
     or coalesce(cardinality(p_carretas),0)>3 or exists (
      select 1 from unnest(p_carretas) as a(placa)
@@ -45,12 +48,8 @@ begin
   where id=p_id and empresa_id=empresa returning id into veiculo;
  end if;
  if veiculo is null then raise exception 'Veículo não encontrado na empresa ativa.'; end if;
- if nullif(trim(p_pix),'') is null then
-  delete from public.fc_veiculo_pix where veiculo_id=veiculo;
- else
-  insert into public.fc_veiculo_pix(veiculo_id,chave_pix) values(veiculo,trim(p_pix))
-  on conflict (veiculo_id) do update set chave_pix=excluded.chave_pix;
- end if;
+ insert into public.fc_veiculo_pix(veiculo_id,chave_pix) values(veiculo,trim(p_pix))
+ on conflict (veiculo_id) do update set chave_pix=excluded.chave_pix;
  return veiculo;
 end;
 $$;
