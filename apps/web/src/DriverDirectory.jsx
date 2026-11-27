@@ -2,12 +2,13 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './supabase.js';
 import ForteOpMigrationAudit from './ForteOpMigrationAudit.jsx';
 import {isDriverSelectable,isDriverDraftSelectable,driverRegistrationWarnings} from './pedidos-ft-drivers.mjs';
+import {plateKey,validPlate} from './frota-vinculos.mjs';
 import FleetLinkManager from './FleetLinkManager.jsx';
 import OperationalDriverApproval from './OperationalDriverApproval.jsx';
 import DriverIntake from './DriverIntake.jsx';
 import './driver-directory-mobile.css';
 
-const EMPTY={endereco:'',nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
+const EMPTY={placa:'',carreta1:'',carreta2:'',carreta3:'',pixFrete:'',endereco:'',nome:'',cpf:'',whatsapp:'',email:'',cnh:'',categoria_cnh:'',validade_cnh:'',rntrc:'',proprietario_nome:'',proprietario_documento:'',chave_pix:'',favorecido_pix:'',capacidade_operacional_kg:''};
 const digits=value=>String(value||'').replace(/\D/g,'');
 const legacyForm=source=>({
  endereco:source.endereco||'',nome:source.nome||'',cpf:digits(source.cpf||''),whatsapp:digits(source.telefone||source.whatsapp||''),
@@ -62,7 +63,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  }
  function begin(row=null){
   setSelected(row?.id_origem||null);
-  setForm(row?legacyForm(row.dados||{}):EMPTY);
+  setForm(row?{...EMPTY,...legacyForm(row.dados||{}),pixFrete:row.dados?.chave_pix||''}:EMPTY);
   setEditor(true);setMessage('');
  }
  const patch=(name,value)=>setForm(f=>({...f,[name]:value}));
@@ -105,6 +106,10 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
   if(digits(form.whatsapp).length<10||digits(form.whatsapp).length>13)return setMessage('WhatsApp informado deve conter DDD.');
   if(form.cnh.trim()&&digits(form.cnh).length!==11)return setMessage('CNH informada deve ter 11 dígitos.');
   if(!form.nome.trim())return setMessage('Informe o nome do motorista.');
+  const plate=plateKey(form.placa);
+  const carretas=[form.carreta1,form.carreta2,form.carreta3].map(plateKey).filter(Boolean);
+  if(!validPlate(plate)||carretas.some(p=>!validPlate(p)))return setMessage('Confira as placas do cavalo e das carretas.');
+  if(!form.proprietario_nome.trim()||!form.pixFrete.trim())return setMessage('Informe o nome do proprietário e a chave Pix.');
   setBusy(true);setMessage('');
   try{
    const user=await supabase.auth.getUser();
@@ -122,9 +127,11 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
     endereco:form.endereco.trim()||null,
     status_ia:'PENDENTE_CONFERENCIA_DOCUMENTAL',ativo:false
    };
-   const result=await supabase.from('fc_motoristas').insert(payload).select('id').single();
-   if(result.error)throw Error(result.error.code==='23505'?'Motorista já registrado; confira os dados existentes.':result.error.message);
-   let note='Motorista cadastrado como INATIVO, independente do veículo. A conferência documental e o vínculo manual serão feitos posteriormente.';
+   const result=await supabase.rpc('fc_gravar_cadastro_conjunto',{
+    p_motorista:payload,p_placa:plate,p_proprietario:form.proprietario_nome,p_carretas:carretas,p_pix:form.pixFrete
+   });
+   if(result.error)throw Error(result.error.code==='23505'?'Motorista ou placa já cadastrado. Confira os cadastros existentes antes de criar outro.':result.error.message);
+   let note='Motorista, veículo e vínculo cadastrados. A equipe pode conferir e liberar a expedição depois.';
    if(selected){
     const marked=await supabase.from('forte_op_motoristas_pendentes')
       .update({situacao:'CADASTRO_INATIVO',revisado_por:user.data.user.id,revisado_em:new Date().toISOString(),updated_at:new Date().toISOString()})
@@ -138,14 +145,17 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  const fields=[
   ['nome','Nome completo',true],['whatsapp','WhatsApp com DDD',true,'tel'],['cpf','CPF',false],
   ['cnh','Número da CNH',false],['categoria_cnh','Categoria da CNH',false],
-  ['endereco','Endereço (opcional)',false]
+  ['endereco','Endereço (opcional)',false],
+  ['placa','Placa do cavalo',true],['carreta1','Placa da carreta 1 (opcional)',false],
+  ['carreta2','Placa da carreta 2 (opcional)',false],['carreta3','Placa da carreta 3 (opcional)',false],
+  ['proprietario_nome','Nome completo do proprietário',true],['pixFrete','Chave Pix do frete',true]
  ];
  return <div className="modalBackdrop ft-driver-backdrop"><section className="modal wide ft-driver-dialog" role="dialog" aria-modal="true" aria-label="Motoristas FORTE-OP">
  <div className="modalHead ft-driver-head"><h2>MOTORISTAS — PEDIDOS FT</h2><button type="button" onClick={onClose}>← VOLTAR AO PEDIDO</button></div>
  <p>Cadastro e consulta no próprio FORTE-OP, sem abrir outro aplicativo. Os dados anteriores permanecem preservados para revisão.</p>
  <div className="rowActions">
  <button type="button" disabled={busy} onClick={refresh}>ATUALIZAR DADOS</button>
- {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA</button>}
+ {isAdmin&&<button type="button" disabled={busy} onClick={()=>begin()}>+ CADASTRAR MOTORISTA E VEÍCULO</button>}
  </div>
  <p role="status" aria-live="polite">{message}</p>
  <nav className="ft-fleet-nav" aria-label="Cadastros e vínculos da frota">{[['motoristas','Motoristas'],['veiculos','Veículos']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>setView(id)}>{label}</button>)}</nav>
@@ -179,7 +189,7 @@ export default function DriverDirectory({data,onClose,onSync,onPick,isAdmin=fals
  {fields.map(([field,label,required,type])=><label key={field} style={{display:'grid',gap:4}}>{label}
  <input type={type||'text'} required={required} min={type==='number'?1:undefined} step={type==='number'?'any':undefined} value={form[field]||''} onChange={e=>patch(field,e.target.value)}/></label>)}
  </div><p>O cadastro será gravado como <b>INATIVO</b> até conferência documental e aprovação administrativa.</p>
- <div className="rowActions"><button type="submit" disabled={busy}>GERAR CADASTRO INATIVO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
+ <div className="rowActions"><button type="submit" disabled={busy}>SALVAR MOTORISTA E VEÍCULO</button>{selected&&<button type="button" disabled={busy} onClick={saveDraft}>SALVAR RASCUNHO SEM ATIVAR</button>}<button type="button" onClick={()=>setEditor(false)}>CANCELAR</button></div></form>}
  {isAdmin&&<section className="ft-driver-legacy-list"><div className="ft-driver-cards">{legacyRows.map(l=><article className="ft-driver-card" key={l.id_origem}>
   <strong className="ft-driver-name">{l.dados?.nome||'NOME NÃO INFORMADO'}</strong>
   <span>CPF: {maskCpf(l.dados?.cpf)} · CNH: {digits(l.dados?.cnh).length===11?'Informada':'Pendente'}</span>
