@@ -3,7 +3,7 @@ import {supabase} from './supabase.js';
 import {activeLink,canLink,driverName,plateKey,validPlate,vehicleDriver} from './frota-vinculos.mjs';
 import './frota-vinculos.css';
 
-const emptyVehicle={placa:'',proprietario_nome:'',carreta1:'',carreta2:'',carreta3:'',chave_pix:''};
+const emptyVehicle={placa:'',proprietario_nome:'',carreta1:'',carreta2:'',carreta3:'',chave_pix:'',transportadora_nome:'',transportadora_cnpj:'',transportadora_whatsapp:''};
 const emptyLink={motorista_operacional_id:'',veiculo_id:'',observacao:''};
 const pretty=v=>v?new Date(v).toLocaleString('pt-BR'):'';
 const vehicleNotices=v=>[!v.proprietario_nome?'Proprietário a conferir':null,!v.proprietario_documento?'CPF/CNPJ do proprietário a conferir':null,!v.crlv_referencia?'CRLV a conferir':null,!v.rntrc?'RNTRC a conferir':null,!(Number(v.capacidade_kg)>0)?'Capacidade a conferir':null,v.ativo===false?'Veículo não liberado para transporte':null].filter(Boolean);
@@ -66,7 +66,7 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    const result=await supabase.from('fc_veiculo_pix').select('chave_pix').eq('veiculo_id',row.id).maybeSingle();
    if(result.error)throw Error(result.error.message);
    const [carreta1='',carreta2='',carreta3='']=row.placas_carretas||[];
-   setVehicle({placa:row.placa,proprietario_nome:row.proprietario_nome||'',carreta1,carreta2,carreta3,chave_pix:result.data?.chave_pix||''});
+   setVehicle({placa:row.placa,proprietario_nome:row.proprietario_nome||'',carreta1,carreta2,carreta3,chave_pix:result.data?.chave_pix||'',transportadora_nome:row.transportadora_nome||'',transportadora_cnpj:row.transportadora_cnpj||'',transportadora_whatsapp:row.transportadora_whatsapp||''});
    setEditingVehicleId(row.id);
   }catch(e){setMessage(e.message);}
   finally{setBusy(false);}
@@ -82,7 +82,8 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    if(!validPlate(plate)||carretas.some(p=>!validPlate(p)))throw Error('Confira as placas do cavalo e das carretas.');
    const result=await supabase.rpc('fc_gravar_ficha_veiculo',{
     p_id:editingVehicleId||null,p_placa:plate,p_proprietario:vehicle.proprietario_nome,
-    p_carretas:carretas,p_pix:vehicle.chave_pix
+    p_carretas:carretas,p_pix:vehicle.chave_pix,
+    p_transportadora:{nome:vehicle.transportadora_nome,cnpj:vehicle.transportadora_cnpj.replace(/\D/g,''),whatsapp:vehicle.transportadora_whatsapp.replace(/\D/g,'')}
    });
    if(result.error)throw Error(result.error.code==='23505'?'Placa já cadastrada. Utilize Editar veículo.':result.error.message);
    cancelEdit();
@@ -173,6 +174,9 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    {['carreta1','carreta2','carreta3'].map((key,index)=><label key={key}>Placa da carreta {index+1} (opcional)<input value={vehicle[key]} onChange={e=>setVehicle(v=>({...v,[key]:e.target.value}))} maxLength={8}/></label>)}
    <label>Nome completo do proprietário<input required value={vehicle.proprietario_nome} onChange={e=>setVehicle(v=>({...v,proprietario_nome:e.target.value}))}/></label>
    <label>Chave Pix do frete<input required autoComplete="off" value={vehicle.chave_pix} onChange={e=>setVehicle(v=>({...v,chave_pix:e.target.value}))}/></label>
+   <details><summary>Transportadora (opcional)</summary>
+   {[['transportadora_nome','Nome da transportadora'],['transportadora_cnpj','CNPJ da transportadora'],['transportadora_whatsapp','WhatsApp da transportadora']].map(([key,label])=><label key={key}>{label}<input value={vehicle[key]} onChange={e=>setVehicle(v=>({...v,[key]:e.target.value}))}/></label>)}
+   </details>
    <div className="ft-fleet-actions">
     <button type="submit" disabled={busy}>{editingVehicleId?'SALVAR ALTERAÇÕES DO VEÍCULO':'CADASTRAR VEÍCULO'}</button>
     {editingVehicleId&&<button type="button" disabled={busy} onClick={cancelEdit}>CANCELAR EDIÇÃO</button>}
