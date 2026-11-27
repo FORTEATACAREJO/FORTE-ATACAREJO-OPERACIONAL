@@ -1,7 +1,8 @@
-export const fields={nome:'Nome completo',cpf:'CPF',whatsapp:'WhatsApp',email:'E-mail',cnh:'Registro CNH',categoria:'Categoria CNH',validade:'Validade CNH',endereco:'Endereço',cidade:'Cidade/UF',proprietario:'É proprietário do veículo?',nomeProprietario:'Nome ou razão social do proprietário',documentoProprietario:'CPF ou CNPJ do proprietário',pixFrete:'Chave Pix do frete',placaCavalo:'Placa do cavalo',placaCarreta1:'Placa da carreta 1',placaCarreta2:'Placa da carreta 2',placaCarreta3:'Placa da carreta 3'};
+export const fields={nome:'Nome completo',cpf:'CPF',whatsapp:'WhatsApp',email:'E-mail',cnh:'Registro CNH',categoria:'Categoria CNH',validade:'Validade CNH',endereco:'Endereço (opcional)',cidade:'Cidade/UF',proprietario:'É proprietário do veículo?',nomeProprietario:'Nome ou razão social do proprietário',documentoProprietario:'CPF ou CNPJ do proprietário',pixFrete:'Chave Pix do frete',placaCavalo:'Placa do cavalo',placaCarreta1:'Placa da carreta 1 (opcional)',placaCarreta2:'Placa da carreta 2 (opcional)',placaCarreta3:'Placa da carreta 3 (opcional)'};
 export const intakeGroups=[
- ['Motorista',['nome','cpf','whatsapp','cnh','categoria']],
- ['Veículo',['placaCavalo','placaCarreta1','placaCarreta2','placaCarreta3','nomeProprietario','documentoProprietario','pixFrete']]
+ ['Motorista',['nome','whatsapp','cpf','cnh','categoria','endereco']],
+ ['Proprietário',['nomeProprietario','pixFrete']],
+ ['Veículo',['placaCavalo','placaCarreta1','placaCarreta2','placaCarreta3']]
 ];
 export const documents={cnhFrente:'CNH frente',cnhVerso:'CNH verso',cnhDigital:'CNH Digital (PDF)',cavalo:'Documento do caminhão',carreta1:'Documento da carreta 1',carreta2:'Documento da carreta 2',conjunto:'Foto do conjunto a 45°'};
 export const maxFile=6*1024*1024,maxBody=12*1024*1024;
