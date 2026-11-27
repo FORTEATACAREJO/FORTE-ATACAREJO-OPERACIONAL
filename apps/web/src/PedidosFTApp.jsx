@@ -1,5 +1,5 @@
 import {paymentKey} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
 import {validSupplierCatalog} from '../../../supabase/functions/orders-workflow/supplier-catalog.mjs';
 import {applyAuthUser,loadCloudState,saveCloudState,supabase} from './supabase.js';
@@ -76,15 +76,34 @@ export default function PedidosFTApp({profile,grants}){
   if(error)setNotice('Não foi possível sair. Tente novamente.');
   else window.location.reload();
  }
+ const toolsMenu=useRef(null);
+ useEffect(()=>{
+  const closeOutside=event=>{
+   const menu=toolsMenu.current;
+   if(menu?.open&&!menu.contains(event.target))menu.open=false;
+  };
+  document.addEventListener('pointerdown',closeOutside);
+  return ()=>document.removeEventListener('pointerdown',closeOutside);
+ },[]);
+ function closeTools(){
+  const menu=toolsMenu.current;
+  if(!menu?.open)return;
+  menu.open=false;
+  menu.querySelector('summary')?.focus();
+ }
  return <main className="pedidos-ft-standalone">
   <header className="pedidos-ft-toolbar">
    <span className="ft-toolbar-label">Gestão de pedidos e cargas</span>
-   <details className="ft-admin-tools">
-    <summary aria-label="Ferramentas e cadastros">⚙ Ferramentas</summary>
-    <div data-forte-top-actions/>
+   <details className="ft-admin-tools" ref={toolsMenu} onKeyDown={event=>{
+    if(event.key==='Escape'&&toolsMenu.current?.open){event.stopPropagation();closeTools();}
+   }}>
+    <summary aria-label="Ferramentas e cadastros"><span aria-hidden="true">⋮</span></summary>
+    <div className="ft-toolbar-menu">
+     <div data-forte-top-actions/>
+     {allowed&&<button type="button" disabled={checkingChannels} onClick={()=>{closeTools();checkChannels();}}>Conferir e-mail / WhatsApp</button>}
+     <button type="button" onClick={()=>{closeTools();signOut();}}>Sair</button>
+    </div>
    </details>
-   {allowed&&<button type="button" disabled={checkingChannels} onClick={checkChannels}>{checkingChannels?'Conferindo canais…':'✉ Conferir e-mail / WhatsApp'}</button>}
-   <button type="button" onClick={signOut}>Sair</button>
   </header>
   {!allowed?<section className="ft-guard" role="alert"><h1>Pedidos FT</h1><p>Acesso exclusivo para usuários Master autorizados.</p></section>:
    <>
