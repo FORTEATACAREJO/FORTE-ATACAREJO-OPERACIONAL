@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {fields,documents,maxFile,maxBody,validToken} from '../../../supabase/functions/driver-cadastro/validation.mjs';
+import {fields,documents,intakeGroups,maxFile,maxBody,validToken} from '../../../supabase/functions/driver-cadastro/validation.mjs';
 import './cadastro-motorista.css';
 const base=String(import.meta.env.VITE_SUPABASE_URL||'').replace(/\/$/,'');
 const key=String(import.meta.env.VITE_SUPABASE_ANON_KEY||'');
@@ -22,8 +22,10 @@ function App(){
  const field=(k,label)=>{const props={id:k,value:values[k]||'',onChange:e=>setValues(v=>({...v,[k]:e.target.value})),disabled:busy};
  return <label key={k} htmlFor={k}>{label}{k==='categoria'||k==='proprietario'?<select {...props}><option value="">Selecione</option>{(k==='categoria'?['A','B','C','D','E','AB','AC','AD','AE']:['Sim','Não']).map(v=><option key={v}>{v}</option>)}</select>:<input {...props} maxLength={300} type={k==='validade'?'date':k==='email'?'email':'text'} inputMode={['cpf','cnh','whatsapp'].includes(k)?'numeric':undefined} placeholder={{nome:'Informe seu nome completo',cpf:'000.000.000-00',whatsapp:'(00) 00000-0000',email:'Seu e-mail (opcional)',cnh:'Número de registro',endereco:'Rua, número e bairro',cidade:'Cidade / UF',nomeProprietario:'Nome do proprietário',placaCavalo:'Placa do caminhão',placaCarreta1:'Placa da carreta',placaCarreta2:'Placa da segunda carreta'}[k]} autoComplete="off"/>}</label>};
  return <main><header><img src="/icons/forte-cadastro-motorista.webp" width="96" height="96" alt="FORTE Cadastro do Motorista"/><small>FORTE ATACAREJO</small><h1>{scope?"Atualizar pendências do motorista":"Cadastro do motorista"}</h1><p>Confira os dados preenchidos, corrija as placas e complete apenas os campos solicitados.</p></header>{status&&<p role="status" className="notice">{status}</p>}{received&&<section className="success" role="status"><b>Dados recebidos pela FORTE!</b><p>Protocolo: {received}</p><p>Você pode enviar mais informações nesta mesma página enquanto o link estiver válido.</p></section>}{ready&&<form onSubmit={submit}>
- {[['Dados pessoais',['nome','cpf','whatsapp','email']],['Habilitação',['cnh','categoria','validade']],['Endereço',['endereco','cidade']]].map(([title,keys])=>keys.some(k=>show('fields',k))&&<section key={title}><h2>{title}</h2>{title==='Endereço'&&<p>Não é necessário comprovante de endereço.</p>}{keys.filter(k=>show('fields',k)).map(k=>field(k,fields[k]))}</section>)}
- {Object.keys(fields).slice(9).some(k=>show('fields',k))&&<section><h2>Veículo</h2><p>Informações do veículo serão conferidas separadamente.</p>{Object.entries(fields).slice(9).filter(([k])=>show('fields',k)).map(([k,v])=>field(k,v))}</section>}
+ <section><h2>Dados do cadastro</h2>
+ {intakeGroups.map(([title,keys])=>keys.some(k=>show('fields',k))&&<div key={title}><h3>{title}</h3>{keys.filter(k=>show('fields',k)).map(k=>field(k,fields[k]))}</div>)}
+ {Object.keys(fields).filter(k=>!intakeGroups.some(([,keys])=>keys.includes(k))&&scope?.fields.includes(k)).map(k=>field(k,fields[k]))}
+ </section>
  {Object.keys(documents).some(k=>show('documents',k))&&<section><h2>Documentos solicitados</h2><p>Escolha uma foto da galeria ou fotografe pelo celular. Até 6 MB por arquivo; envie em etapas.</p>{Object.entries(documents).filter(([k])=>show('documents',k)).map(([k,v])=><label key={k+version}>{v}<input aria-label={v} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy} onChange={e=>setFiles(old=>({...old,[k]:e.target.files?.[0]||null}))}/></label>)}</section>}
  <p className="privacy">Os dados enviados serão usados pela FORTE ATACAREJO para atualização e conferência do cadastro de motorista e veículo. Informe apenas a chave Pix do frete quando solicitada. Nunca envie senhas. A aprovação do carregamento é uma etapa separada.</p>
  <button type="submit" disabled={busy}>{busy?'Enviando…':'Enviar para conferência'}</button>
