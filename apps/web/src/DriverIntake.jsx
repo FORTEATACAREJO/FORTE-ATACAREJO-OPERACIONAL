@@ -10,14 +10,14 @@ async function invoke(action,body){
 }
 export default function DriverIntake({driver}){
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[link,setLink]=useState(''),[result,setResult]=useState(null);
- const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>suggestedFields(driver)),[requestedDocs,setRequestedDocs]=useState([]),[linkRequest,setLinkRequest]=useState(null);
+ const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>[...suggestedFields(driver),'placaCavalo','placaCarreta1','placaCarreta2','placaCarreta3']),[requestedDocs,setRequestedDocs]=useState([]),[linkRequest,setLinkRequest]=useState(null);
  const whatsapp=String(driver.whatsapp||driver.telefone||'').replace(/\D/g,'');
  const to=whatsapp.length===11?'55'+whatsapp:whatsapp;
- const message='Olá! '+(linkRequest?'Envie somente as pendências do seu cadastro na FORTE: '+[...linkRequest.fields.map(k=>fields[k]),...linkRequest.documents.map(k=>documents[k])].join(', ')+'.':'Atualize seu cadastro na FORTE.')+' Acesse: '+link;
+ const message='Olá, '+(String(driver.nome||'').trim().split(/\s+/)[0]||'motorista')+'! Aqui é da Forte Atacarejo. Abra seu link individual, confira as placas do caminhão e das carretas e complete o que estiver pendente. Depois toque em Enviar para conferência. '+link;
  const toggle=(set,key,checked)=>set(old=>checked?[...new Set([...old,key])]:old.filter(k=>k!==key));
  const reload=async()=>setResult(await invoke('LIST',{motoristaId:driver.id}));
  const run=async(fn)=>{setBusy(true);setNotice('');try{await fn();}catch(e){setNotice(e.message);}finally{setBusy(false);}};
- const groups=[['Dados pessoais',['nome','cpf','whatsapp','email']],['Habilitação',['cnh','categoria','validade']],['Endereço',['endereco','cidade']],['Veículo e proprietário',['proprietario','nomeProprietario','placaCavalo','placaCarreta1','placaCarreta2']]];
+ const groups=[['Dados pessoais',['nome','cpf','whatsapp','email']],['Habilitação',['cnh','categoria','validade']],['Endereço',['endereco','cidade']],['Veículo e proprietário',['proprietario','nomeProprietario','placaCavalo','placaCarreta1','placaCarreta2','placaCarreta3']]];
  return <div className="di-wrap"><button type="button" className="secondary" disabled={busy} onClick={()=>{setOpen(v=>!v);if(!open)run(reload);}}>Link e documentos do motorista</button>
  {open&&<section className="di-panel" aria-label="Atualização cadastral por link">
  <header className="di-heading"><img src="/icons/forte-cadastro-motorista.webp" alt="" width="48" height="48"/><div><h3>Cadastro do motorista</h3><p>{driver.nome}</p></div></header>
