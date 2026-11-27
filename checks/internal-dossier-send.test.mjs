@@ -13,3 +13,8 @@ test('seleciona documentos da OS e da venda ativa, não mistura clientes',()=>{
  assert.deepEqual(internalSnapshot(s,'c','JULIANA').docs.map(d=>d.id),['nf','boleto']);
  assert.deepEqual(internalSnapshot(s,'c','PEDRO').docs.map(d=>d.id),['nf','boleto']);
 });
+
+test('recibo a receber e comprovante da venda entram no dossiê; documentos sem venda não entram',()=>{
+ const state={cargas:[{id:'c',numeroOS:'OS-1',vendaIds:['v']}],vendas:[{id:'v',cargaId:'c',clienteId:'a'}],documentos:['RECIBO A RECEBER','COMPROVANTE PAGAMENTO CLIENTE','NF VENDA PDF'].flatMap((categoria,i)=>[{id:'ok'+i,cargaId:'c',vendaId:'v',clienteId:'a',categoria},{id:'bad'+i,cargaId:'c',categoria}])};
+ for(const role of ['PEDRO','JULIANA'])assert.deepEqual(internalSnapshot(state,'c',role).docs.map(d=>d.id),['ok0','ok1','ok2']);
+});
