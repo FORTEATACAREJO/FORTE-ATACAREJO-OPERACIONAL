@@ -5,7 +5,7 @@ import {buildPedidosFTDossier,pendingTypes,dossierPending} from './pedidos-ft-mo
 import {loadReport} from './orders-reports';
 import {assembleInternalPDF,downloadInternalPDF,internalCover} from './pedidos-ft-internal-package.mjs';
 import './pedidos-ft.css';
-import PedidosFTLoadPanel from './PedidosFTLoadPanel.jsx';
+import PedidosFTLoadPanel,{LoadCloseConfirmation} from './PedidosFTLoadPanel.jsx';
 import DriverIntake from './DriverIntake.jsx';
 import {useForteLayer} from './use-forte-navigation.js';
 
@@ -166,7 +166,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
     <FtOptions canConfigure={!!onInternalRecipients} extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
    </div>
   </header>
-  <PedidosFTLoadPanel data={data} cargas={cargas} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
+  <PedidosFTLoadPanel data={data} cargas={cargas} onClose={onFinalize} busy={busy} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
    setSelection(id);onSelectCarga?.(id);setScrollField(pendingTypes.find(t=>t[0]===pendingFilter)?.[2]||null);
    setLoadView(null);
   }}/>
@@ -281,7 +281,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <DocList docs={documents} onOpenDocument={onOpenDocument} onValidate={onValidateDocument&&!c.finalizadaEm&&c.status!=='CANCELADA'?doc=>onValidateDocument(c.id,doc):undefined}/>
    <InternalPackage key={c.id+":PEDRO"} d={d} role="PEDRO" readDocument={onReadInternalDocument}/>
    <InternalSend key={c.id+":SEND-PEDRO"} carga={c} role="PEDRO" onSend={onSendInternalDossier}/>
-   {onFinalize&&<button type="button" className="ft-outline" disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>onFinalize(c.id)}>Conferir fechamento / solicitar confirmação</button>}
+   <LoadCloseConfirmation key={c.id} load={c} onClose={onFinalize} busy={busy}/>
    <details><summary>Outras ações da carga</summary><button type="button" className="ft-outline" onClick={()=>go('cargas',5)}>Ajustes e comprovantes da carga</button></details>
    <div className="ft-doc-count">Documentos vinculados a esta carga: <b>{documents.length}</b></div>
    <p className="ft-hint">Sincronização de Gmail e WhatsApp, conferência e encerramento dependem da próxima etapa de integração.</p>
