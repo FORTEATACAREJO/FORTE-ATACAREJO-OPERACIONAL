@@ -7,3 +7,15 @@ test('boletos múltiplos confrontam cada duplicata e XML recebido depois permite
 test('CNPJ, chave, série, protocolo, valores e destinatário divergentes exigem análise',()=>{assert(validKey(key));assert(validCnpj(recipient));assert(!validKey(key.slice(0,-1)+'0'));for(const [a,b,flag] of [['<serie>2','<serie>3','IDENTIDADE_XML_DIVERGENTE'],['<cStat>100','<cStat>101','PROTOCOLO_AUTORIZACAO_DIVERGENTE'],['23287.06','23287.07','VALORES_PRODUTOS_DIVERGENTES'],[recipient,'49832961000151','CNPJ_DESTINATARIO_NAO_CADASTRADO']])assert(nfe(xml.replace(a,b)).issues.includes(flag));assert.throws(()=>nfe('<root/>'),/XML_NAO_E_NFE/);});
 test('dígitos, valor, vencimento e PDF sem texto não são presumidos',()=>{assert(!boletoCode('1'.repeat(47)).valid);assert(parsePdfText(boleto.replace('24.539,26','24.539,27')).issues.includes('VALOR_BOLETO_DIVERGENTE'));assert(parsePdfText(boleto.replace('27.10.2026','28.10.2026')).issues.includes('FATOR_VENCIMENTO_DIVERGENTE'));assert.equal(parsePdfText('').kind,'DOCUMENTO');assert(parsePdfText('').issues.includes('PDF_SEM_TEXTO_OCR_PENDENTE'));});
 test('push valida assinatura exata e caixa; watch sem push não comprova notificações',()=>{const config={topic:'projects/forte-test/topics/forte-gmail-central'},email='fiscalforteatacarejo@gmail.com',body={subscription:'projects/forte-test/subscriptions/forte-gmail-central-push',message:{messageId:'1',data:btoa(JSON.stringify({emailAddress:email,historyId:'100'}))}};assert.equal(validatePush(body,config,email).historyId,'100');assert.throws(()=>validatePush({...body,subscription:'projects/forte-test/subscriptions/outra'},config,email));assert.throws(()=>validatePush({...body,message:{...body.message,data:btoa(JSON.stringify({emailAddress:'outra@gmail.com',historyId:'100'}))}},config,email));assert(!pushReady({...config,push_email:'sa@example.com',watch_expires:'2099-01-01'}));assert(pushReady({...config,push_email:'sa@example.com',watch_expires:'2099-01-01',last_push:'2026-10-13'}));});
+
+
+test('informações complementares identificam OS do comprador separada do xPed',()=>{
+ const parsed=new XMLParser({ignoreAttributes:false,parseTagValue:false,processEntities:false}).parse(xml);
+ const n=parsed.nfeProc.NFe.infNFe;
+ n.infAdic={infCpl:'O.VENDA 41561380 | O.C.CLIENTE OS-000002'};
+ for(const det of Array.isArray(n.det)?n.det:[n.det])det.prod.xPed='41561380';
+ const out=parseNfe(parsed,[recipient]);
+ assert.deepEqual(out.customer_order_references,['OS-000002']);
+ assert.deepEqual(out.supplier_order_references,['41561380']);
+ assert.deepEqual(out.order_references,['OS-000002','41561380']);
+});
