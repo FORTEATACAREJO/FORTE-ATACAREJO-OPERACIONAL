@@ -68,7 +68,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -113,6 +113,12 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
  </section>;
  if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
+ const savedPlates=(c?.placas||[]).filter(Boolean);
+ const currentLink=fleetLinks.find(link=>link.fim_em==null&&link.motorista_operacional_id===(c?.motoristaId||driver?.id));
+ const linkedVehicle=fleetVehicles.find(vehicle=>vehicle.id===currentLink?.veiculo_id);
+ const driverPlates=[driver?.placa1,driver?.placa2,driver?.placa3,driver?.placa4].filter(Boolean);
+ const registeredPlates=linkedVehicle?.placa?[linkedVehicle.placa,...(linkedVehicle.placas_carretas?.length?linkedVehicle.placas_carretas:driverPlates[0]===linkedVehicle.placa?driverPlates.slice(1):[])]:driverPlates;
+ const displayedPlates=savedPlates.length?savedPlates:registeredPlates;
  const supplierDocs=documents.filter(doc=>!doc.clienteId&&!doc.vendaId);
  const customerDocs=documents.filter(doc=>doc.clienteId||doc.vendaId);
  const statusTone=r.status==='CONCILIADA'?'good':r.status==='DIVERGENTE'?'bad':'warn';
@@ -153,7 +159,8 @@ export default function PedidosFT({data={},currentUser,onGo,onOpenDocument,initi
    {onChangeDriver&&<DriverChange key={c.id} carga={c} options={driverOptions} onSave={onChangeDriver} busy={busy}/> }
    {driver&&onLinkVehicle&&<button type="button" className="ft-primary" disabled={busy} onClick={()=>onLinkVehicle(driver.id)}>Vincular motorista e veículo</button>}
    {driver&&<DriverIntake key={driver.id} driver={driver}/>}
-   <Field label="Placas" value={(c.placas||[]).join(' / ')||(driver?.documentosConferidos===false?'':driver?.placa1)}/>
+   <Field label={savedPlates.length||!displayedPlates.length?'Placas':'Placas do cadastro'} value={displayedPlates.join(' / ')}/>
+   {!savedPlates.length&&displayedPlates.length>0&&<p className="ft-hint">Conjunto cadastrado. Confira as placas ao gravar a ordem.</p>
    <Field label="Proprietário" value={c.motoristaSnapshot?.proprietario||driver?.proprietario}/>
    <Field label="Expedição do pedido" value={c.localCarregamento||c.origem}/>
    {c.ordemRevisadaEm&&onDriverActions?.(c)}
