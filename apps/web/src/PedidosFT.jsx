@@ -129,7 +129,7 @@ function DriverChange({carga,options=[],onSave,busy}){
  </div>}</div>;
 }
 
-export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,onReadInternalDocument,onSendInternalDossier,onInternalRecipients,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,onUnlinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
+export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],currentUser,onGo,onOpenDocument,onReadInternalDocument,onSendInternalDossier,onInternalRecipients,initialCargaId='',driverOptions=[],onChangeDriver,onSelectCarga,onDriverActions,onLinkVehicle,onAttachClientBoletos,onSyncSupplierDocs,onLinkSale,onUnlinkSale,availableSales=[],onValidateDocument,onReleasePallets,onFinalize,onPurgeTestOrder,onPurchaseActions,returnField=0,busy=false,extraActions,onConfirmSupplierOrder,onSearchSupplierOrder,onLinkSupplierOrder,onUnlinkSupplierOrder,onRefreshConfirmation}) {
  const cargas=useMemo(()=>(data.cargas||[]).filter(x=>x?.id).slice().reverse(),[data.cargas]);
  const [selection,setSelection]=useState(initialCargaId);
  const [loadView,setLoadView]=useState(null);
@@ -166,7 +166,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
     <FtOptions canConfigure={!!onInternalRecipients} extraActions={extraActions} onSelect={v=>{setPendingFilter('');setLoadView(v);}}/>
    </div>
   </header>
-  <PedidosFTLoadPanel data={data} cargas={cargas} onClose={onFinalize} busy={busy} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
+  <PedidosFTLoadPanel data={data} cargas={cargas} onClose={onFinalize} onPurge={onPurgeTestOrder} busy={busy} showReports={loadView==='relatorios'} pendingFilter={pendingFilter} onOpen={id=>{
    setSelection(id);onSelectCarga?.(id);setScrollField(pendingTypes.find(t=>t[0]===pendingFilter)?.[2]||null);
    setLoadView(null);
   }}/>
