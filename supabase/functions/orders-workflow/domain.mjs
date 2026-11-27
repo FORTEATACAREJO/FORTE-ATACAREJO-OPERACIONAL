@@ -331,16 +331,50 @@ export function applyWorkflow(original,b,p,{id,at}){
 export function matchingSupplierInvoices(state,cargaId,xmlSources){
  const digits=v=>String(v||'').replace(/\D/g,'');
  const ref=v=>String(v||'').trim().toUpperCase();
+ const osRef=v=>{const m=ref(v).match(/^OS[-\s]?(\d{3,12})$/);return m?'OS-'+m[1].padStart(6,'0'):'';};
+ const productKey=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+ const distinct=xs=>[...new Set(xs.filter(Boolean))];
  const purchases=arr(state,'comprasFornecedor');
- const all=arr(state,'cargas').filter(c=>c.status!=='CANCELADA').map(c=>{
+ const all=arr(state,'cargas').map(c=>{
   const o=purchases.find(o=>o.id===c.compraFornecedorId||o.cargaId===c.id);
   const supplier=arr(state,'fornecedores').find(f=>f.id===(c.fornecedorId||o?.fornecedorId));
-  return {id:c.id,issuer:digits(o?.fornecedorSnapshot?.cnpj||c.fornecedorSnapshot?.cnpj||supplier?.cnpj),buyer:digits(o?.cnpjComprador||c.cnpjComprador||arr(state,'unidades').find(u=>u.id===c.unidadeId)?.cnpj),refs:[o?.numero,c.numeroOS,o?.numeroPedidoFornecedor,c.numeroPedidoFornecedor].map(ref).filter(Boolean)};
+  const os=distinct([o?.numero,c.numeroOS].map(osRef));
+  const official=distinct([o?.numeroPedidoFornecedor,c.numeroPedidoFornecedor].map(officialNumberKey));
+  return {id:c.id,order:o,load:c,issuer:digits(o?.fornecedorSnapshot?.cnpj||c.fornecedorSnapshot?.cnpj||supplier?.cnpj),buyer:digits(o?.cnpjComprador||c.cnpjComprador||arr(state,'unidades').find(u=>u.id===c.unidadeId)?.cnpj),os,official};
  });
+ function itemsMatch(c,m){
+  const expected=c.order?.itens?.length?c.order.itens:c.load.itensPedido?.length?c.load.itensPedido:c.load.itens;
+  if(!Array.isArray(expected)||!expected.length||!Array.isArray(m.items)||!m.items.length)return false;
+  const wanted=new Map();
+  for(const line of expected){
+   const p=arr(state,'produtos').find(x=>x.id===line.produtoId),q=Number(line.qtd);
+   if(!p||!Number.isFinite(q)||q<=0)return false;
+   if(!wanted.has(p.id))wanted.set(p.id,{q:0,names:distinct([line.produto,p.nome,p.nomeExatoContador].map(productKey)),unit:productKey(line.unidadeMedida||p.unidadeMedida||p.unidade)});
+   wanted.get(p.id).q+=q;
+  }
+  const actual=new Map();
+  const unit=v=>['SC','SACO','SACOS'].includes(v)?'SC':v;
+  for(const line of m.items){
+   const matches=[...wanted].filter(([,p])=>p.names.includes(productKey(line.description))&&unit(p.unit)===unit(productKey(line.unit)));
+   if(matches.length!==1||!Number.isFinite(Number(line.quantity))||Number(line.quantity)<=0)return false;
+   const id=matches[0][0];actual.set(id,(actual.get(id)||0)+Number(line.quantity));
+  }
+  return [...wanted].every(([id,p])=>actual.get(id)===p.q);
+ }
  return xmlSources.filter(src=>{
-  const m=src.metadata||{},refs=[...new Set((m.order_references||[]).map(ref).filter(Boolean))];
-  if(src.kind!=='XML_NFE'||src.allowed!==true||!src.dossier_id||!/^[0-9]{44}$/.test(m.key||'')||refs.length!==1||m.protocol?.status!=='100')return false;
-  const matches=all.filter(c=>c.issuer.length===14&&c.buyer.length===14&&c.issuer===digits(m.issuer_cnpj)&&c.buyer===digits(m.recipient_cnpj)&&c.refs.includes(refs[0]));
-  return matches.length===1&&matches[0].id===cargaId;
+  const m=src.metadata||{},raw=distinct((m.order_references||[]).map(ref));
+  const os=distinct([...(m.customer_order_references||[]),...raw].map(osRef));
+  const official=distinct([...(m.supplier_order_references||[]),...raw].filter(v=>!osRef(v)).map(officialNumberKey));
+  if(src.kind!=='XML_NFE'||src.allowed!==true||!src.dossier_id||!/^[0-9]{44}$/.test(m.key||'')||m.protocol?.status!=='100'||os.length>1||official.length>1||(!os.length&&!official.length))return false;
+  if((m.issues||[]).some(x=>/^(CHAVE_INVALIDA|CNPJ_INVALIDO|CNPJ_DESTINATARIO_NAO_CADASTRADO|IDENTIDADE_XML_DIVERGENTE|PROTOCOLO_AUTORIZACAO_DIVERGENTE|PRODUTOS_QUANTIDADES_OU_CODIGOS_INVALIDOS|VALORES_PRODUTOS_DIVERGENTES|DUPLICATAS_DIVERGENTES)$/.test(x)))return false;
+  const matches=all.filter(c=>c.issuer.length===14&&c.buyer.length===14&&c.issuer===digits(m.issuer_cnpj)&&c.buyer===digits(m.recipient_cnpj)&&(os.length?c.os.includes(os[0])&&(!official.length||!c.official.length||c.official.every(n=>n===official[0])):c.official.includes(official[0])));
+  if(matches.length!==1||matches[0].id!==cargaId||matches[0].load.status==='CANCELADA'||matches[0].load.finalizadaEm)return false;
+  const c=matches[0];
+  if(official.length&&all.some(other=>other.id!==c.id&&other.official.includes(official[0])))return false;
+  // Current parser supplies items. Legacy references with no items remain compatible only if no new typed metadata is present.
+  if(Array.isArray(m.items)||Array.isArray(m.customer_order_references)||Array.isArray(m.supplier_order_references)){if(!itemsMatch(c,m))return false;}
+  const total=c.order?.itens?.reduce((sum,l)=>sum+Number(l.total),0);
+  if(Number.isFinite(total)&&total>0&&Number.isSafeInteger(m.total_cents)&&Math.round(total*100)!==m.total_cents)return false;
+  return true;
  });
 }
