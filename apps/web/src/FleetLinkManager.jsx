@@ -128,31 +128,28 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
  }
  const linkForm=<>
   <h3>Vincular motorista e veículo</h3>
-  <p>Escolha o motorista à esquerda e a placa à direita. Confirme o vínculo no centro.</p>
+  <p>Selecione o motorista, escolha o veículo e confirme o vínculo.</p>
   <form className="ft-fleet-pair-form" onSubmit={linkDriver} aria-label="Vincular motorista a veículo">
    <div className="ft-fleet-pair-grid">
     <section className="ft-fleet-column" aria-label="Motoristas">
-     <h4>Motoristas ({allDrivers.length})</h4>
+     <h4>1. Escolha o motorista</h4>
      {!initialDriverId&&<input type="search" aria-label="Buscar motorista" placeholder="Nome" value={driverQuery} onChange={e=>setDriverQuery(e.target.value)}/>}
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar motorista">
-      {shownDrivers.map(d=>{const l=current.find(l=>l.motorista_operacional_id===d.id);return <button key={d.id} type="button" aria-pressed={choice.motorista_operacional_id===d.id} disabled={busy||!!initialDriverId&&d.id!==initialDriverId} onClick={()=>selectDriver(d.id)}>
+      {(initialDriverId?shownDrivers.filter(d=>d.id===initialDriverId):shownDrivers).map(d=>{const l=current.find(l=>l.motorista_operacional_id===d.id);return <button key={d.id} type="button" aria-pressed={choice.motorista_operacional_id===d.id} disabled={busy||!!initialDriverId&&d.id!==initialDriverId} onClick={()=>selectDriver(d.id)}>
        <strong>{d.nome}</strong><small>{l?'Vinculado · '+(vehicleById.get(l.veiculo_id)?.placa||'Veículo a conferir'):'Sem vínculo'}{d.ativo===false?' · Pré-cadastro/inativo':''}</small>
       </button>;})}
       {!shownDrivers.length&&<p>Nenhum motorista encontrado.</p>}
      </div>
     </section>
-    <div className="ft-fleet-pair-center">
-     <span className="ft-fleet-connector" aria-hidden="true">↔</span>
-     {driverLink?<><span className="ft-fleet-pair-status">VINCULADO</span>{isAdmin&&<button type="button" className="ft-fleet-unlink" disabled={busy||loading||!loaded} onClick={()=>unlinkDriver(driverLink.id)}>Desvincular</button>}</>:<button type="submit" className="ft-fleet-connect" aria-label="VINCULAR MOTORISTA" disabled={!isAdmin||busy||loading||!loaded||!check.ok}>Vincular</button>}
-    </div>
     <section className="ft-fleet-column" aria-label="Veículos">
-     <h4>Veículos ({vehicles.length})</h4>
-     <input type="search" aria-label="Buscar veículo pela placa" placeholder="Placa" value={vehicleQuery} onChange={e=>setVehicleQuery(e.target.value)}/>
+     <h4>2. Escolha o veículo</h4>
+     {!selectedDriver&&<p>Selecione um motorista para buscar a placa.</p>}
+     <input type="search" disabled={!selectedDriver||!!driverLink||busy} aria-label="Buscar veículo pela placa" placeholder="Placa" value={vehicleQuery} onChange={e=>setVehicleQuery(e.target.value)}/>
      <div className="ft-fleet-select-list" role="group" aria-label="Selecionar veículo">
-      {shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink||v.ativo===false} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
-       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):v.ativo===false?'Inativo':'Disponível'}</small>
+      {selectedDriver&&shownVehicles.map(v=>{const l=vehicleDriver({links:current,vehicleId:v.id});return <button key={v.id} type="button" aria-pressed={displayedVehicleId===v.id} disabled={busy||loading||!!driverLink||v.ativo===false} onClick={()=>setChoice(s=>({...s,veiculo_id:v.id}))}>
+       <strong>{v.placa}</strong><small>{v.tipo}</small><small>{l?'Vinculado · '+driverName(allDrivers,l.motorista_operacional_id):v.ativo===false?'Inativo · indisponível para vínculo':'Disponível'}</small>
       </button>;})}
-      {!shownVehicles.length&&<p>{loading?'Consultando veículos…':'Nenhum veículo encontrado.'}</p>}
+      {selectedDriver&&!shownVehicles.length&&<p>{loading?'Consultando veículos…':'Nenhum veículo encontrado.'}</p>}
      </div>
     </section>
    </div>
@@ -162,6 +159,9 @@ export default function FleetLinkManager({drivers=[],isAdmin=false,initialDriver
    {selectedVehicle&&<small>Transportadora: {carrierLabel(selectedVehicle,vehicleLink)}</small>}
    {!driverLink&&choice.motorista_operacional_id&&choice.veiculo_id&&!check.ok&&<p role="alert">{check.reason}</p>}
    {isAdmin&&!driverLink&&<label className="ft-fleet-note">Observação (opcional)<input value={choice.observacao} onChange={e=>setChoice(v=>({...v,observacao:e.target.value}))} placeholder="Ex.: substituição de motorista"/></label>}
+    <div className="ft-fleet-pair-center">
+     {driverLink?<><span className="ft-fleet-pair-status">VINCULADO</span>{isAdmin&&<button type="button" className="ft-fleet-unlink" disabled={busy||loading||!loaded} onClick={()=>unlinkDriver(driverLink.id)}>Desvincular</button>}</>:<button type="submit" className="ft-fleet-connect" aria-label="VINCULAR MOTORISTA" disabled={!isAdmin||busy||loading||!loaded||!check.ok}>Vincular motorista e veículo</button>}
+    </div>
    <small>O vínculo permanece até ser encerrado manualmente. Vincular não libera o transporte; a ordem precisa ser conferida.</small>
   </form>
  </>;
