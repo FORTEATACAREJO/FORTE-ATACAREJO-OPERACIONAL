@@ -1,4 +1,9 @@
-export const fields={nome:'Nome completo',cpf:'CPF',whatsapp:'WhatsApp',email:'E-mail',cnh:'Registro CNH',categoria:'Categoria CNH',validade:'Validade CNH',endereco:'Endereço',cidade:'Cidade/UF',proprietario:'É proprietário do veículo?',nomeProprietario:'Nome do proprietário',placaCavalo:'Placa do cavalo',placaCarreta1:'Placa da carreta 1',placaCarreta2:'Placa da carreta 2'};
+export const fields={nome:'Nome completo',cpf:'CPF',whatsapp:'WhatsApp',email:'E-mail',cnh:'Registro CNH',categoria:'Categoria CNH',validade:'Validade CNH',endereco:'Endereço (opcional)',cidade:'Cidade/UF',proprietario:'É proprietário do veículo?',nomeProprietario:'Nome ou razão social do proprietário',documentoProprietario:'CPF ou CNPJ do proprietário',pixFrete:'Chave Pix do frete',placaCavalo:'Placa do cavalo',placaCarreta1:'Placa da carreta 1 (opcional)',placaCarreta2:'Placa da carreta 2 (opcional)',placaCarreta3:'Placa da carreta 3 (opcional)'};
+export const intakeGroups=[
+ ['Motorista',['nome','whatsapp','cpf','cnh','categoria','endereco']],
+ ['Proprietário',['nomeProprietario','pixFrete']],
+ ['Veículo',['placaCavalo','placaCarreta1','placaCarreta2','placaCarreta3']]
+];
 export const documents={cnhFrente:'CNH frente',cnhVerso:'CNH verso',cnhDigital:'CNH Digital (PDF)',cavalo:'Documento do caminhão',carreta1:'Documento da carreta 1',carreta2:'Documento da carreta 2',conjunto:'Foto do conjunto a 45°'};
 export const maxFile=6*1024*1024,maxBody=12*1024*1024;
 export function validateFields(input){
@@ -36,4 +41,9 @@ export function scopeAllows(scope,kind,key){return scope==null||scope[kind].incl
 export function suggestedFields(driver){
  const values={nome:driver.nome,cpf:driver.cpf,whatsapp:driver.whatsapp||driver.telefone,cnh:driver.cnhNumero||driver.cnh,categoria:driver.cnhCategoria||driver.categoria_cnh,validade:driver.cnhValidade||driver.validade_cnh};
  return Object.keys(values).filter(k=>!String(values[k]||'').trim()||(['cpf','cnh'].includes(k)&&String(values[k]).replace(/\D/g,'').length!==11));
+}
+
+export function driverPrefill(driver,scope){
+ const values={nome:driver?.nome,placaCavalo:driver?.placa1,placaCarreta1:driver?.placa2,placaCarreta2:driver?.placa3,placaCarreta3:driver?.placa4};
+ return Object.fromEntries(Object.entries(values).filter(([key,value])=>typeof value==='string'&&value.trim()&&scopeAllows(scope,'fields',key)));
 }

@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
-import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken,validateScope,scopeAllows} from './validation.mjs';
+import {fields,documents,validateFields,identifyFile,maxFile,maxBody,validToken,validateScope,scopeAllows,driverPrefill} from './validation.mjs';
 const origins=new Set(['https://pedidos-ft.onrender.com','https://forte-vendas.onrender.com']);
 const url=Deno.env.get('SUPABASE_URL')!,secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -28,7 +28,7 @@ async function admin(req:Request){
 }
 async function linkFor(req:Request){
  const t=req.headers.get('x-cadastro-token');if(!validToken(t))throw new Fault(403,'Link inválido ou expirado.');
- const l=check(await db.from('fc_driver_intake_links').select('id,empresa_id,expira_em,revogado_em,solicitacao').eq('token_hash',await hash(t!)).maybeSingle());
+ const l=check(await db.from('fc_driver_intake_links').select('id,empresa_id,motorista_id,expira_em,revogado_em,solicitacao').eq('token_hash',await hash(t!)).maybeSingle());
  if(!l||l.revogado_em||Date.parse(l.expira_em)<=Date.now())throw new Fault(403,'Link inválido ou expirado.');
  return l;
 }
@@ -41,7 +41,13 @@ Deno.serve(async(req)=>{
  if(req.method!=='POST')return reply({error:'Método inválido.'},405);
  try{
   const action=req.headers.get('x-cadastro-action');
-  if(action==='CHECK'){const l=await linkFor(req);return reply(l.solicitacao?{ok:true,solicitacao:l.solicitacao}:{ok:true});}
+  if(action==='CHECK'){
+   const l=await linkFor(req);
+   const state=check(await db.from('fc_app_state').select('estado').eq('empresa_id',l.empresa_id).maybeSingle());
+   const driver=state?.estado?.motoristas?.find((m:any)=>m.id===l.motorista_id);
+   const prefill=driverPrefill(driver,l.solicitacao);
+   return reply({ok:true,...(l.solicitacao?{solicitacao:l.solicitacao}:{}),...(Object.keys(prefill).length?{prefill}:{})});
+  }
   if(action==='SUBMIT'){
    const l=await linkFor(req);
    const body=await readBounded(req),form=await body.formData();
