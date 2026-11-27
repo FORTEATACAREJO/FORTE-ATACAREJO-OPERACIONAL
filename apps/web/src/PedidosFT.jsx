@@ -46,8 +46,6 @@ function SupplierOrderNumber({value,canConfirm,busy,onConfirm,onSearch,onLink,on
  const [evidence,setEvidence]=useState('');
  const channel=supplierConfirmationChannel(supplier),channelLabel=channel==='EMAIL'?'E-mail':channel==='WHATSAPP'?'WhatsApp':'Não definido';
  const contact=channel==='EMAIL'?String(supplier?.emailPedidos||supplier?.email||'').trim():channel==='WHATSAPP'?phone(supplier?.whatsapp||supplier?.telefone):'';
- const reminder='Olá! Por gentileza, informe o número oficial do pedido referente à nossa '+(order?.numero||'OS')+'. Obrigado!';
- const reminderUrl=channel==='WHATSAPP'&&contact?'https://wa.me/'+contact+'?text='+encodeURIComponent(reminder):channel==='EMAIL'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)?'mailto:'+contact+'?subject='+encodeURIComponent('Confirmação '+order?.numero)+'&body='+encodeURIComponent(reminder):'';
  const [searching,setSearching]=useState(false),[matches,setMatches]=useState(null),[searchError,setSearchError]=useState(''),[linked,setLinked]=useState(false);
  async function search(){setSearching(true);setMatches(null);setSearchError('');setLinked(false);try{const result=await onSearch();const candidates=result.candidates||[];if(candidates.length===1){await onLink(candidates[0].messageId);setLinked(true);}else setMatches(candidates);}catch(e){setSearchError(e.message||'Não foi possível pesquisar no Gmail.');}finally{setSearching(false);}}
  async function link(match){setSearching(true);setSearchError('');try{await onLink(match.messageId);setLinked(true);setMatches(null);}catch(e){setSearchError(e.message||'Não foi possível vincular. Pesquise novamente.');}finally{setSearching(false);}}
@@ -67,9 +65,9 @@ function SupplierOrderNumber({value,canConfirm,busy,onConfirm,onSearch,onLink,on
   <Field label="Contato cadastrado" value={contact||'Não cadastrado'}/>
   {channel==='WHATSAPP'&&<p className="ft-hint">Aguardando resposta do fornecedor pelo WhatsApp. O número será vinculado quando a mensagem identificar esta OS ou responder ao pedido original.</p>}
   {channel==='WHATSAPP'&&onRefreshConfirmation&&<button type="button" className="ft-outline" disabled={busy||searching} onClick={async()=>{setSearching(true);setSearchError('');try{await onRefreshConfirmation();}catch(e){setSearchError(e.message);}finally{setSearching(false);}}}>Atualizar retorno do WhatsApp</button>}
-  {reminderUrl&&!linked&&<a className="ft-outline" href={reminderUrl} target={channel==='WHATSAPP'?'_blank':undefined} rel="noopener noreferrer">Preparar cobrança do retorno pelo {channelLabel}</a>}
   {channel!=='EMAIL'&&searchError&&<p role="alert">{searchError}</p>}
   {channel==='EMAIL'&&onSearch&&onLink&&<div className="ow-actions">
+   <p className="ft-hint">A CIPLAN envia a confirmação automaticamente. A busca verifica os e-mails recebidos e compara produtos e quantidades da compra, mesmo sem nossa OS no e-mail.</p>
    <button type="button" className="ft-primary" disabled={busy||searching||linked} onClick={search}>{searching?'Consultando Gmail…':'Pesquisar confirmação no e-mail'}</button>
    {searchError&&<p role="alert" className="ft-hint">{searchError}</p>}
    {linked&&<p role="status">Número vinculado. Atualize a OS para conferir.</p>}
