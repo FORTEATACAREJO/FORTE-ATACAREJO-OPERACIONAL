@@ -10,7 +10,7 @@ async function invoke(action,body){
 }
 export default function DriverIntake({driver}){
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[link,setLink]=useState(''),[result,setResult]=useState(null);
- const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>[...suggestedFields(driver).filter(k=>intakeGroups[0][1].includes(k)),...intakeGroups[1][1]]);
+ const [mode,setMode]=useState('pendencias'),[requestedFields,setRequestedFields]=useState(()=>[...suggestedFields(driver).filter(k=>intakeGroups[0][1].includes(k)),...intakeGroups.slice(1).flatMap(([,keys])=>keys)]);
  const whatsapp=String(driver.whatsapp||driver.telefone||'').replace(/\D/g,'');
  const to=whatsapp.length===11?'55'+whatsapp:whatsapp;
  const message='Olá, '+(String(driver.nome||'').trim().split(/\s+/)[0]||'motorista')+'! Aqui é da Forte Atacarejo. Abra seu link individual, confira as placas do caminhão e das carretas e complete o que estiver pendente. Depois toque em Enviar para conferência. '+link;
