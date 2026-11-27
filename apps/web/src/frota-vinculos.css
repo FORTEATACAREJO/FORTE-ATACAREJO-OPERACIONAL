@@ -54,3 +54,18 @@
   .ft-fleet-pair-grid{grid-template-columns:minmax(0,1fr);gap:16px}
   .ft-fleet-select-list{max-height:200px}
 }
+
+.ft-fleet-column .ft-fleet-select-list .ft-fleet-needs-review{
+  background:#fff1f2;
+  border-color:#b4233a;
+  color:#86172a;
+}
+.ft-fleet-column .ft-fleet-select-list .ft-fleet-needs-review[aria-pressed=true]{
+  border-color:#86172a;
+  outline:2px solid #86172a;
+  outline-offset:-4px;
+}
+.ft-fleet-review-badge{
+  color:#86172a;
+  font-weight:700;
+}
