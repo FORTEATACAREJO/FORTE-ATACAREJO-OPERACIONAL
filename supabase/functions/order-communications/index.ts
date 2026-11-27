@@ -1,3 +1,5 @@
+import {PDFDocument} from 'npm:pdf-lib@1.17.1';
+import {internalRecipient,internalSnapshot,buildInternalDocument} from './internal-dossier.mjs';
 import {captureInbox,inboxRowFor,persistInbox} from './inbox-store.mjs';
 import {inboxAction} from './inbox-actions.mjs';
 import {purchaseDocument} from './order-document.mjs';
@@ -96,8 +98,59 @@ Deno.serve(async req=>{
   const {data:p}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();if(p)p.perfil=grant.data.role;if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil)||!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&p.permissoes?.vendas!==true&&p.permissoes?.['carga-direta']!==true&&p.permissoes?.['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão.'},{status:403,headers:cors});
   const body=await req.json();const gmailTenant=await admin().from('gmail_hub_config').select('empresa_id').eq('id',true).maybeSingle();if(p.empresa_id!==env('WHATSAPP_TENANT_ID')&&p.empresa_id!==gmailTenant.data?.empresa_id)return Response.json({error:'Integração de mensagens ainda não configurada para esta empresa.'},{status:409,headers:cors});
   if(body.action==='CHANNEL_STATUS')return Response.json(await channelStatus(),{headers:cors});
+  if(body.action==='INTERNAL_DOSSIER_SEND'){
+   if(p.perfil!=='MASTER')return Response.json({error:'Envio interno restrito ao MASTER.'},{status:403,headers:cors});
+   const role=String(body.role||''),to=internalRecipient(env,role),db=admin();
+   if(env('PEDIDOS_FT_INTERNAL_TENANT_ID')!==p.empresa_id)throw Error('Destinatários internos não autorizados para esta empresa.');
+   const row=await rowFor(db,p.empresa_id),snapshot=internalSnapshot(row.estado,String(body.cargaId||''),role);
+   if(!snapshot.os)throw Error('OS não vinculada.');
+   if(!env('WHATSAPP_TEMPLATE_INTERNAL_DOSSIER'))throw Error('Modelo interno de PDF não configurado.');
+   const business=await readBusiness(db,env),template=await requireDocumentTemplate(business,'INTERNAL_DOSSIER',env);
+   const digest=async (bytes:any)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
+   const version=await digest(new TextEncoder().encode(JSON.stringify([role,to,snapshot])));
+   const id='INTERNAL_DOSSIER:'+snapshot.c.id+':'+version;
+   row.estado.comunicacoes??=[];
+   const prior=row.estado.comunicacoes.find((j:any)=>j.id===id);
+   if(prior)return Response.json({state:prior.state,providerId:prior.providerId,reason:prior.reason,message:'Esta versão já possui registro de envio. Confira o histórico.'},{headers:cors});
+   const bytes=await buildInternalDocument(snapshot,role,jsPDF,PDFDocument,async (doc:any)=>{
+    if(doc.gmailSourceId){
+     if(doc.storageBucket!=='forte-gmail-central')throw Error('Origem Gmail inválida.');
+     const source=await db.from('gmail_hub_sources').select('file_id').eq('empresa_id',p.empresa_id).eq('id',doc.gmailSourceId).eq('allowed',true).single();
+     if(source.error||!source.data)throw Error('Origem do documento indisponível.');
+     const stored=await db.from('gmail_hub_files').select('hash,storage_path').eq('empresa_id',p.empresa_id).eq('id',source.data.file_id).single();
+     if(stored.error||stored.data?.hash!==doc.hash||stored.data?.storage_path!==doc.storagePath)throw Error('Documento não confere com a origem.');
+    }else if(doc.storageBucket!=='forte-vendas-dossies'||!String(doc.storagePath||'').startsWith(p.empresa_id+'/'))throw Error('Arquivo não autorizado.');
+    const {data:blob,error}=await db.storage.from(doc.storageBucket).download(doc.storagePath);
+    if(error||!blob)throw Error('Documento original indisponível.');
+    const data=new Uint8Array(await blob.arrayBuffer());if(!doc.hash||await digest(data)!==doc.hash)throw Error('Integridade do documento não conferida.');
+    return data;
+   });
+   const job={id,key:id,kind:'INTERNAL_DOSSIER',audience:'INTERNO',canal:'WHATSAPP',to,cargaId:snapshot.c.id,reference:snapshot.os,recipientRole:role,state:'SENDING',createdAt:new Date().toISOString(),attemptAt:new Date().toISOString(),message:'Dossiê interno para '+role+' • '+snapshot.os};
+   row.estado.comunicacoes.push(job);await persist(db,p.empresa_id,row);
+   let providerId='',failure='',state='FAILED',submitted=false;
+   try{
+    const filename=snapshot.os.replace(/[^A-Za-z0-9_-]/g,'_')+'-'+role+'-DOSSIE.pdf',base='https://graph.facebook.com/'+business.version+'/'+business.phone;
+    const form=new FormData();form.set('messaging_product','whatsapp');form.set('file',new Blob([bytes],{type:'application/pdf'}),filename);
+    const upload=await fetch(base+'/media',{method:'POST',headers:{Authorization:'Bearer '+business.token},body:form,signal:AbortSignal.timeout(20000)});
+    if(!upload.ok)throw Error('PDF recusado pelo WhatsApp.');
+    const media=(await upload.json()).id;if(!media)throw Error('PDF sem identificação.');
+    submitted=true;
+    const response=await fetch(base+'/messages',{method:'POST',headers:{Authorization:'Bearer '+business.token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to,type:'template',template:{name:template,language:{code:'pt_BR'},components:[{type:'header',parameters:[{type:'document',document:{id:media,filename}}]},{type:'body',parameters:[{type:'text',text:snapshot.os},{type:'text',text:role}]}]}}),signal:AbortSignal.timeout(20000)});
+    if(!response.ok){submitted=false;throw Error('WhatsApp recusou o envio ('+response.status+').');}
+    providerId=(await response.json()).messages?.[0]?.id;if(!providerId)throw Error('Resultado não confirmado.');
+    state='SENT';
+   }catch(e){failure=e.message;state=submitted?'UNCERTAIN':'FAILED';}
+   for(let attempt=0;attempt<3;attempt++){
+    const latest=await rowFor(db,p.empresa_id),current=latest.estado.comunicacoes.find((j:any)=>j.id===id);
+    if(!current)throw Error('Histórico não localizado; confira antes de reenviar.');
+    Object.assign(current,{state,providerId,reason:failure,sentAt:providerId?new Date().toISOString():null});
+    try{await persist(db,p.empresa_id,latest);break;}catch(e){if(attempt===2)throw e;}
+   }
+   return Response.json({state,providerId,reason:failure,message:providerId?'PDF aceito pelo WhatsApp Business; entrega ainda não confirmada.':failure||'Envio não confirmado.'},{headers:cors});
+  }
+
   if(String(body.action||'').startsWith('INBOX_'))return Response.json(await inboxAction({body,db:admin(),profile:p,user,env,rowFor:inboxRowFor,persist:persistInbox,readBusiness}),{headers:cors});if(body.action!=='DISPATCH')throw new Error('Ação inválida.');
-  const db=admin();let sent=0,blocked=0;const outcomes=[];let business;const getBusiness=async()=>business??=(await readBusiness(db,env));const initial=await rowFor(db,p.empresa_id);const ids=(initial.estado.comunicacoes||[]).filter((j:any)=>(!body.jobId||j.id===body.jobId)&&(j.state==='QUEUED'||j.state==='BLOCKED'||!!body.jobId&&j.state==='FAILED')).slice(0,10).map((j:any)=>j.id);
+  const db=admin();let sent=0,blocked=0;const outcomes=[];let business;const getBusiness=async()=>business??=(await readBusiness(db,env));const initial=await rowFor(db,p.empresa_id);const ids=(initial.estado.comunicacoes||[]).filter((j:any)=>j.audience!=='INTERNO'&&(!body.jobId||j.id===body.jobId)&&(j.state==='QUEUED'||j.state==='BLOCKED'||!!body.jobId&&j.state==='FAILED')).slice(0,10).map((j:any)=>j.id);
   if(body.jobId&&!ids.length){const known=(initial.estado.comunicacoes||[]).find(j=>j.id===body.jobId);if(!known)throw Error('Envio não localizado nesta empresa.');outcomes.push({id:known.id,state:known.state,reason:known.reason||(['SENDING','UNCERTAIN'].includes(known.state)?'Resultado em processamento ou incerto. Confira antes de reenviar.':''),providerId:known.providerId});}
   for(const id of ids){const row=await rowFor(db,p.empresa_id),j=row.estado.comunicacoes.find((j:any)=>j.id===id);if(!j||!['QUEUED','BLOCKED',...(body.jobId?['FAILED']:[])].includes(j.state))continue;const customer=row.estado.clientes?.find((c:any)=>c.id===j.clienteId);if(j.audience==='CLIENTE'&&!CUSTOMER_AUTOMATIC_MESSAGES_ENABLED){j.state='CANCELLED';j.reason='ENVIOS AUTOMÁTICOS AO CLIENTE DESATIVADOS — USO INTERNO';j.cancelledAt=new Date().toISOString();await persist(db,p.empresa_id,row);outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}if(j.audience==='CLIENTE'&&customer?.whatsappAutorizado!==true){j.state='BLOCKED';j.reason='AUTORIZAÇÃO DO CLIENTE PENDENTE';await persist(db,p.empresa_id,row);blocked++;continue;}
    if(j.audience==='FORNECEDOR'){try{supplierDispatchCapacity(row.estado,j);}catch(e){j.state='BLOCKED';j.reason='CAPACIDADE: '+e.message;await persist(db,p.empresa_id,row);blocked++;outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}}
