@@ -5,11 +5,12 @@ const paymentCategories=['BOLETO CLIENTE','COMPROVANTE PAGAMENTO CLIENTE','RECIB
 const supplierCategories=['PDF NF','XML NF','BOLETO FORNECEDOR','NF PALLETS'];
 const closingCategories=[...supplierCategories,'COMPROVANTE FRETE','COMPROVANTE ENTREGA','COMPROVANTE ENVIO MOTORISTA'];
 const pick=(o,keys)=>Object.fromEntries(keys.filter(k=>o?.[k]!==undefined).map(k=>[k,o[k]]));
-export function currentAssignments(history){
+export function latestAssignments(history){
  const by=new Map();
  for(const h of history){const key=JSON.stringify([h.carga_id,h.user_id]);if(!by.has(key)||by.get(key).revision<h.revision)by.set(key,h);}
- return [...by.values()].filter(h=>h.ativo===true);
+ return [...by.values()];
 }
+export const currentAssignments=history=>latestAssignments(history).filter(h=>h.ativo===true);
 export function scopeFor(history,uid,id){
  const h=currentAssignments(history).find(h=>h.user_id===uid&&h.carga_id===id);
  if(!h||!['JULIANA','PEDRO'].includes(h.papel))fail('Carga não atribuída ao seu usuário.');
