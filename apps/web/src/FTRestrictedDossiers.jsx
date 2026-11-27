@@ -1,6 +1,7 @@
 import {useEffect,useState,useRef} from 'react';
 import {supabase} from './supabase.js';
 import {reportPDF} from './orders-reports.js';
+import {financialSummary} from './pedidos-ft-finance.mjs';
 import {PDFDocument} from 'pdf-lib';
 export async function ftAccess(body){
  const {data,error}=await supabase.functions.invoke('orders-workflow',{body});
@@ -28,7 +29,8 @@ export default function RestrictedDossiers(){
  async function docUrl(doc){return (await ftAccess({action:'FT_DOC_OPEN',cargaId:d.id,documentoId:doc.id})).signedUrl;}
  async function download(doc){try{const url=await docUrl(doc);const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.click();}catch(e){setStatus(e.message);}}
  async function packagePDF(){if(lock.current)return;lock.current=true;setBusy(true);setStatus('');try{
- const sections=[{title:'Identificação',rows:[d.os,d.fornecedor||'',d.numeroPedidoFornecedor||'',d.motorista||'',(d.placas||[]).join(' / ')]},{title:'Compra',rows:d.items.map(i=>i.produto+' • '+i.qtd+' • '+money(i.custoUnitario))},{title:'Vendas por cliente',rows:d.sales.map(v=>v.cliente+' • '+v.produto+' • '+v.qtd+' • '+money(v.precoUnitario)+' • '+money(v.totalVenda)+' • '+(v.condicaoPagamento||v.formaPagamento||''))},{title:'Documentos',rows:d.documents.map(x=>x.categoria+' • '+x.filename+' • '+x.validationStatus)}];
+ const finance=financialSummary({carga:d,order:{itens:d.items,custoTotal:d.custoTotal},sales:d.sales});
+ const sections=[{title:'Identificação',rows:[d.os,d.fornecedor||'',d.numeroPedidoFornecedor||'',d.motorista||'',(d.placas||[]).join(' / ')]},{title:'Compra',rows:d.items.map(i=>i.produto+' • '+i.qtd+' • '+money(i.custoUnitario))},{title:'Vendas por cliente',rows:d.sales.map(v=>v.cliente+' • '+v.produto+' • '+v.qtd+' • '+money(v.precoUnitario)+' • '+money(v.totalVenda)+' • '+(v.condicaoPagamento||v.formaPagamento||''))},{title:'Resumo comercial',rows:['Compra: '+money(finance.custoFornecedor),'Vendas: '+money(finance.receitaVendas),'Frete: '+money(finance.freteDescontado),'Resultado após frete: '+money(finance.resultadoAposFrete)]},{title:'Documentos',rows:d.documents.map(x=>x.categoria+' • '+x.filename+' • '+x.validationStatus)}];
  const pdf=await PDFDocument.load(reportPDF('DOSSIÊ INTERNO — '+d.os,sections).output('arraybuffer'));let size=0;
  for(const doc of d.documents){const r=await fetch(await docUrl(doc),{cache:'no-store'});if(!r.ok)throw Error('Anexo indisponível: '+doc.filename);const bytes=new Uint8Array(await r.arrayBuffer());size+=bytes.length;if(size>45*1024*1024)throw Error('Pacote excede o limite.');if(/\.xml$/i.test(doc.filename))await pdf.attach(bytes,doc.filename,{mimeType:'application/xml'});else{const orig=await PDFDocument.load(bytes);for(const page of await pdf.copyPages(orig,orig.getPageIndices()))pdf.addPage(page);}}
  const url=URL.createObjectURL(new Blob([await pdf.save()],{type:'application/pdf'})),a=document.createElement('a');a.href=url;a.download=d.os+'-DOSSIE.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
