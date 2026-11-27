@@ -17,7 +17,14 @@ export function LoadCloseConfirmation({load,onClose,busy=false}){
  return <div className="ft-close-confirmation"><label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" style={{width:18,height:18,flexShrink:0}} checked={checked} disabled={busy||saving} onChange={e=>setChecked(e.target.checked)}/> Conferi e imprimi o dossiê completo</label>{checked&&<><label>Observação (opcional)<textarea value={observation} maxLength={500} disabled={saving||busy} onChange={e=>setObservation(e.target.value)}/></label><button type="button" className="ft-primary" disabled={busy||saving} onClick={finish}>{saving?'Finalizando…':'Confirmar carga finalizada'}</button></>}{status&&<p role="status">{status}</p>}</div>;
 }
 
-export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen,onClose,busy=false,pendingFilter=''}){
+function TestOrderPurge({load,os,onPurge,busy}){
+ const [marked,setMarked]=useState(false),[confirmation,setConfirmation]=useState(''),[motivo,setMotivo]=useState(''),[status,setStatus]=useState(''),[saving,setSaving]=useState(false);
+ const lock=useRef(false);
+ if(!onPurge)return null;
+ async function purge(){if(lock.current||!marked||confirmation!==os||motivo.trim().length<5)return;lock.current=true;setSaving(true);setStatus('');try{await onPurge(load.id,os,motivo.trim());setMarked(false);}catch(e){setStatus(e.message||'Exclusão bloqueada.');}finally{lock.current=false;setSaving(false);}}
+ return <details><summary>Excluir pedido de teste — MASTER</summary><p className="ft-hint">Exclui a OS e o pedido interno sem efeitos externos. Vendas serão desvinculadas e preservadas. Documentos, cobranças ou envios externos bloqueiam a exclusão.</p><label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" style={{width:18,height:18,flexShrink:0}} checked={marked} disabled={busy||saving} onChange={e=>setMarked(e.target.checked)}/> Confirmo que esta carga é somente de teste</label>{marked&&<><label>Digite {os} para confirmar<input value={confirmation} disabled={busy||saving} onChange={e=>setConfirmation(e.target.value)} autoComplete="off"/></label><label>Motivo da exclusão<textarea value={motivo} maxLength={500} disabled={busy||saving} onChange={e=>setMotivo(e.target.value)}/></label><button type="button" className="ft-outline" disabled={busy||saving||confirmation!==os||motivo.trim().length<5} onClick={purge}>{saving?'Excluindo…':'Excluir definitivamente esta OS'}</button></>}{status&&<p role="alert">{status}</p>}</details>;
+}
+export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen,onClose,onPurge,busy=false,pendingFilter=''}){
  const [query,setQuery]=useState('');
  const [status,setStatus]=useState('');
  const suppliers=new Map((data.fornecedores||[]).map(supplier=>[supplier.id,supplier.nome]));
@@ -68,6 +75,7 @@ export default function PedidosFTLoadPanel({data,cargas,showReports,onOpen,onClo
      {current!=='Finalizadas'&&load.fase&&<small>{load.fase}</small>}
      {official&&<small>Pedido oficial {official}</small>}
      {!showReports&&<LoadCloseConfirmation load={load} onClose={onClose} busy={busy}/>}
+     {!showReports&&<TestOrderPurge load={load} os={os} onPurge={onPurge} busy={busy}/>}
     </div>
     {showReports
      ?<button type="button" className="ft-outline" aria-label={'Baixar PDF da carga '+os} onClick={()=>loadReport(data,load).save(os+'-DOSSIE.pdf')}>Baixar PDF</button>
