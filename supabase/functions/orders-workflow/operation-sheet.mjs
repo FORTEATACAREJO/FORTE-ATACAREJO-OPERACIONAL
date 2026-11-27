@@ -29,6 +29,32 @@ export function linkSales(s,c,ids){
  c.vendaIds=future;c.qtdSemDestino=Number(c.qtd||0)-allocated.reduce((a,v)=>a+Number(v.qtd),0);
  rows.forEach(v=>Object.assign(v,{cargaId:c.id,destinoPainel:'CARGA DIRETA'}));for(const d of list(s,'documentos'))if(d.vendaId&&rows.some(v=>d.vendaId===v.id||d.vendaId===v.grupoPedidoId))d.cargaId=c.id;return rows;
 }
+export function unlinkSale(s,c,saleId,p,{id,at,motivo}){
+ if(p.perfil!=='MASTER')fail('Somente MASTER pode desvincular vendas da OS.');
+ if(c.finalizadaEm||c.status==='CANCELADA'||c.estoqueConsolidado)fail('Carga encerrada ou incorporada ao estoque.');
+ const found=list(s,'vendas').find(v=>v.id===saleId||v.grupoPedidoId===saleId);
+ if(!found)fail('Venda não localizada.');
+ const group=found.grupoPedidoId||found.id,rows=selectedSales(s,[group]);
+ const ids=new Set(rows.map(v=>v.id)),refs=new Set([group,...ids]);
+ if(rows.some(v=>v.cargaId?v.cargaId!==c.id:!(c.vendaIds||[]).includes(v.id)))fail('A venda não está integralmente vinculada a esta OS.');
+ if(new Set(rows.map(v=>v.clienteId)).size!==1)fail('Grupo de venda inconsistente.');
+ const reason=required(motivo,'motivo da desvinculação');
+ if(reason.length<5||reason.length>500)fail('Informe motivo de 5 a 500 caracteres.');
+ const related=x=>refs.has(x.vendaId)||x.vendaIds?.some(i=>refs.has(i));
+ if(rows.some(v=>v.nf||v.numeroNF||v.numeroNotaFiscal||v.notaFiscalId||v.chaveNfe||v.nfeId||v.entregueEm||/FATURAD|LIQUIDAD|PAGO|RECEBID/.test(norm(v.status)))||
+ list(s,'boletosClientes').some(related)||list(s,'contasReceber').some(related)||
+ list(s,'documentos').some(d=>related(d)||(d.cargaId===c.id&&d.clienteId&&rows.some(v=>v.clienteId===d.clienteId)&&!d.vendaId))||
+ list(s,'notasFiscais').some(related)||list(s,'comprovantesClientes').some(related))
+ fail('Venda com faturamento, cobrança ou documento vinculado exige revisão antes de desvincular.');
+ if(list(s,'comunicacoes').some(j=>j.cargaId===c.id&&((j.audience==='INTERNO'&&['SENDING','UNCERTAIN'].includes(j.state))||(related(j)&&['SENDING','UNCERTAIN','SENT','DELIVERED','READ'].includes(j.state)))))fail('Há comunicação enviada ou em andamento que exige conferência antes de desvincular.');
+ c.vendaIds=(c.vendaIds||[]).filter(i=>!ids.has(i));
+ for(const v of rows){v.cargaId='';v.destinoPainel='AGUARDANDO ROTEAMENTO';v.historicoVinculos=[...(v.historicoVinculos||[]),{id,at,actor:p.user_id,cargaId:c.id,acao:'DESVINCULAR',motivo:reason}];}
+ const remaining=list(s,'vendas').filter(v=>!terminalSale(v)&&(v.cargaId===c.id||!v.cargaId&&(c.vendaIds||[]).includes(v.id)));
+ c.qtdSemDestino=(c.itens||[]).reduce((a,i)=>a+Number(i.qtd),0)-remaining.reduce((a,v)=>a+Number(v.qtd),0);
+ if(c.fase==='AGUARDANDO CONFIRMAÇÃO DE ENTREGA')c.fase='CONFERIR DISTRIBUIÇÃO DA CARGA';
+ for(const j of list(s,'comunicacoes'))if(j.cargaId===c.id&&related(j)&&['QUEUED','BLOCKED','FAILED'].includes(j.state))Object.assign(j,{state:'CANCELLED',reason:'VENDA DESVINCULADA'});
+ return {cargaId:c.id,vendaId:group,vendaIds:[...ids],motivo:reason,qtdSemDestino:c.qtdSemDestino,warning:'Venda preservada e disponível para nova vinculação. Confira a distribuição e atualize os dossiês internos anteriores.'};
+}
 function invoiceItems(s,n,mapping){
  if(!n.produtos?.length||!Array.isArray(mapping)||mapping.length!==n.produtos.length)fail('Confira o vínculo de todos os produtos da nota.');
  const lines=n.produtos.map((item,index)=>{
