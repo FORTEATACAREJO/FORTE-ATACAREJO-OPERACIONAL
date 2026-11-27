@@ -113,6 +113,7 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  </section>;
  if(!d)return <section className="ft-app" aria-label="PEDIDOS FT"><header className="ft-top"><FtTitle subtitle="Criação e acompanhamento de pedidos"/><FtOptions onSelect={setLoadView}/></header><Panel title="Nenhuma carga localizada"><p>Cadastre um pedido ao fornecedor para iniciar o primeiro dossiê.</p><button type="button" className="ft-primary" onClick={()=>go('novo-fornecedor')}>Criar pedido ao fornecedor</button></Panel></section>;
  const {carga:c,order,supplier,driver,clients,reconciliation:r,finance,pallets,documents,items,timeline}=d;
+ const supplierOrderNumber=String(c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||'').trim();
  const savedPlates=(c?.placas||[]).filter(Boolean);
  const currentLink=fleetLinks.find(link=>link.fim_em==null&&link.motorista_operacional_id===(c?.motoristaId||driver?.id));
  const linkedVehicle=fleetVehicles.find(vehicle=>vehicle.id===currentLink?.veiculo_id);
@@ -129,12 +130,13 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    <div className="ft-top-actions"><button type="button" className="ft-primary ft-create-btn" onClick={()=>go('novo-fornecedor')}>Novo pedido ao fornecedor</button><FtOptions onSelect={v=>{setPendingFilter('');setLoadView(v);}}/></div>
   </header>
   <details className="ft-card ft-pending-collapsed" aria-label="Central de pendências"><summary>Central de pendências · {pendingLoads.filter(l=>l.keys.some(k=>!['finalizada','cancelada'].includes(k))).length} carga(s) a conferir</summary><button type="button" className="ft-text-button" onClick={()=>{setPendingFilter('');setLoadView('cargas');}}>Todas as cargas</button><div className="ft-pending-grid">{pendingTypes.map(([key,label])=><button type="button" className="ft-outline" key={key} onClick={()=>{setPendingFilter(key);setLoadView('cargas');}}><strong>{pendingLoads.filter(l=>l.keys.includes(key)).length}</strong><span>{label}</span></button>)}</div><small>Uma carga pode ter mais de uma pendência. Selecione uma etapa para abrir a carga e o campo correspondente.</small></details>
-  <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select></div>
+  <div className="ft-picker"><label htmlFor="ft-carga">Nossa OS</label><select id="ft-carga" aria-label="Selecionar carga do PEDIDOS FT" value={cargaId} onChange={e=>{setSelection(e.target.value);onSelectCarga?.(e.target.value);}}>{cargas.map(x=>{const linked=(data.comprasFornecedor||[]).find(o=>o.id===x.compraFornecedorId||o.cargaId===x.id);return <option key={x.id} value={x.id}>{linked?.numero||x.numeroOS||'OS não vinculada'}</option>;})}</select>
+   <Field label="Pedido oficial do fornecedor" value={supplierOrderNumber||'Aguardando retorno por e-mail ou WhatsApp'}/>
+  </div>
 
   <nav className="ft-step-nav" aria-label="Etapas da OS">{['Compra e paletes','Motorista','Clientes','Conciliação e faturamento','Fechamento','Histórico'].map((label,i)=><button type="button" className="ft-outline" key={label} onClick={()=>jump(i+1)}><span>{i+1}</span> {label}</button>)}</nav>
   <Panel title="1. Compra, fornecedor e paletes" aside={<button type="button" className="ft-text-button" onClick={()=>go('fornecedor',1)}>Abrir compra</button>}>
    <Field label="Fornecedor" value={supplier?.nome||c.fornecedor}/>
-   <Field label="Pedido oficial do fornecedor" value={c.numeroPedidoFornecedor||order?.numeroPedidoFornecedor||"Aguardando"}/>
    <Field label="Pagamento do fornecedor" value={order?.pagamento||c.condicaoFornecedor||'Não registrado'}/>
    <Field label="Vencimentos previstos" value={paymentScheduleText(order||c)||'Não registrados'}/>
    <Field label="Expedição (origem da carga)" value={c.localCarregamento||c.origem}/>
