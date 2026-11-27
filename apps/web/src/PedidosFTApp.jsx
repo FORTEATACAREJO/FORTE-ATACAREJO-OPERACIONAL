@@ -1,5 +1,5 @@
 import {paymentKey} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
-import {useCallback,useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
 import {validSupplierCatalog} from '../../../supabase/functions/orders-workflow/supplier-catalog.mjs';
 import {applyAuthUser,loadCloudState,saveCloudState,supabase} from './supabase.js';
@@ -76,40 +76,35 @@ export default function PedidosFTApp({profile,grants}){
   if(error)setNotice('Não foi possível sair. Tente novamente.');
   else window.location.reload();
  }
- const toolsMenu=useRef(null);
  useEffect(()=>{
   const closeOutside=event=>{
-   const menu=toolsMenu.current;
-   if(menu?.open&&!menu.contains(event.target))menu.open=false;
+   const menu=document.querySelector('.pedidos-ft-standalone .ft-admin-tools[open]');
+   if(menu&&!menu.contains(event.target))menu.open=false;
   };
   document.addEventListener('pointerdown',closeOutside);
   return ()=>document.removeEventListener('pointerdown',closeOutside);
  },[]);
- function closeTools(){
-  const menu=toolsMenu.current;
-  if(!menu?.open)return;
-  menu.open=false;
-  menu.querySelector('summary')?.focus();
+ function closeTools(event){
+  const menu=event.currentTarget.closest('details');
+  if(menu?.open){
+   menu.open=false;
+   menu.querySelector('summary')?.focus();
+  }
  }
+ const extraActions=<>
+  <div data-forte-top-actions/>
+  {allowed&&<button type="button" disabled={checkingChannels} onClick={event=>{closeTools(event);checkChannels();}}>Conferir e-mail / WhatsApp</button>}
+  <button type="button" onClick={event=>{closeTools(event);signOut();}}>Sair</button>
+ </>;
  return <main className="pedidos-ft-standalone">
-  <header className="pedidos-ft-toolbar">
-   <span className="ft-toolbar-label">Gestão de pedidos e cargas</span>
-   <details className="ft-admin-tools" ref={toolsMenu} onKeyDown={event=>{
-    if(event.key==='Escape'&&toolsMenu.current?.open){event.stopPropagation();closeTools();}
-   }}>
-    <summary aria-label="Ferramentas e cadastros"><span aria-hidden="true">⋮</span></summary>
-    <div className="ft-toolbar-menu">
-     <div data-forte-top-actions/>
-     {allowed&&<button type="button" disabled={checkingChannels} onClick={()=>{closeTools();checkChannels();}}>Conferir e-mail / WhatsApp</button>}
-     <button type="button" onClick={()=>{closeTools();signOut();}}>Sair</button>
-    </div>
-   </details>
-  </header>
+  {(!allowed||!data)&&<header className="pedidos-ft-toolbar">
+   <details className="ft-admin-tools"><summary aria-label="Mais opções">⋮</summary><div className="ft-toolbar-menu">{extraActions}</div></details>
+  </header>}
   {!allowed?<section className="ft-guard" role="alert"><h1>Pedidos FT</h1><p>Acesso exclusivo para usuários Master autorizados.</p></section>:
    <>
     {notice&&<p role="alert" className="ft-warning">{notice}</p>}
     {channels&&<section className="ft-channel-check" role="status"><header><h3>Verificação de e-mail e WhatsApp Business</h3><button type="button" onClick={()=>setChannels(null)}>Fechar</button></header>{channels.error?<p className="ft-warning">{channels.error}</p>:<><p><strong>E-mail Hostinger:</strong> {channels.email?.ready?'✓ Caixa autorizada':'⚠ Verificação pendente'} — {channels.email?.detail}</p><p><strong>WhatsApp Business:</strong> {channels.whatsapp?.connected?'✓ Conexão cadastrada':'⚠ Conexão não confirmada'}</p><p><strong>Pedido ao fornecedor em PDF:</strong> {channels.whatsapp?.fornecedor?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.fornecedor?.detail}</p><p><strong>Ordem ao motorista em PDF:</strong> {channels.whatsapp?.motorista?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.motorista?.detail}</p><small>Essa conferência não dispara mensagens. O aceite de envio não comprova a entrega ao destinatário.</small></>}</section>}
-    {data?<OrdersWorkspace standalone initialTab="dossie" data={data}
+    {data?<OrdersWorkspace standalone extraActions={extraActions} initialTab="dossie" data={data}
      currentUser={data.usuarios.find(user=>user.id===data.currentUserId)||profile}
      onRefresh={refresh} onCommit={commit} onSaveRegistry={saveRegistry} onManageUsers={openUsers}
      onNavigate={()=>setNotice('Esta operação está disponível no Forte OP.')}
