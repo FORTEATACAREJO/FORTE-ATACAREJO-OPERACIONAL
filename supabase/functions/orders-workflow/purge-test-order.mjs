@@ -3,6 +3,7 @@
 const list=(s,k)=>Array.isArray(s[k])?s[k]:[];
 const fail=m=>{throw Error(m);};
 const removable=new Set(['QUEUED','BLOCKED','CANCELLED']);
+const completedSupplierTest=j=>j.audience==='FORNECEDOR'&&['WHATSAPP','EMAIL'].includes(j.canal)&&['SENT','DELIVERED','READ'].includes(j.state);
 export function purgeTestOrder(s,b,p){
  if(p.perfil!=='MASTER')fail('Exclusão definitiva exclusiva do MASTER.');
  const c=list(s,'cargas').find(x=>x.id===b.cargaId);
@@ -11,7 +12,7 @@ export function purgeTestOrder(s,b,p){
  if(orders.length!==1)fail('Pedido sem vínculo único: exige revisão.');
  const o=orders[0],os=o.numero||c.numeroOS;
  if(!os||b.confirmacao!==os||b.testeConfirmado!==true)fail('Confirme que é teste e digite exatamente a OS.');
- if(c.finalizadaEm||c.estoqueConsolidado||c.fretePublicadaId||c.ordemEnviadaEm||c.ordemMotoristaEnviada||c.numeroPedidoFornecedor||o.numeroPedidoFornecedor||o.envioAceitoEm||o.envioComprovadoEm||c.notaFiscalId||c.numeroNotaFiscal||o.notaFiscalId)fail('Pedido com efeito fiscal, logístico ou envio confirmado: exige revisão e cancelamento, não exclusão direta.');
+ if(c.finalizadaEm||c.estoqueConsolidado||c.fretePublicadaId||c.ordemEnviadaEm||c.ordemMotoristaEnviada||c.numeroPedidoFornecedor||o.numeroPedidoFornecedor||c.notaFiscalId||c.numeroNotaFiscal||o.notaFiscalId)fail('Pedido com efeito fiscal, logístico ou número oficial: exige revisão e cancelamento, não exclusão direta.');
  const refs=new Set([c.id,o.id,os,c.codigo].filter(Boolean));
  const matches=x=>typeof x==='string'?refs.has(x):Array.isArray(x)?x.some(matches):x&&typeof x==='object'?Object.values(x).some(matches):false;
  const relatedSales=list(s,'vendas').filter(v=>v.cargaId===c.id||(c.vendaIds||[]).includes(v.id));
@@ -23,7 +24,9 @@ export function purgeTestOrder(s,b,p){
   if(list(s,key).some(x=>matches(x)||saleLinked(x)))fail('Existe vínculo em '+key+'. Exclusão direta bloqueada.');
  }
  const jobs=list(s,'comunicacoes').filter(matches);
- if(jobs.some(j=>!removable.has(j.state)||j.providerId||j.sentAt||j.attemptAt))fail('Existe envio realizado ou tentado. Confira o destinatário antes de cancelar.');
+ const sent=jobs.filter(completedSupplierTest);
+ if(jobs.some(j=>!completedSupplierTest(j)&&(!removable.has(j.state)||j.providerId||j.sentAt||j.attemptAt)))fail('Existe envio em processamento, incerto ou de outra finalidade. Confira antes de excluir.');
+ if((sent.length||o.envioAceitoEm||o.envioComprovadoEm)&&(!sent.length||b.envioTesteConfirmado!==true))fail('Confirme que o envio ao fornecedor foi somente teste e não gerou pedido externo.');
  // Fail closed for references in collections not explicitly handled. Never delete
  // shared records, emails or external documents based on a guessed relationship.
  const handled=new Set(['cargas','comprasFornecedor','vendas','comunicacoes','auditoria','workflowEvents','settings']);
@@ -35,5 +38,5 @@ export function purgeTestOrder(s,b,p){
  s.comunicacoes=list(s,'comunicacoes').filter(x=>!jobs.includes(x));
  for(const v of relatedSales){v.cargaId='';v.destinoPainel='AGUARDANDO ROTEAMENTO';}
  const seq=/^OS-(\d+)$/.exec(os);if(seq){const next=Math.max(Number(s.settings?.nextOsSeq)||1,Number(seq[1])+1);s.settings={...s.settings,nextOsSeq:next};}
- return {os,cargaId:c.id,pedidoId:o.id,vendasDesvinculadas:relatedSales.length,enviosRemovidos:jobs.length,motivo,warning:'OS de teste excluída; vendas, cadastros, numeração e auditoria preservados.'};
+ return {os,cargaId:c.id,pedidoId:o.id,vendasDesvinculadas:relatedSales.length,enviosRemovidos:jobs.length,enviosTesteAnteriores:sent.map(j=>({id:j.id,canal:j.canal,state:j.state,providerId:j.providerId||null})),motivo,warning:'OS de teste excluída; vendas, cadastros, numeração e auditoria preservados.'};
 }
