@@ -1,3 +1,4 @@
+import {ftDossierAction} from './ft-dossier-access.ts';
 import {freightReceipt} from './freight-receipts.mjs';
 import {findFreightRate,resolveFreightRate} from './freight-rates.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -12,11 +13,20 @@ Deno.serve(async(req)=>{
   const client=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_ANON_KEY')!,{global:{headers:{Authorization:auth}}});
   const {data:{user},error:authError}=await client.auth.getUser();if(authError||!user)return Response.json({error:'Entre no sistema.'},{status:401,headers:cors});
   const {data:p,error:profileError}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();
-  const module=await client.rpc('access_current_module',{p_app:'vendas'});if(module.error||!module.data?.allowed)return Response.json({error:'Módulo sem aprovação.'},{status:403,headers:cors});if(p)p.perfil=module.data.role;
+  const baseMaster=p?.perfil==='MASTER';
+  const module=await client.rpc('access_current_module',{p_app:'vendas'});
+  const b=await req.json();
+  if(String(b.action||'').startsWith('FT_')){
+   if(profileError||!p?.ativo||p.status_aprovacao!=='APROVADO'||p.trocar_senha)return Response.json({error:'Acesso não aprovado.'},{status:403,headers:cors});
+   const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+   if(b.action!=='FT_SCOPE'){const legal=await db.rpc('forte_legal_status',{p_user:user.id,p_app:'vendas'});if(legal.error||legal.data?.accepted!==true)return Response.json({error:'Aceite pendente do termo vigente.'},{status:428,headers:cors});}
+   return Response.json(await ftDossierAction(db,b,p,user,baseMaster&&!module.error&&module.data?.allowed===true&&module.data?.role==='MASTER'),{headers:cors});
+  }
+  if(module.error||!module.data?.allowed)return Response.json({error:'Módulo sem aprovação.'},{status:403,headers:cors});if(p)p.perfil=module.data.role;
   if(profileError||!p?.ativo||p.status_aprovacao!=='APROVADO'||p.trocar_senha||!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil))return Response.json({error:'Seu perfil não tem acesso aprovado a esta operação.'},{status:403,headers:cors});
   const permissions=p.permissoes||{};
   if(!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&permissions.vendas!==true&&permissions['carga-direta']!==true&&permissions['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão para editar vendas e compras.'},{status:403,headers:cors});
-  const b=await req.json();
+
   // Apenas o backend autenticado define a fonte do veículo. Nunca confiar em
   // um suposto snapshot interno enviado pelo navegador.
   delete b.internalFleetVehicle;

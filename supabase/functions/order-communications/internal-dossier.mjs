@@ -1,6 +1,6 @@
 // Internal-only recipient, never accepted from the caller or from a sale.
-const categories=new Set(['PDF NF','XML NF','BOLETO FORNECEDOR','NF PALLETS','BOLETO CLIENTE','ANEXO DA VENDA','COMPROVANTE PAGAMENTO CLIENTE','RECIBO A RECEBER','NF VENDA PDF']);
-const clientCategories=new Set(['BOLETO CLIENTE','ANEXO DA VENDA','COMPROVANTE PAGAMENTO CLIENTE','RECIBO A RECEBER','NF VENDA PDF']);
+const categories=new Set(['PDF NF','XML NF','BOLETO FORNECEDOR','NF PALLETS','BOLETO CLIENTE','ANEXO DA VENDA','COMPROVANTE PAGAMENTO CLIENTE','RECIBO A RECEBER','NF VENDA PDF','NF VENDA XML']);
+const clientCategories=new Set(['BOLETO CLIENTE','ANEXO DA VENDA','COMPROVANTE PAGAMENTO CLIENTE','RECIBO A RECEBER','NF VENDA PDF','NF VENDA XML']);
 export function internalRecipient(env,role){
  if(!['PEDRO','JULIANA'].includes(role))throw Error('Destinatário interno inválido.');
  const to=String(env('PEDIDOS_FT_'+role+'_WHATSAPP')||'').replace(/\D/g,'');

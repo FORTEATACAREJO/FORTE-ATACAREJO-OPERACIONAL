@@ -1,12 +1,14 @@
+import RestrictedDossiers,{MasterAssignments,ftAccess} from './FTRestrictedDossiers.jsx';
 import {paymentKey} from '../../../supabase/functions/orders-workflow/supplier-payment-terms.mjs';
 import {useCallback,useEffect,useState} from 'react';
 import OrdersWorkspace from './OrdersWorkspace.jsx';
 import {validSupplierCatalog} from '../../../supabase/functions/orders-workflow/supplier-catalog.mjs';
 import {applyAuthUser,loadCloudState,saveCloudState,supabase} from './supabase.js';
 
-export default function PedidosFTApp({profile,grants}){
+function MasterPedidosFTApp({profile,grants}){
  const allowed=profile.perfil==='MASTER'&&grants.vendas?.allowed;
  const [data,setData]=useState(null);
+ const [assignments,setAssignments]=useState(false);
  const [notice,setNotice]=useState('');
  const [channels,setChannels]=useState(null);
  const [checkingChannels,setCheckingChannels]=useState(false);
@@ -93,6 +95,7 @@ export default function PedidosFTApp({profile,grants}){
  }
  const extraActions=<>
   <div data-forte-top-actions/>
+  {allowed&&<button type="button" onClick={event=>{closeTools(event);setAssignments(true);}}>Responsáveis por carga</button>}
   {allowed&&<button type="button" disabled={checkingChannels} onClick={event=>{closeTools(event);checkChannels();}}>Conferir e-mail / WhatsApp</button>}
   <button type="button" onClick={event=>{closeTools(event);signOut();}}>Sair</button>
  </>;
@@ -104,7 +107,7 @@ export default function PedidosFTApp({profile,grants}){
    <>
     {notice&&<p role="alert" className="ft-warning">{notice}</p>}
     {channels&&<section className="ft-channel-check" role="status"><header><h3>Verificação de e-mail e WhatsApp Business</h3><button type="button" onClick={()=>setChannels(null)}>Fechar</button></header>{channels.error?<p className="ft-warning">{channels.error}</p>:<><p><strong>E-mail Hostinger:</strong> {channels.email?.ready?'✓ Caixa autorizada':'⚠ Verificação pendente'} — {channels.email?.detail}</p><p><strong>WhatsApp Business:</strong> {channels.whatsapp?.connected?'✓ Conexão cadastrada':'⚠ Conexão não confirmada'}</p><p><strong>Pedido ao fornecedor em PDF:</strong> {channels.whatsapp?.fornecedor?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.fornecedor?.detail}</p><p><strong>Ordem ao motorista em PDF:</strong> {channels.whatsapp?.motorista?.ready?'✓ Modelo aprovado':'⚠ Modelo pendente'} — {channels.whatsapp?.motorista?.detail}</p><small>Essa conferência não dispara mensagens. O aceite de envio não comprova a entrega ao destinatário.</small></>}</section>}
-    {data?<OrdersWorkspace standalone extraActions={extraActions} initialTab="dossie" data={data}
+    {data&&assignments?<MasterAssignments cargas={data.cargas||[]} onBack={()=>setAssignments(false)}/>:data?<OrdersWorkspace standalone extraActions={extraActions} initialTab="dossie" data={data}
      currentUser={data.usuarios.find(user=>user.id===data.currentUserId)||profile}
      onRefresh={refresh} onCommit={commit} onSaveRegistry={saveRegistry} onManageUsers={openUsers}
      onNavigate={()=>setNotice('Esta operação está disponível no Forte OP.')}
@@ -114,4 +117,12 @@ export default function PedidosFTApp({profile,grants}){
     </section>}
    </>}
  </main>;
+}
+
+export default function PedidosFTApp(props){
+ const [scope,setScope]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+ useEffect(()=>{let active=true;setScope(null);setError('');ftAccess({action:'FT_SCOPE'}).then(r=>{if(active)setScope(r.mode);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
+ if(scope==='MASTER')return <MasterPedidosFTApp {...props}/>;
+ if(scope==='RESTRICTED')return <RestrictedDossiers/>;
+ return <main className="pedidos-ft-standalone"><section className="ft-guard"><h1>Pedidos FT</h1><p role="status">{error|| (scope==='DENIED'?'Nenhuma autorização de Pedidos FT para seu login. Solicite atribuição ao MASTER.':'Conferindo autorização do módulo…')}</p>{error&&<button onClick={()=>setRetry(x=>x+1)}>Tentar novamente</button>}<button onClick={()=>supabase.auth.signOut().then(()=>location.reload())}>Sair</button></section></main>;
 }
