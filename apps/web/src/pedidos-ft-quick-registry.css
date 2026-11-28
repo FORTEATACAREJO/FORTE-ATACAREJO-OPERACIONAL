@@ -26,7 +26,7 @@
 .ft-quick-list{display:flex;flex-direction:column;gap:6px;max-height:35dvh;overflow:auto}
 .ft-quick-list .ft-quick-record{text-align:left;background:#f2f5fa;color:#142642;border:1px solid #dce3ee}
 .ft-quick-error{padding:10px;border-radius:10px;background:#fff0f0;color:#991c1c}
-@media(max-width:600px){.ft-quick-grid{grid-template-columns:1fr}.ft-quick-modal{padding:14px}.pedidos-ft-page .ft-admin-tools>div{right:-70px;width:calc(100vw - 24px)}}
+@media(max-width:600px){.ft-quick-grid{grid-template-columns:1fr}.ft-quick-modal{padding:14px}.pedidos-ft-page .ft-admin-tools>div{right:0;width:min(320px,calc(100vw - 24px))}}
 
 .pedidos-ft-standalone .ft-channel-check{margin:0 12px 14px;padding:12px 14px;background:#fff;border:1px solid #e1e6ee;border-left:4px solid #1559aa;border-radius:12px;box-shadow:0 2px 12px #0012}
 .pedidos-ft-standalone .ft-channel-check header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}
@@ -83,3 +83,35 @@
 .ft-quick-modal .ft-supplier-registered-terms>strong{display:block;font-size:13px;margin-bottom:8px}
 .ft-quick-modal .ft-supplier-registered-list{display:flex;gap:7px;flex-wrap:wrap}
 .ft-quick-modal .ft-supplier-registered-list button{flex:0 1 auto;min-width:96px;padding:8px 10px;font-size:13px;font-weight:650;min-height:38px}
+
+/* Menu de ações: mesma aparência para comandos locais e controles compartilhados. */
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools > :is(.ft-options-list,.ft-toolbar-menu){
+ box-sizing:border-box;right:0;left:auto;width:min(320px,calc(100vw - 24px));min-width:0;max-width:calc(100vw - 24px);
+ max-height:min(76vh,560px);max-height:min(76dvh,560px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ display:flex;flex-direction:column;gap:2px;padding:6px;background:#fff;color:#211c20;border:1px solid #e6dfe1;border-radius:12px;
+}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools > :is(.ft-options-list,.ft-toolbar-menu) > button,
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools [data-forte-top-actions] > button,
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools :is(.forte-access-admin,.forte-share-actions) > button{
+ box-sizing:border-box!important;display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;
+ min-height:44px!important;height:auto!important;padding:9px 12px!important;margin:0!important;
+ background:#fff!important;color:#282128!important;border:0!important;border-radius:7px!important;box-shadow:none!important;
+ font:600 14px/1.35 Arial,sans-serif!important;text-align:left!important;text-transform:none!important;white-space:normal!important;overflow-wrap:anywhere!important;
+}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools > :is(.ft-options-list,.ft-toolbar-menu) > button:is(:hover,:focus-visible),
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools [data-forte-top-actions] > button:is(:hover,:focus-visible),
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools :is(.forte-access-admin,.forte-share-actions) > button:is(:hover,:focus-visible){
+ background:#f7eef1!important;color:#78223a!important;outline:2px solid #ab1330!important;outline-offset:-2px!important;
+}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools [data-forte-top-actions],
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools :is(.forte-access-admin,.forte-share-actions){
+ box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:2px!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;padding:0!important;margin:0!important;background:transparent!important;
+}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools [data-forte-top-actions]:not(:empty){border-block:1px solid #e6dfe1;padding-block:4px!important;}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools .fa-admin-panel:not([hidden]){box-sizing:border-box;min-width:0;max-width:100%;overflow:auto;}
+@media(max-width:600px){
+ .pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools > :is(.ft-options-list,.ft-toolbar-menu){
+  position:fixed;inset:auto 12px auto auto;top:max(12px,env(safe-area-inset-top));width:min(320px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);z-index:100;
+ }
+}
