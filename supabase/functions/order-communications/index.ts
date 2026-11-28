@@ -1,3 +1,5 @@
+import {autoReception} from './auto-reception.mjs';
+import {profileActive,isMaster,getAttendanceGrant,manageAttendance} from './attendance-access.mjs';
 import {PDFDocument} from 'npm:pdf-lib@1.17.1';
 import {internalSnapshot,buildInternalDocument} from './internal-dossier.mjs';
 import {captureInbox,inboxRowFor,persistInbox} from './inbox-store.mjs';
@@ -90,13 +92,25 @@ Deno.serve(async req=>{
    const webhookDb=admin(),webhookCompany=await webhookDb.from('gmail_hub_config').select('empresa_id').eq('id',true).maybeSingle();const tenant=env('WHATSAPP_TENANT_ID')||webhookCompany.data?.empresa_id,url=new URL(req.url);if(req.method==='GET'){if(env('WHATSAPP_VERIFY_TOKEN')&&url.searchParams.get('hub.mode')==='subscribe'&&url.searchParams.get('hub.verify_token')===env('WHATSAPP_VERIFY_TOKEN'))return new Response(url.searchParams.get('hub.challenge')||'');return new Response('Forbidden',{status:403});}
    if(req.method!=='POST'||!tenant)return new Response('Not configured',{status:503});const raw=await req.text();if(raw.length>1000000)return new Response('Too large',{status:413});if(!await validSignature(raw,req.headers.get('x-hub-signature-256'),env('WHATSAPP_APP_SECRET')))return new Response('Forbidden',{status:403});
    const payload=JSON.parse(raw),db=admin(),webhookBusiness=await readBusiness(db,env);for(let attempt=0;attempt<3;attempt++){const row=await rowFor(db,tenant),s=row.estado,before=JSON.stringify(s);for(const entry of payload.entry||[])for(const change of entry.changes||[]){const v=change.value||{};if(String(v.metadata?.phone_number_id)!==String(webhookBusiness.phone))continue;await captureInbox(db,tenant,v);applyStatuses(s,v.statuses);for(const m of v.messages||[]){const at=new Date(Number(m.timestamp)*1000).toISOString();const args={id:m.id,from:m.from,contextId:m.context?.id,payload:m.button?.payload||m.interactive?.button_reply?.id,at};if(args.payload){const accepted=deliveryReply(s,args);if(!accepted&&!(s.retornosCliente||[]).some((r:any)=>r.providerId===m.id)&&!(s.comunicacoes||[]).some((j:any)=>j.reply?.providerId===m.id)){s.retornosCliente=[...(s.retornosCliente||[]),{providerId:m.id,contextId:m.context?.id,from:phone(m.from),payload:args.payload,at,state:'CONFERIR'}];}}else if(m.text?.body&&(s.fornecedores||[]).some((f:any)=>phone(f.whatsapp||f.telefone)===phone(m.from)))linkedReturn(s,{...args,providerId:m.id,text:m.text.body});}}
-    try{if(JSON.stringify(s)!==before)await persist(db,tenant,row);return new Response('EVENT_RECEIVED');}catch(e){if(attempt===2)throw e;}}
+    try{if(JSON.stringify(s)!==before)await persist(db,tenant,row);if(typeof EdgeRuntime!=='undefined')EdgeRuntime.waitUntil((async()=>{for(const entry of payload.entry||[])for(const change of entry.changes||[]){const value=change.value||{};if(String(value.metadata?.phone_number_id)!==String(webhookBusiness.phone)||!value.messages?.length)continue;try{await autoReception({db,empresa:tenant,value,env,rowFor:inboxRowFor,persist:persistInbox,readBusiness,operational:s});}catch{console.error('ATENDE_RECEPTION_PENDING');}}})());return new Response('EVENT_RECEIVED');}catch(e){if(attempt===2)throw e;}}
   }
   if(req.method!=='POST')return Response.json({error:'Método inválido'},{status:405,headers:cors});
   const client=createClient(env('SUPABASE_URL'),env('SUPABASE_ANON_KEY'),{global:{headers:{Authorization:req.headers.get('Authorization')||''}}});const {data:{user},error}=await client.auth.getUser();if(error||!user)return Response.json({error:'Entre no sistema.'},{status:401,headers:cors});
-  const grant=await client.rpc('access_current_module',{p_app:'vendas'});if(grant.error||!grant.data?.allowed)return Response.json({error:'Módulo sem aprovação.'},{status:403,headers:cors});
-  const {data:p}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();if(p)p.perfil=grant.data.role;if(!p?.ativo||p.trocar_senha||p.status_aprovacao!=='APROVADO'||!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil)||!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&p.permissoes?.vendas!==true&&p.permissoes?.['carga-direta']!==true&&p.permissoes?.['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão.'},{status:403,headers:cors});
+  const grant=await client.rpc('access_current_module',{p_app:'vendas'});
+  const {data:p}=await client.from('fc_perfis').select('*').eq('user_id',user.id).single();
+  if(!profileActive(p))return Response.json({error:'Perfil não aprovado.'},{status:403,headers:cors});
   const body=await req.json();const gmailTenant=await admin().from('gmail_hub_config').select('empresa_id').eq('id',true).maybeSingle();if(p.empresa_id!==env('WHATSAPP_TENANT_ID')&&p.empresa_id!==gmailTenant.data?.empresa_id)return Response.json({error:'Integração de mensagens ainda não configurada para esta empresa.'},{status:409,headers:cors});
+
+  const master=!grant.error&&isMaster(p,grant.data);
+  if(String(body.action||'').startsWith('ATENDE_'))return Response.json(await manageAttendance({db:admin(),p,user,master,body,env}),{headers:cors});
+  if(String(body.action||'').startsWith('INBOX_')){
+   const access=await getAttendanceGrant(admin(),p.empresa_id,user.id);
+   if(!master&&!(access?.ativo&&access.whatsapp))return Response.json({error:'Acesso ao FORTE ATENDE não autorizado.'},{status:403,headers:cors});
+   if(!master&&(!['INBOX_LIST','INBOX_MESSAGES','INBOX_UPDATE','INBOX_MEDIA','INBOX_REPLY'].includes(body.action)||body.link||body.transferTo!==undefined))return Response.json({error:'Ação exclusiva do MASTER.'},{status:403,headers:cors});
+   return Response.json(await inboxAction({body,db:admin(),profile:{...p,perfil:master?'MASTER':'ATENDENTE'},user,env,rowFor:inboxRowFor,persist:persistInbox,readBusiness}),{headers:cors});
+  }
+  if(grant.error||!grant.data?.allowed)return Response.json({error:'Módulo sem aprovação.'},{status:403,headers:cors});
+  p.perfil=grant.data.role;if(!['MASTER','ADMINISTRADOR','OPERADOR_GERAL','VENDEDOR_INTERNO'].includes(p.perfil)||!['MASTER','ADMINISTRADOR'].includes(p.perfil)&&p.permissoes?.vendas!==true&&p.permissoes?.['carga-direta']!==true&&p.permissoes?.['VENDAS E COMPRAS']?.editar!==true)return Response.json({error:'Sem permissão.'},{status:403,headers:cors});
   if(body.action==='CHANNEL_STATUS')return Response.json(await channelStatus(),{headers:cors});
   if(['INTERNAL_RECIPIENTS_GET','INTERNAL_RECIPIENTS_SAVE'].includes(body.action)){
    if(p.perfil!=='MASTER')return Response.json({error:'Configuração exclusiva do MASTER.'},{status:403,headers:cors});
@@ -168,7 +182,7 @@ Deno.serve(async req=>{
    return Response.json({state,providerId,reason:failure,message:providerId?'PDF aceito pelo WhatsApp Business; entrega ainda não confirmada.':failure||'Envio não confirmado.'},{headers:cors});
   }
 
-  if(String(body.action||'').startsWith('INBOX_'))return Response.json(await inboxAction({body,db:admin(),profile:p,user,env,rowFor:inboxRowFor,persist:persistInbox,readBusiness}),{headers:cors});if(body.action!=='DISPATCH')throw new Error('Ação inválida.');
+  if(body.action!=='DISPATCH')throw new Error('Ação inválida.');
   const db=admin();let sent=0,blocked=0;const outcomes=[];let business;const getBusiness=async()=>business??=(await readBusiness(db,env));const initial=await rowFor(db,p.empresa_id);const ids=(initial.estado.comunicacoes||[]).filter((j:any)=>j.audience!=='INTERNO'&&(!body.jobId||j.id===body.jobId)&&(j.state==='QUEUED'||j.state==='BLOCKED'||!!body.jobId&&j.state==='FAILED')).slice(0,10).map((j:any)=>j.id);
   if(body.jobId&&!ids.length){const known=(initial.estado.comunicacoes||[]).find(j=>j.id===body.jobId);if(!known)throw Error('Envio não localizado nesta empresa.');outcomes.push({id:known.id,state:known.state,reason:known.reason||(['SENDING','UNCERTAIN'].includes(known.state)?'Resultado em processamento ou incerto. Confira antes de reenviar.':''),providerId:known.providerId});}
   for(const id of ids){const row=await rowFor(db,p.empresa_id),j=row.estado.comunicacoes.find((j:any)=>j.id===id);if(!j||!['QUEUED','BLOCKED',...(body.jobId?['FAILED']:[])].includes(j.state))continue;const customer=row.estado.clientes?.find((c:any)=>c.id===j.clienteId);if(j.audience==='CLIENTE'&&!CUSTOMER_AUTOMATIC_MESSAGES_ENABLED){j.state='CANCELLED';j.reason='ENVIOS AUTOMÁTICOS AO CLIENTE DESATIVADOS — USO INTERNO';j.cancelledAt=new Date().toISOString();await persist(db,p.empresa_id,row);outcomes.push({id:j.id,state:j.state,reason:j.reason});continue;}if(j.audience==='CLIENTE'&&customer?.whatsappAutorizado!==true){j.state='BLOCKED';j.reason='AUTORIZAÇÃO DO CLIENTE PENDENTE';await persist(db,p.empresa_id,row);blocked++;continue;}
