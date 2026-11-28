@@ -45,7 +45,22 @@ export function downloadInternalPDF(bytes,filename){
  const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-export const CLIENT_GALLERY_ACCEPT='image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+export const CLIENT_GALLERY_ACCEPT='image/*,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif';
+export const CLIENT_BILLING_ACCEPT='application/pdf,.pdf,'+CLIENT_GALLERY_ACCEPT;
+export function isBillingPDF(file){return !!file&&(file.type==='application/pdf'||/\.pdf$/i.test(file.name||''));}
+export async function prepareBillingFile(file){return isBillingPDF(file)?file:galleryBillingFile(file);}
+// Some Android WebViews and Safari versions lack createImageBitmap or reject its options.
+async function decodeBillingImage(file){
+ if(typeof createImageBitmap==='function'){
+  try{return await createImageBitmap(file,{imageOrientation:'from-image'});}catch{}
+ }
+ const url=URL.createObjectURL(file);
+ try{
+  const image=new Image();
+  await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('Formato não reconhecido pelo aparelho. Escolha JPG, PNG ou WebP.'));image.src=url;});
+  return image;
+ }finally{URL.revokeObjectURL(url);}
+}
 // The billing pipeline stores PDF only; photos become a single A4 page per file.
 export async function billingImagePDF(bytes,kind){
  const pdf=await PDFDocument.create({updateMetadata:false});
@@ -57,13 +72,15 @@ export async function billingImagePDF(bytes,kind){
  return pdf.save();
 }
 export async function galleryBillingFile(file){
- if(!file||!(/\.(jpe?g|png|webp)$/i.test(file.name)||['image/jpeg','image/png','image/webp'].includes(file.type)))throw Error('Escolha uma imagem JPG, PNG ou WebP.');
+ if(!file||!(/^image\//i.test(file.type||'')||/\.(jpe?g|png|webp|heic|heif|avif|gif|bmp)$/i.test(file.name||'')))throw Error('Escolha uma imagem ou PDF válido.');
  if(file.size>20*1024*1024)throw Error('Escolha uma imagem de até 20 MB.');
  let bitmap;
  try{
-  bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});
-  const scale=Math.min(1,2600/Math.max(bitmap.width,bitmap.height));
-  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  bitmap=await decodeBillingImage(file);
+  const width=bitmap.naturalWidth||bitmap.width,height=bitmap.naturalHeight||bitmap.height;
+  if(!width||!height)throw Error('Imagem vazia ou inválida.');
+  const scale=Math.min(1,2600/Math.max(width,height));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Conversão indisponível neste aparelho.');
   ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
   const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Não foi possível preparar a imagem.')),'image/jpeg',0.94));
@@ -71,5 +88,5 @@ export async function galleryBillingFile(file){
   if(pdf.byteLength>10*1024*1024)throw Error('PDF convertido excede 10 MB.');
   return new File([pdf],file.name.replace(/\.[^.]+$/,'')+'-foto.pdf',{type:'application/pdf'});
  }catch(e){throw Error('Não foi possível converter '+file.name+': '+(e.message||'imagem inválida'));}
- finally{bitmap?.close();}
+ finally{bitmap?.close?.();}
 }
