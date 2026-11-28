@@ -3,7 +3,7 @@ import {paymentScheduleText} from '../../../supabase/functions/orders-workflow/s
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildPedidosFTDossier,pendingTypes,dossierPending} from './pedidos-ft-model.mjs';
 import {loadReport} from './orders-reports';
-import {assembleInternalPDF,downloadInternalPDF,internalCover} from './pedidos-ft-internal-package.mjs';
+import {assembleInternalPDF,downloadInternalPDF,internalCover,CLIENT_GALLERY_ACCEPT,galleryBillingFile} from './pedidos-ft-internal-package.mjs';
 import './pedidos-ft.css';
 import PedidosFTLoadPanel,{LoadCloseConfirmation} from './PedidosFTLoadPanel.jsx';
 import DriverIntake from './DriverIntake.jsx';
@@ -140,6 +140,18 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
  const [saleToLink,setSaleToLink]=useState('');
  const [syncStatus,setSyncStatus]=useState('');
  const [syncBusy,setSyncBusy]=useState(false);
+ const [attachmentBusy,setAttachmentBusy]=useState(false);
+ const [attachmentError,setAttachmentError]=useState('');
+ const attachmentLock=useRef(false);
+ async function attachBilling(files,body,fromGallery){
+  if(!files.length||attachmentLock.current)return;
+  attachmentLock.current=true;setAttachmentBusy(true);setAttachmentError('');
+  try{
+   const ready=fromGallery?await Promise.all(files.map(galleryBillingFile)):files;
+   await onAttachClientBoletos(ready,body);
+  }catch(e){setAttachmentError(e.message||'Não foi possível anexar o documento.');}
+  finally{attachmentLock.current=false;setAttachmentBusy(false);}
+ }
  const syncLock=useRef(false);
  const activeCarga=useRef('');
  useEffect(()=>{if(!loadView&&scrollField){document.getElementById('ft-campo-'+scrollField)?.scrollIntoView?.({block:'start'});setScrollField(null);}},[loadView,scrollField,selection]);
@@ -266,10 +278,11 @@ export default function PedidosFT({data={},fleetLinks=[],fleetVehicles=[],curren
    {['PDF NF','XML NF','BOLETO FORNECEDOR'].map(cat=><div key={cat} className="ft-client"><b>{cat==='PDF NF'?'Nota fiscal — PDF':cat==='XML NF'?'XML da nota fiscal':'Boletos do fornecedor'}</b><DocList docs={supplierDocs.filter(doc=>doc.categoria===cat)} onOpenDocument={onOpenDocument}/></div>)}
    {onSyncSupplierDocs&&<button type="button" className="ft-outline" disabled={syncBusy||busy||!!c.finalizadaEm||c.status==='CANCELADA'} onClick={()=>syncDocs(c.id)}>Importar documentos do Gmail</button>}
    {syncStatus&&<p role="status">{syncStatus}</p>}
-   <h4>Documentos de faturamento por cliente — anexar PDF</h4>
-   <p className="ft-hint">Anexe a nota fiscal da venda e, conforme a operação, boleto, comprovante de pagamento ou declaração de valor a receber. Recibo a receber não comprova quitação.</p>
+   <h4>Documentos de faturamento por cliente — PDF ou galeria</h4>
+   <p className="ft-hint">Anexe a nota fiscal da venda e, conforme a operação, boleto, comprovante de pagamento ou declaração de valor a receber. Recibo a receber não comprova quitação. Imagens JPG, PNG e WebP da galeria são convertidas em PDF para o dossiê.</p>
+   {attachmentBusy&&<p role="status">Preparando anexos…</p>}{attachmentError&&<p role="alert">{attachmentError}</p>}
    {!clients.length&&<p>Nenhuma venda vinculada a esta OS.</p>}
-   {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&[['NF VENDA PDF','Nota fiscal da venda'],['BOLETO CLIENTE','Boleto'],['COMPROVANTE PAGAMENTO CLIENTE','Comprovante de pagamento'],['RECIBO A RECEBER','Recibo de valor a receber']].map(([cat,label])=><label key={cat} className="ow-upload">Anexar {label} — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';await onAttachClientBoletos(files,{cargaId:c.id,vendaId:g.id,categoria:cat});}}/></label>)}<DocList docs={client.documents.filter(doc=>doc.vendaId===g.id||d.sales.some(v=>v.id===doc.vendaId&&(v.grupoPedidoId||v.id)===g.id&&v.clienteId===client.id))} onOpenDocument={onOpenDocument}/></div>)}</div>)}
+   {clients.map((client,index)=><div className="ft-client" key={client.id}><b>Cliente {index+1} — {client.nome}</b>{client.salesGroups.map(g=><div key={g.id}><small>{g.numero} · {g.formaPagamento||'Forma a conferir'} · {g.prazo||'Prazo a conferir'}</small>{onAttachClientBoletos&&[['NF VENDA PDF','Nota fiscal da venda'],['BOLETO CLIENTE','Boleto'],['COMPROVANTE PAGAMENTO CLIENTE','Comprovante de pagamento'],['RECIBO A RECEBER','Recibo de valor a receber']].map(([cat,label])=><div key={cat}><label className="ow-upload">Anexar {label} — {client.nome} ({g.numero})<input type="file" accept="application/pdf,.pdf" multiple disabled={busy||attachmentBusy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';attachBilling(files,{cargaId:c.id,vendaId:g.id,categoria:cat},false);}}/></label><label className="ow-upload">Selecionar imagens da galeria — {label}<input type="file" accept={CLIENT_GALLERY_ACCEPT} multiple disabled={busy||attachmentBusy||!!c.finalizadaEm||c.status==='CANCELADA'} onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';attachBilling(files,{cargaId:c.id,vendaId:g.id,categoria:cat},true);}}/></label></div>)}<DocList docs={client.documents.filter(doc=>doc.vendaId===g.id||d.sales.some(v=>v.id===doc.vendaId&&(v.grupoPedidoId||v.id)===g.id&&v.clienteId===client.id))} onOpenDocument={onOpenDocument}/></div>)}</div>)}
    {customerDocs.some(doc=>!doc.vendaId)&&<p role="alert">Há documentos sem vínculo individual de venda; confira antes de enviar ou fechar a OS.</p>}
    {onValidateDocument&&<p className="ft-hint">A conferência dos arquivos ocorre no campo 5 desta mesma OS.</p>}
    <p className="ft-hint">Anexar não emite nota fiscal ou boleto, não confirma pagamento e não envia documentos ao cliente. Login próprio da Juliana depende da validação de permissões por carga.</p>

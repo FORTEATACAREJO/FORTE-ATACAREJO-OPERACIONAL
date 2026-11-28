@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {PDFDocument} from 'pdf-lib';
-import {internalCover,internalPackageSelection,assembleInternalPDF} from '../apps/web/src/pedidos-ft-internal-package.mjs';
+import {internalCover,internalPackageSelection,assembleInternalPDF,billingImagePDF,CLIENT_GALLERY_ACCEPT} from '../apps/web/src/pedidos-ft-internal-package.mjs';
 const doc=(id,categoria,extra={})=>({id,categoria,filename:id+'.pdf',storagePath:'tenant/'+id,storageBucket:'private',cargaId:'c',validationStatus:'RECEBIDO',...extra});
 const fixture=()=>({carga:{id:'c',numeroOS:'OS-TESTE',fornecedor:'FORNECEDOR-TESTE'},reconciliation:{status:'CONCILIADA'},clients:[{id:'a',nome:'CLIENTE-TESTE',items:[{id:'s'}],salesGroups:[{id:'g',numero:'VEN-1'}]}],sales:[{id:'s',grupoPedidoId:'g',clienteId:'a',produto:'ITEM-VENDA',qtd:2,precoUnitario:28.75,totalVenda:57.5}],items:[{produto:'ITEM-CUSTO',qtd:2,custoUnitario:13.4567,total:26.91}],finance:{custoFornecedor:26.91,receitaVendas:57.5,freteDescontado:0,resultadoAposFrete:30.59},documents:[doc('nf','PDF NF'),doc('xml','XML NF',{filename:'nf.xml'}),doc('boleto','BOLETO CLIENTE',{clienteId:'a',vendaId:'g'}),doc('outro','BOLETO CLIENTE',{clienteId:'b',vendaId:'g'}),doc('solto','BOLETO CLIENTE'),doc('outra-os','PDF NF',{cargaId:'x'}),doc('frete','COMPROVANTE FRETE')]});
 test('capas são internas e Juliana recebe preços de venda sem resumo de custo',()=>{
@@ -17,4 +17,17 @@ test('incorpora páginas originais e falha sem produzir pacote quando falta um P
  const result=await assembleInternalPDF(d,'JULIANA',async x=>{read.push(x.id);return bytes;});
  const combined=await PDFDocument.load(result);assert.equal(combined.getPageCount(),internalCover(d,'JULIANA').getNumberOfPages()+2);assert.deepEqual(read,['nf','boleto']);
  await assert.rejects(assembleInternalPDF(d,'JULIANA',async x=>{if(x.id==='boleto')throw Error('indisponível');return bytes;}),/boleto.pdf/);
+});
+
+test('foto PNG torna-se PDF A4 e entra no dossiê sem mudar o vínculo',async()=>{
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jG1sAAAAASUVORK5CYII=','base64');
+ const bytes=await billingImagePDF(png,'image/png');
+ const pdf=await PDFDocument.load(bytes);
+ assert.equal(pdf.getPageCount(),1);
+ assert.equal(pdf.getPage(0).getWidth(),595.28);
+ const d=fixture();d.documents=[doc('foto-faturamento','COMPROVANTE PAGAMENTO CLIENTE',{clienteId:'a',vendaId:'g'})];
+ const result=await assembleInternalPDF(d,'JULIANA',async()=>bytes);
+ assert.equal((await PDFDocument.load(result)).getPageCount(),internalCover(d,'JULIANA').getNumberOfPages()+1);
+ assert.match(CLIENT_GALLERY_ACCEPT,/image\/jpeg/);assert.match(CLIENT_GALLERY_ACCEPT,/image\/png/);assert.match(CLIENT_GALLERY_ACCEPT,/image\/webp/);
+ await assert.rejects(billingImagePDF(new Uint8Array([1,2,3]),'image/png'));
 });

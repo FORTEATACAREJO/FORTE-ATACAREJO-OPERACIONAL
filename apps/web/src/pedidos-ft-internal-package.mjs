@@ -44,3 +44,32 @@ export function downloadInternalPDF(bytes,filename){
  const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
  const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+export const CLIENT_GALLERY_ACCEPT='image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+// The billing pipeline stores PDF only; photos become a single A4 page per file.
+export async function billingImagePDF(bytes,kind){
+ const pdf=await PDFDocument.create({updateMetadata:false});
+ const image=kind==='image/png'?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);
+ const page=pdf.addPage(image.width>image.height?[841.89,595.28]:[595.28,841.89]);
+ const {width,height}=page.getSize(),scale=Math.min((width-36)/image.width,(height-36)/image.height);
+ const w=image.width*scale,h=image.height*scale;
+ page.drawImage(image,{x:(width-w)/2,y:(height-h)/2,width:w,height:h});
+ return pdf.save();
+}
+export async function galleryBillingFile(file){
+ if(!file||!(/\.(jpe?g|png|webp)$/i.test(file.name)||['image/jpeg','image/png','image/webp'].includes(file.type)))throw Error('Escolha uma imagem JPG, PNG ou WebP.');
+ if(file.size>20*1024*1024)throw Error('Escolha uma imagem de até 20 MB.');
+ let bitmap;
+ try{
+  bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});
+  const scale=Math.min(1,2600/Math.max(bitmap.width,bitmap.height));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Conversão indisponível neste aparelho.');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Não foi possível preparar a imagem.')),'image/jpeg',0.94));
+  const pdf=await billingImagePDF(await blob.arrayBuffer(),'image/jpeg');
+  if(pdf.byteLength>10*1024*1024)throw Error('PDF convertido excede 10 MB.');
+  return new File([pdf],file.name.replace(/\.[^.]+$/,'')+'-foto.pdf',{type:'application/pdf'});
+ }catch(e){throw Error('Não foi possível converter '+file.name+': '+(e.message||'imagem inválida'));}
+ finally{bitmap?.close();}
+}
