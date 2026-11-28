@@ -1,3 +1,4 @@
+import {recordInteractiveReply} from './attendance.mjs';
 const digits=v=>String(v||'').replace(/\D/g,'');
 const timestamp=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?new Date(n*1000).toISOString():null;};
 export function receiveInbox(state,value,now=new Date().toISOString()){
@@ -14,7 +15,8 @@ export function receiveInbox(state,value,now=new Date().toISOString()){
   const text=message.text?.body||message.button?.text||message.interactive?.button_reply?.title||message.interactive?.list_reply?.title||media?.caption||'';
   messages.push({id:message.id,providerId:message.id,threadId:id,direction:'IN',type:message.type||'unsupported',text:String(text).slice(0,10000),at,receivedAt:now,contextId:message.context?.id||null,mediaId:media?.id||null,mime:media?.mime_type||null,filename:media?.filename||null,state:'RECEIVED',unsupported:message.type==='unsupported',rawMessage:structuredClone(message)});
   if(!thread.lastAt||at>thread.lastAt){thread.lastAt=at;thread.preview=String(text||'['+(message.type||'mensagem')+']').slice(0,150);}
-  if(thread.state==='RESOLVIDA')thread.state='PENDENTE';
+  const recognized=recordInteractiveReply(thread,messages,message,at);
+  if(!recognized&&(thread.state==='RESOLVIDA'||thread.state==='AGUARDANDO_CLIENTE'))thread.state=thread.assignedTo?'EM_ATENDIMENTO':'PENDENTE';
  }
  for(const status of value.statuses||[]){
   if(!status.id||!['sent','delivered','read','failed'].includes(status.status))continue;
