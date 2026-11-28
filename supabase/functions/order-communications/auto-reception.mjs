@@ -27,7 +27,7 @@ export async function autoReception({db,empresa,value,env,rowFor,persist,readBus
  for(const m of value.messages||[]){
   const row=await rowFor(db,empresa),thread=row.estado.whatsappInboxThreads?.find(t=>t.id===String(value.metadata?.phone_number_id||'')+':'+phone(m.from));
   if(!receptionCandidate(row.estado,thread,m,operational))continue;
-  const blocked=await db.from('forte_atende_contatos_moderacao').select('status').eq('empresa_id',empresa).eq('telefone_e164',thread.phone).maybeSingle();if(blocked.error||blocked.data&&blocked.data.status!=='ativo')continue;
+  const blocked=await db.from('forte_atende_contatos_moderacao').select('status').eq('empresa_id',empresa).eq('telefone_e164','+'+thread.phone).maybeSingle();if(blocked.error||blocked.data&&blocked.data.status!=='ativo')continue;
   const config=await readBusiness(db,env);if(!config.token||!config.phone||String(config.phone)!==String(value.metadata?.phone_number_id))continue;
   const commandId=await stableId(empresa+':'+m.id),id='reply:'+commandId,{text,interactive}=buildReply({profile:{nome:'Recepção automática'},kind:'WELCOME',commandId});
   const saved={id,threadId:thread.id,direction:'OUT',type:'interactive',kind:'WELCOME',originalText:'',text,actor:null,actorName:'Recepção automática',state:'SENDING',at:new Date().toISOString()};
