@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {PDFDocument} from 'pdf-lib';
-import {internalCover,internalPackageSelection,assembleInternalPDF,billingImagePDF,CLIENT_GALLERY_ACCEPT} from '../apps/web/src/pedidos-ft-internal-package.mjs';
+import {internalCover,internalPackageSelection,assembleInternalPDF,billingImagePDF,CLIENT_GALLERY_ACCEPT,CLIENT_BILLING_ACCEPT,prepareBillingFile,isBillingPDF} from '../apps/web/src/pedidos-ft-internal-package.mjs';
 const doc=(id,categoria,extra={})=>({id,categoria,filename:id+'.pdf',storagePath:'tenant/'+id,storageBucket:'private',cargaId:'c',validationStatus:'RECEBIDO',...extra});
 const fixture=()=>({carga:{id:'c',numeroOS:'OS-TESTE',fornecedor:'FORNECEDOR-TESTE'},reconciliation:{status:'CONCILIADA'},clients:[{id:'a',nome:'CLIENTE-TESTE',items:[{id:'s'}],salesGroups:[{id:'g',numero:'VEN-1'}]}],sales:[{id:'s',grupoPedidoId:'g',clienteId:'a',produto:'ITEM-VENDA',qtd:2,precoUnitario:28.75,totalVenda:57.5}],items:[{produto:'ITEM-CUSTO',qtd:2,custoUnitario:13.4567,total:26.91}],finance:{custoFornecedor:26.91,receitaVendas:57.5,freteDescontado:0,resultadoAposFrete:30.59},documents:[doc('nf','PDF NF'),doc('xml','XML NF',{filename:'nf.xml'}),doc('boleto','BOLETO CLIENTE',{clienteId:'a',vendaId:'g'}),doc('outro','BOLETO CLIENTE',{clienteId:'b',vendaId:'g'}),doc('solto','BOLETO CLIENTE'),doc('outra-os','PDF NF',{cargaId:'x'}),doc('frete','COMPROVANTE FRETE')]});
 test('capas são internas e Juliana recebe preços de venda sem resumo de custo',()=>{
@@ -30,4 +30,29 @@ test('foto PNG torna-se PDF A4 e entra no dossiê sem mudar o vínculo',async()=
  assert.equal((await PDFDocument.load(result)).getPageCount(),internalCover(d,'JULIANA').getNumberOfPages()+1);
  assert.match(CLIENT_GALLERY_ACCEPT,/image\/jpeg/);assert.match(CLIENT_GALLERY_ACCEPT,/image\/png/);assert.match(CLIENT_GALLERY_ACCEPT,/image\/webp/);
  await assert.rejects(billingImagePDF(new Uint8Array([1,2,3]),'image/png'));
+});
+
+test('campo de faturamento permite PDF e fotos; PDF permanece original',async()=>{
+ assert.match(CLIENT_BILLING_ACCEPT,/application\/pdf/);
+ assert.match(CLIENT_GALLERY_ACCEPT,/image\/\*/);
+ const pdf={name:'boleto.pdf',type:''};
+ assert.equal(isBillingPDF(pdf),true);
+ assert.equal(await prepareBillingFile(pdf),pdf);
+ assert.equal(isBillingPDF({name:'comprovante.jpg',type:'image/jpeg'}),false);
+ await assert.rejects(prepareBillingFile({name:'arquivo.txt',type:'text/plain'}),/imagem ou PDF/);
+});
+test('falha do createImageBitmap usa decodificador alternativo e apresenta erro legível',async()=>{
+ const oldBitmap=globalThis.createImageBitmap,oldImage=globalThis.Image;
+ let fallback=false;
+ try{
+  globalThis.createImageBitmap=async()=>{throw Error('unsupported');};
+  globalThis.Image=class {set src(value){fallback=true;this.onerror();}};
+  const file=new Blob(['not an image'],{type:'image/jpeg'});
+  Object.defineProperty(file,'name',{value:'foto.jpg'});
+  await assert.rejects(prepareBillingFile(file),/Formato não reconhecido/);
+  assert.equal(fallback,true);
+ }finally{
+  if(oldBitmap===undefined)delete globalThis.createImageBitmap;else globalThis.createImageBitmap=oldBitmap;
+  if(oldImage===undefined)delete globalThis.Image;else globalThis.Image=oldImage;
+ }
 });
