@@ -115,3 +115,6 @@
   position:fixed;inset:auto 12px auto auto;top:max(12px,env(safe-area-inset-top));width:min(320px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);z-index:100;
  }
 }
+
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools:not([open]) > :is(.ft-options-list,.ft-toolbar-menu){display:none;}
+.pedidos-ft-page .pedidos-ft-standalone .ft-admin-tools > :is(.ft-options-list,.ft-toolbar-menu) button:disabled{opacity:.5!important;cursor:not-allowed;}
